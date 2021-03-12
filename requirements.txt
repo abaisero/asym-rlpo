@@ -1,0 +1,16 @@
+black
+flake8
+gym
+gym-gridverse
+ipdb
+ipython
+isort
+more-itertools
+mypy
+mypy-extensions
+numpy
+pandas
+pyflakes
+pylint
+pytest
+torch
