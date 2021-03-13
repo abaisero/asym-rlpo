@@ -60,12 +60,13 @@ class Episode(Generic[S, A, O]):
 # Do we always assume that we give full episodes into it?  Any scenario where
 # we want to add individual interactions into it?  that would be a bit iffy..
 # For now, I assume only full (but possibly truncated) episodes are appended.
+
+# TODO actually flat list of interactions is more annoying than it needs to
+# be..  especially if we're going to sample full episodes, we should directly
+# use lists of episodes (as done in EpisodeBuffer2)
 class EpisodeBuffer(Generic[S, A, O]):
     def __init__(self, maxlen: int):
-        self.maxlen = maxlen
-        self.interactions: Deque[Interaction[S, A, O]] = deque(
-            [], maxlen=maxlen
-        )
+        self.interactions: Deque[Interaction[S, A, O]] = deque(maxlen=maxlen)
 
     def num_interactions(self):
         return len(self.interactions)
@@ -98,3 +99,24 @@ class EpisodeBuffer(Generic[S, A, O]):
             self.interactions[i] for i in range(index_start, index_end)
         ]
         return Episode(interactions)
+
+
+class EpisodeBuffer2(Generic[S, A, O]):
+    def __init__(self, maxlen: int):
+        self.episodes: Deque[Episode[S, A, O]] = deque(maxlen=maxlen)
+
+    def num_interactions(self):
+        return sum(len(episode) for episode in self.episodes)
+
+    def num_episodes(self):
+        return len(self.episodes)
+
+    def append_episode(self, episode: Episode[S, A, O]):
+        self.episodes.append(episode)
+
+    def append_episodes(self, episodes: Sequence[Episode[S, A, O]]):
+        for episode in episodes:
+            self.append_episode(episode)
+
+    def sample_episode(self) -> Episode[S, A, O]:
+        return random.choice(self.episodes)

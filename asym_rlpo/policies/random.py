@@ -4,7 +4,7 @@ from .base import Policy
 
 
 class RandomPolicy(Policy):
-    def __init__(self, action_space: gym.spaces.Space):
+    def __init__(self, action_space: gym.Space):
         super().__init__()
         self.action_space = action_space
 
