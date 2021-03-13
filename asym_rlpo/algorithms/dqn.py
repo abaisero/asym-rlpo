@@ -23,7 +23,9 @@ class DQN(Algorithm):
         )
 
     def behavior_policy(self) -> Policy:
+        # TODO implement and instantiate the epsilon-greedy policy
         return RandomPolicy(self.env.action_space)
 
     def target_policy(self) -> Policy:
+        # TODO implement and instantiate the argmax policy
         return RandomPolicy(self.env.action_space)
