@@ -2,7 +2,8 @@
 
 from asym_rlpo.algorithms import make_algorithm
 from asym_rlpo.env import make_env
-from asym_rlpo.sampling import evaluate, sample_episodes
+from asym_rlpo.evaluation import evaluate
+from asym_rlpo.sampling import sample_episodes
 from asym_rlpo.utils.stats import standard_error
 
 

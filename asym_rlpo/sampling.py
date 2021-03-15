@@ -4,16 +4,14 @@ import gym
 import numpy as np
 
 from asym_rlpo.policies import Policy
-from asym_rlpo.utils.returns import returns
 
-from .data import Episode, Interaction
+from .data import Episode, Interaction, RawEpisode
 
 # gridverse types
 GV_State = Dict[str, np.ndarray]
-GV_Action = int
 GV_Observation = Dict[str, np.ndarray]
-GV_Interaction = Interaction[GV_State, GV_Action, GV_Observation]
-GV_Episode = Episode[GV_State, GV_Action, GV_Observation]
+GV_Interaction = Interaction[GV_State, GV_Observation]
+GV_Episode = Episode[GV_State, GV_Observation]
 
 
 # TODO do we even need a full-episoe sampling method???  I use it for on-policy
@@ -56,7 +54,7 @@ def sample_episode(
         if done:
             break
 
-    return Episode(interactions)
+    return Episode(RawEpisode(interactions))
 
 
 def sample_episodes(
@@ -68,39 +66,10 @@ def sample_episodes(
     ]
 
 
-def sample_rewards(
-    env: gym.Env, policy: Policy, *, num_steps: int
-) -> List[float]:
-    # TODO this is means for evaluation, so we need to inject the behavior
-    # policy into the sample_episode methods
-    episode = sample_episode(env, policy, num_steps=num_steps)
-    return [interaction.reward for interaction in episode.interactions]
-
-
-def evaluate(
-    env: gym.Env,
-    policy: Policy,
-    *,
-    discount: float,
-    num_episodes: int,
-    num_steps: int
-) -> np.ndarray:
-    # """Return a few empirical returns
-
-    # Args:
-    #     env (gym.Env): env
-    #     discount (float): discount
-    #     num_episodes (int): number of independent sample episode
-    #     num_steps (int): max number of time-steps
-
-    # Returns:
-    #     np.ndarray:
-    # """
-    rewards = [
-        sample_rewards(env, policy, num_steps=num_steps)
-        for _ in range(num_episodes)
-    ]
-    max_num_steps = max(len(rs) for rs in rewards)
-    rewards = [np.pad(rs, (0, max_num_steps - len(rs))) for rs in rewards]
-    rewards = np.vstack(rewards)
-    return returns(rewards, discount)
+# def sample_rewards(
+#     env: gym.Env, policy: Policy, *, num_steps: int
+# ) -> np.ndarray:
+#     # TODO this is means for evaluation, so we need to inject the behavior
+#     # policy into the sample_episode methods
+#     episode = sample_episode(env, policy, num_steps=num_steps)
+#     return [interaction.reward for interaction in episode.interactions]

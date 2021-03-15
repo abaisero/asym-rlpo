@@ -4,7 +4,7 @@ import torch.nn as nn
 from .base import Representation
 
 
-class RNNHistoryRepresentation(Representation, torch.Module):
+class RNNHistoryRepresentation(Representation, nn.Module):
     def __init__(
         self,
         action_representation: Representation,
@@ -32,8 +32,18 @@ class RNNHistoryRepresentation(Representation, torch.Module):
     def dim(self):
         return self.rnn.hidden_size
 
-    def __call__(self, actions, observations, *, hidden=None):
-        action_features = self.action_representation(actions)
-        observation_features = self.observation_representation(observations)
-        inputs = torch.cat([action_features, observation_features], dim=-1)
+    def __call__(self, inputs, *, hidden=None):
+        # TODO usage of ActionRepresentation and Observation representation
+        # removed because we need more flexibility... (i.e., being able to only
+        # use an observation at first!)
+
+        # action_features = self.action_representation(actions)
+        # observation_features = self.observation_representation(observations)
+        # inputs = torch.cat([action_features, observation_features], dim=-1)
         return self.rnn(inputs, hidden)
+
+    # def __call__(self, actions, observations, *, hidden=None):
+    #     action_features = self.action_representation(actions)
+    #     observation_features = self.observation_representation(observations)
+    #     inputs = torch.cat([action_features, observation_features], dim=-1)
+    #     return self.rnn(inputs, hidden)

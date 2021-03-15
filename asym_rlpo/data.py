@@ -1,38 +1,42 @@
 import random
 from collections import deque
-from typing import Deque, Generic, Optional, Sequence, TypeVar
+from typing import Deque, Dict, Generic, Optional, Sequence, TypeVar
 
+import numpy as np
+
+from asym_rlpo.utils.collate import collate
 from asym_rlpo.utils.debugging import checkraise
 
-S = TypeVar('S')
-A = TypeVar('A')
-O = TypeVar('O')
+S = TypeVar('S', np.ndarray, Dict[str, np.ndarray])
+O = TypeVar('O', np.ndarray, Dict[str, np.ndarray])
 
 
-class Interaction(Generic[S, A, O]):
+class Interaction(Generic[S, O]):
     def __init__(
         self,
         *,
         state: S,
         observation: O,
-        action: A,
+        action: int,
         reward: float,
         start: bool,
         done: bool,
     ):
-        self.state = state
-        self.observation = observation
+        self.state: S = state
+        self.observation: O = observation
         self.action = action
         self.reward = reward
         self.start = start
         self.done = done
 
 
-class Episode(Generic[S, A, O]):
+class RawEpisode(Generic[S, O]):
     def __init__(
-        self, interactions: Optional[Sequence[Interaction[S, A, O]]] = None
+        self, interactions: Optional[Sequence[Interaction[S, O]]] = None
     ):
-        self.interactions = interactions if interactions is not None else []
+        self.interactions: Sequence[Interaction[S, O]] = (
+            interactions if interactions is not None else []
+        )
         self.check()
 
     def __len__(self):
@@ -56,6 +60,31 @@ class Episode(Generic[S, A, O]):
         # checkraise(dones[-1], ValueError, 'last `done` must be True')
 
 
+class Episode(Generic[S, O]):
+    def __init__(self, episode: RawEpisode[S, O]):
+        self.states: S = collate(
+            [interaction.state for interaction in episode.interactions]
+        )
+        self.observations: O = collate(
+            [interaction.observation for interaction in episode.interactions]
+        )
+        self.actions = collate(
+            [interaction.action for interaction in episode.interactions]
+        )
+        self.rewards = collate(
+            [interaction.reward for interaction in episode.interactions]
+        )
+        self.starts = collate(
+            [interaction.start for interaction in episode.interactions]
+        )
+        self.dones = collate(
+            [interaction.done for interaction in episode.interactions]
+        )
+
+    def __len__(self):
+        return len(self.dones)
+
+
 # TODO how do we want to structure this?  I assume flat list of interactions?
 # Do we always assume that we give full episodes into it?  Any scenario where
 # we want to add individual interactions into it?  that would be a bit iffy..
@@ -64,9 +93,9 @@ class Episode(Generic[S, A, O]):
 # TODO actually flat list of interactions is more annoying than it needs to
 # be..  especially if we're going to sample full episodes, we should directly
 # use lists of episodes (as done in EpisodeBuffer2)
-class EpisodeBuffer(Generic[S, A, O]):
+class RawEpisodeBuffer(Generic[S, O]):
     def __init__(self, maxlen: int):
-        self.interactions: Deque[Interaction[S, A, O]] = deque(maxlen=maxlen)
+        self.interactions: Deque[Interaction[S, O]] = deque(maxlen=maxlen)
 
     def num_interactions(self):
         return len(self.interactions)
@@ -74,15 +103,15 @@ class EpisodeBuffer(Generic[S, A, O]):
     def num_episodes(self):
         return sum(interaction.start for interaction in self.interactions)
 
-    def append_episode(self, episode: Episode[S, A, O]):
+    def append_episode(self, episode: RawEpisode[S, O]):
         for interaction in episode.interactions:
             self.interactions.append(interaction)
 
-    def append_episodes(self, episodes: Sequence[Episode[S, A, O]]):
+    def append_episodes(self, episodes: Sequence[RawEpisode[S, O]]):
         for episode in episodes:
             self.append_episode(episode)
 
-    def sample_episode(self) -> Episode[S, A, O]:
+    def sample_episode(self) -> RawEpisode[S, O]:
         start_indices = [
             i
             for i, interaction in enumerate(self.interactions)
@@ -98,12 +127,12 @@ class EpisodeBuffer(Generic[S, A, O]):
         interactions = [
             self.interactions[i] for i in range(index_start, index_end)
         ]
-        return Episode(interactions)
+        return RawEpisode(interactions)
 
 
-class EpisodeBuffer2(Generic[S, A, O]):
+class EpisodeBuffer(Generic[S, O]):
     def __init__(self, maxlen: int):
-        self.episodes: Deque[Episode[S, A, O]] = deque(maxlen=maxlen)
+        self.episodes: Deque[Episode[S, O]] = deque(maxlen=maxlen)
 
     def num_interactions(self):
         return sum(len(episode) for episode in self.episodes)
@@ -111,12 +140,12 @@ class EpisodeBuffer2(Generic[S, A, O]):
     def num_episodes(self):
         return len(self.episodes)
 
-    def append_episode(self, episode: Episode[S, A, O]):
+    def append_episode(self, episode: Episode[S, O]):
         self.episodes.append(episode)
 
-    def append_episodes(self, episodes: Sequence[Episode[S, A, O]]):
+    def append_episodes(self, episodes: Sequence[Episode[S, O]]):
         for episode in episodes:
             self.append_episode(episode)
 
-    def sample_episode(self) -> Episode[S, A, O]:
+    def sample_episode(self) -> Episode[S, O]:
         return random.choice(self.episodes)
