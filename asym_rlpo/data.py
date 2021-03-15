@@ -1,6 +1,6 @@
 import random
 from collections import deque
-from typing import Deque, Dict, Generic, Optional, Sequence, TypeVar
+from typing import Deque, Dict, Generic, List, Optional, Sequence, TypeVar
 
 import numpy as np
 
@@ -31,6 +31,8 @@ class Interaction(Generic[S, O]):
 
 
 class RawEpisode(Generic[S, O]):
+    """Storage for non-collated episode data."""
+
     def __init__(
         self, interactions: Optional[Sequence[Interaction[S, O]]] = None
     ):
@@ -61,6 +63,8 @@ class RawEpisode(Generic[S, O]):
 
 
 class Episode(Generic[S, O]):
+    """Storage for collated episode data."""
+
     def __init__(self, episode: RawEpisode[S, O]):
         self.states: S = collate(
             [interaction.state for interaction in episode.interactions]
@@ -149,3 +153,17 @@ class EpisodeBuffer(Generic[S, O]):
 
     def sample_episode(self) -> Episode[S, O]:
         return random.choice(self.episodes)
+
+    def sample_episodes(
+        self, *, num_samples: int, replacement: bool
+    ) -> List[Episode[S, O]]:
+
+        if replacement:
+            episodes = random.choices(self.episodes, k=num_samples)
+
+        else:
+            indices = list(range(self.num_episodes()))
+            random.shuffle(indices)
+            episodes = [self.episodes[i] for i in indices[:num_samples]]
+
+        return episodes

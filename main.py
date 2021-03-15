@@ -9,6 +9,8 @@ from asym_rlpo.utils.stats import standard_error
 
 def main():
     env = make_env('gv_yaml/gv_nine_rooms.13x13.yaml')
+    discount = 0.99
+
     algorithm = make_algorithm('dqn', env)
 
     num_epochs = 1_000
@@ -22,7 +24,7 @@ def main():
             returns = evaluate(
                 env,
                 algorithm.target_policy(),
-                discount=0.99,
+                discount=discount,
                 num_episodes=num_episodes_evaluation,
                 num_steps=num_steps,
             )

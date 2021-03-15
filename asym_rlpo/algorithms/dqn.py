@@ -58,7 +58,7 @@ class DQN(Algorithm):
 
 
 class DQN_BehaviorPolicy(Policy):
-    # TODO implement and instantiate the argmax policy
+    # TODO implement and instantiate the epsilon-greedy policy
 
     def __init__(self, models: nn.ModuleDict, action_space: gym.Space):
         super().__init__()
@@ -81,7 +81,7 @@ class DQN_BehaviorPolicy(Policy):
 
 
 class DQN_TargetPolicy(Policy):
-    # TODO implement and instantiate the epsilon-greedy policy
+    # TODO implement and instantiate the argmax policy
 
     def __init__(self, models: nn.ModuleDict, action_space: gym.Space):
         super().__init__()
