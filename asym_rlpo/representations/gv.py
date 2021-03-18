@@ -65,7 +65,7 @@ class GV_ObservationRepresentation(Representation, nn.Module):
     def dim(self):
         return self.__out_dim
 
-    def __call__(self, observations: GV_Observation):
+    def forward(self, observations: GV_Observation):
         # TODO this method should be able to receive multiple states..
         # how should that be structured?  directly as compacted tensors?
         inputs = torch.cat(
@@ -116,7 +116,7 @@ class GV_StateRepresentation(Representation, nn.Module):
     def dim(self):
         return self.__out_dim
 
-    def __call__(self, states: GV_State):
+    def forward(self, states: GV_State):
         # TODO this method should be able to receive multiple states..
         # how should that be structured?  directly as compacted tensors?
         inputs = torch.cat(

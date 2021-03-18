@@ -14,5 +14,5 @@ class RandomPolicy(Policy):
     def step(self, action, observation):
         pass
 
-    def sample_action(self):
+    def sample_action(self, state):
         return self.action_space.sample()

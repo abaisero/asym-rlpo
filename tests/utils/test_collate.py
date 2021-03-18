@@ -12,6 +12,14 @@ from asym_rlpo.utils.collate import collate
         ),
         (
             [
+                (0, 1),
+                (2, 3),
+                (4, 5),
+            ],
+            np.array([[0, 1], [2, 3], [4, 5]]),
+        ),
+        (
+            [
                 np.array([0, 1]),
                 np.array([2, 3]),
                 np.array([4, 5]),

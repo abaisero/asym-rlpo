@@ -7,7 +7,12 @@ T = TypeVar('T', np.ndarray, Dict[str, np.ndarray])
 
 
 @overload
-def collate(data: Sequence[Union[int, float]]) -> np.ndarray:
+def collate(data: Sequence[Union[bool, int, float]]) -> np.ndarray:
+    ...
+
+
+@overload
+def collate(data: Sequence[Sequence[Union[bool, int, float]]]) -> np.ndarray:
     ...
 
 
@@ -17,7 +22,10 @@ def collate(data: Sequence[T]) -> T:
 
 
 def collate(data):
-    if isinstance(data[0], Number):
+    if np.isscalar(data[0]):
+        return np.array(data)
+
+    if isinstance(data[0], tuple):
         return np.array(data)
 
     if isinstance(data[0], np.ndarray):

@@ -1,7 +1,7 @@
 import gym
 import numpy as np
 
-from asym_rlpo.policies import Policy
+from asym_rlpo.policies.base import Policy
 from asym_rlpo.sampling import sample_episode
 from asym_rlpo.utils.returns import returns
 
@@ -12,7 +12,7 @@ def evaluate(
     *,
     discount: float,
     num_episodes: int,
-    num_steps: int
+    num_steps: int,
 ) -> np.ndarray:
     """Return a few empirical returns
 
