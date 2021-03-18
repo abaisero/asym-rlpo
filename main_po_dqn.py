@@ -8,48 +8,97 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from asym_rlpo.data import Batch, Episode, EpisodeBuffer
+import wandb
+from asym_rlpo.data import Episode, EpisodeBuffer
 from asym_rlpo.env import make_env
 from asym_rlpo.evaluation import evaluate
 from asym_rlpo.modules import make_module
-from asym_rlpo.policies.base import FullyObservablePolicy
+from asym_rlpo.policies.base import PartiallyObservablePolicy
 from asym_rlpo.policies.random import RandomPolicy
+from asym_rlpo.representations.embedding import EmbeddingRepresentation
+
+# from asym_rlpo.representations.gv import GV_ObservationRepresentation
+from asym_rlpo.representations.history import RNNHistoryRepresentation
+from asym_rlpo.representations.identity import IdentityRepresentation
+from asym_rlpo.representations.mlp import MLPRepresentation
+from asym_rlpo.representations.onehot import OneHotRepresentation
 from asym_rlpo.sampling import sample_episodes
 from asym_rlpo.utils.scheduling import make_schedule
 from asym_rlpo.utils.stats import standard_error
 
 
-class TargetPolicy(FullyObservablePolicy):
+class TargetPolicy(PartiallyObservablePolicy):
     def __init__(self, models: nn.ModuleDict):
         super().__init__()
         self.models = models
 
-    def fo_sample_action(self, state):
-        q_values = self.models.q_model(state.unsqueeze(0)).squeeze(0)
+        self.history_features = None
+        self.hidden = None
+
+    def reset(self, observation):
+        action_features = torch.zeros(self.models.action_model.dim)
+        observation_features = self.models.observation_model(observation)
+        self._update(action_features, observation_features)
+
+    def step(self, action, observation):
+        action_features = self.models.action_model(action)
+        observation_features = self.models.observation_model(observation)
+        self._update(action_features, observation_features)
+
+    def _update(self, action_features, observation_features):
+        input_features = (
+            torch.cat([action_features, observation_features])
+            .unsqueeze(0)
+            .unsqueeze(0)
+        )
+        self.history_features, self.hidden = self.models.history_model(
+            input_features, hidden=self.hidden
+        )
+        self.history_features = self.history_features.squeeze(0).squeeze(0)
+
+    def po_sample_action(self):
+        q_values = self.models.q_model(self.history_features)
         return q_values.argmax().item()
 
 
-class BehaviorPolicy(FullyObservablePolicy):
+class BehaviorPolicy(PartiallyObservablePolicy):
     def __init__(self, models: nn.ModuleDict, action_space: gym.Space):
         super().__init__()
         self.target_policy = TargetPolicy(models)
         self.action_space = action_space
         self.epsilon: float
 
-    def fo_sample_action(self, state):
+    def reset(self, observation):
+        self.target_policy.reset(observation)
+
+    def step(self, action, observation):
+        self.target_policy.step(action, observation)
+
+    def po_sample_action(self):
         return (
             self.action_space.sample()
             if random.random() < self.epsilon
-            else self.target_policy.fo_sample_action(state)
+            else self.target_policy.po_sample_action()
         )
 
 
 def make_models(env: gym.Env) -> nn.ModuleDict:
     # TODO eventually change models depending on environment
     if re.fullmatch(r'CartPole-v\d+', env.spec.id):
-        (input_dim,) = env.state_space.shape
+        # action_model = EmbeddingRepresentation(env.action_space.n, 128)
+        # observation_model = MLPRepresentation(env.observation_space, 128)
+
+        action_model = OneHotRepresentation(env.action_space)
+        observation_model = IdentityRepresentation(env.observation_space)
+
+        history_model = RNNHistoryRepresentation(
+            action_model,
+            observation_model,
+            hidden_size=128,
+            nonlinearity='tanh',
+        )
         q_model = nn.Sequential(
-            make_module('linear', 'leaky_relu', input_dim, 512),
+            make_module('linear', 'leaky_relu', history_model.dim, 512),
             nn.LeakyReLU(),
             make_module('linear', 'leaky_relu', 512, 256),
             nn.LeakyReLU(),
@@ -57,13 +106,22 @@ def make_models(env: gym.Env) -> nn.ModuleDict:
         )
         models = nn.ModuleDict(
             {
+                'action_model': action_model,
+                'observation_model': observation_model,
+                'history_model': history_model,
                 'q_model': q_model,
             }
         )
 
     else:
         raise NotImplementedError
+        # action_model = EmbeddingRepresentation(env.action_space.n, 64)
         # observation_model = GV_ObservationRepresentation(env.observation_space)
+        # history_model = RNNHistoryRepresentation(
+        #     action_model,
+        #     observation_model,
+        #     hidden_size=128,
+        # )
         # q_model = nn.Sequential(
         #     nn.Linear(history_model.dim, 128),
         #     nn.ReLU(),
@@ -73,7 +131,9 @@ def make_models(env: gym.Env) -> nn.ModuleDict:
         # )
         # models = nn.ModuleDict(
         #     {
-        #         'state_model': state_model,
+        #         'action_model': action_model,
+        #         'observation_model': observation_model,
+        #         'history_model': history_model,
         #         'q_model': q_model,
         #     }
         # )
@@ -82,6 +142,8 @@ def make_models(env: gym.Env) -> nn.ModuleDict:
 
 
 def main():  # pylint: disable=too-many-locals
+    run = wandb.init(project='asym-rlpo', entity='abaisero', group='dqn')
+
     # hyper-parameters
     num_epochs = 1_000_000
     num_episodes_training = 1
@@ -96,13 +158,6 @@ def main():  # pylint: disable=too-many-locals
     target_update_period = 10  # unclear;  lower maybe?
     num_optimizer_steps = 4  # TODO make dynamic
 
-    episodic_training = True  #  selected between episodic and batch training
-
-    episodes_buffer_batch_size = 64
-
-    # TODO still can't get consistently good performance;   we might need to do
-    # hyper-param optimization right away..
-
     epsilon_schedule_name = 'linear'
     epsilon_value_from = 1.0
     epsilon_value_to = 0.05
@@ -116,7 +171,9 @@ def main():  # pylint: disable=too-many-locals
 
     # insiantiate environment
     print('creating environment')
-    env = make_env('PO-CartPole-v1')
+    env = make_env('PO-pos-CartPole-v1')
+    # env = make_env('PO-vel-CartPole-v1')
+    # env = make_env('PO-full-CartPole-v1')
     # env = make_env('gv_yaml/gv_nine_rooms.13x13.yaml')
     discount = 1.0
 
@@ -155,6 +212,8 @@ def main():  # pylint: disable=too-many-locals
         nsteps=epsilon_nsteps,
     )
 
+    wandb.watch(models)
+
     # main learning loop
     for epoch in range(num_epochs):
         models.eval()
@@ -180,6 +239,13 @@ def main():  # pylint: disable=too-many-locals
             )
             mean, sem = returns.mean(), standard_error(returns)
             print(f'EVALUATE epoch {epoch} return {mean:.3f} ({sem:.3f})')
+            for ret in returns:
+                wandb.log(
+                    {
+                        'epoch': epoch,
+                        'ret': ret,
+                    }
+                )
 
         # populate episode buffer
         behavior_policy.epsilon = epsilon_schedule(epoch)
@@ -204,104 +270,74 @@ def main():  # pylint: disable=too-many-locals
         models.train()
         target_models.train()
 
-        for _ in range(num_optimizer_steps):
+        for optimization_step in range(num_optimizer_steps):
+            episodes = episode_buffer.sample_episodes(
+                num_samples=num_episodes_buffer_samples,
+                replacement=True,
+            )
+
             optimizer.zero_grad()
-
-            if episodic_training:
-                # sample and train on entire episodes
-                episodes = episode_buffer.sample_episodes(
-                    num_samples=num_episodes_buffer_samples,
-                    replacement=True,
-                )
-                loss = dqn_loss_episodic(
-                    models, target_models, episodes, discount
-                )
-
-            else:
-                # sample and train on a batch of independent transitions
-                batch = episode_buffer.sample_batch(
-                    batch_size=episodes_buffer_batch_size,
-                )
-                loss = dqn_loss_batch(models, target_models, batch, discount)
-
+            loss = dqn_loss(models, target_models, episodes, discount)
             loss.backward()
-            nn.utils.clip_grad_norm_(models.parameters(), max_norm=10.0)
 
-            # # print(f'LOSS: {loss.item()}')
+            wandb.log(
+                {
+                    'epoch': epoch,
+                    'optimization_step': optimization_step,
+                    'loss': loss,
+                }
+            )
+
+            # TODO right now the losses and the gradients are both increasing,
+            # slowly but surely, over time
+
+            # print(f'LOSS: {loss.item()}')
             # total_norm = 0.0
             # for p in models.parameters():
             #     param_norm = p.grad.data.norm(2)
             #     total_norm += param_norm.item() ** 2
             # total_norm = total_norm ** (1.0 / 2)
             # print(f'P-NORM: {total_norm}')
-            # inf_norm = max(p.grad.data.abs().max() for p in models.parameters())
-            # print(f'inf-NORM: {inf_norm}')
 
             # TODO clip gradients
             optimizer.step()
 
-
-def dqn_loss_batch(
-    models: nn.ModuleDict,
-    target_models: nn.ModuleDict,
-    batch: Batch,
-    discount: float,
-) -> torch.Tensor:
-
-    batch = batch.torch()
-
-    q_values = models.q_model(batch.states)
-    with torch.no_grad():
-        target_q_values = target_models.q_model(batch.next_states)
-
-    # print(q_values.argmax(-1))
-    # print(
-    #     torch.stack(
-    #         [
-    #             q_values.mean(-1),
-    #             # q_values.max(-1).values - q_values.min(-1).values,
-    #             q_values[:, 0] - q_values.mean(-1),
-    #             q_values[:, 1] - q_values.mean(-1),
-    #         ],
-    #         -1,
-    #     )
-    # )
-
-    q_values = q_values.gather(1, batch.actions.unsqueeze(-1)).squeeze(-1)
-    q_values_bootstrap = torch.tensor(0.0).where(
-        batch.dones, target_q_values.max(-1).values
-    )
-
-    # print(batch.rewards + discount * q_values_bootstrap)
-
-    # print(q_values)
-    loss = F.mse_loss(
-        q_values,
-        batch.rewards + discount * q_values_bootstrap,
-    )
-    return loss
+    run.finish()
 
 
-def dqn_loss_episodic(
+def dqn_loss(
     models: nn.ModuleDict,
     target_models: nn.ModuleDict,
     episodes: Sequence[Episode],
     discount: float,
 ) -> torch.Tensor:
+    def compute_q_values(models, actions, observations):
+        action_features = models.action_model(actions)
+        action_features = action_features.roll(1, 0)
+        action_features[0, :] = 0.0
+        observation_features = models.observation_model(observations)
+        inputs = torch.cat([action_features, observation_features], dim=-1)
+        history_features, _ = models.history_model(inputs.unsqueeze(0))
+        history_features = history_features.squeeze(0)
+        q_values = models.q_model(history_features)
+        return q_values
 
     losses = []
     for episode in episodes:
         episode = episode.torch()
 
-        q_values = models.q_model(episode.states)
+        q_values = compute_q_values(
+            models, episode.actions, episode.observations
+        )
         with torch.no_grad():
-            target_q_values = target_models.q_model(episode.states)
+            target_q_values = compute_q_values(
+                target_models, episode.actions, episode.observations
+            )
 
         q_values = q_values.gather(1, episode.actions.unsqueeze(-1)).squeeze(-1)
         q_values_bootstrap = torch.tensor(0.0).where(
             episode.dones, target_q_values.max(-1).values.roll(-1, 0)
         )
-
         loss = F.mse_loss(
             q_values,
             episode.rewards + discount * q_values_bootstrap,

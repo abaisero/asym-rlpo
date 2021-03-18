@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import wandb
 from asym_rlpo.data import Episode, EpisodeBuffer
 from asym_rlpo.env import make_env
 from asym_rlpo.evaluation import evaluate
@@ -15,8 +16,7 @@ from asym_rlpo.modules import make_module
 from asym_rlpo.policies.base import PartiallyObservablePolicy
 from asym_rlpo.policies.random import RandomPolicy
 from asym_rlpo.representations.embedding import EmbeddingRepresentation
-
-# from asym_rlpo.representations.gv import GV_ObservationRepresentation
+from asym_rlpo.representations.gv import GV_ObservationRepresentation
 from asym_rlpo.representations.history import RNNHistoryRepresentation
 from asym_rlpo.representations.identity import IdentityRepresentation
 from asym_rlpo.representations.mlp import MLPRepresentation
@@ -56,7 +56,7 @@ class TargetPolicy(PartiallyObservablePolicy):
         self.history_features = self.history_features.squeeze(0).squeeze(0)
 
     def po_sample_action(self):
-        q_values = self.models.q_model(self.history_features)
+        q_values = self.models.qh_model(self.history_features)
         return q_values.argmax().item()
 
 
@@ -88,6 +88,7 @@ def make_models(env: gym.Env) -> nn.ModuleDict:
         # observation_model = MLPRepresentation(env.observation_space, 128)
 
         action_model = OneHotRepresentation(env.action_space)
+        state_model = IdentityRepresentation(env.state_space)
         observation_model = IdentityRepresentation(env.observation_space)
 
         history_model = RNNHistoryRepresentation(
@@ -96,8 +97,17 @@ def make_models(env: gym.Env) -> nn.ModuleDict:
             hidden_size=128,
             nonlinearity='tanh',
         )
-        q_model = nn.Sequential(
+        qh_model = nn.Sequential(
             make_module('linear', 'leaky_relu', history_model.dim, 512),
+            nn.LeakyReLU(),
+            make_module('linear', 'leaky_relu', 512, 256),
+            nn.LeakyReLU(),
+            make_module('linear', 'linear', 256, env.action_space.n),
+        )
+        qhs_model = nn.Sequential(
+            make_module(
+                'linear', 'leaky_relu', history_model.dim + state_model.dim, 512
+            ),
             nn.LeakyReLU(),
             make_module('linear', 'leaky_relu', 512, 256),
             nn.LeakyReLU(),
@@ -107,8 +117,10 @@ def make_models(env: gym.Env) -> nn.ModuleDict:
             {
                 'action_model': action_model,
                 'observation_model': observation_model,
+                'state_model': state_model,
                 'history_model': history_model,
-                'q_model': q_model,
+                'qh_model': qh_model,
+                'qhs_model': qhs_model,
             }
         )
 
@@ -141,6 +153,8 @@ def make_models(env: gym.Env) -> nn.ModuleDict:
 
 
 def main():  # pylint: disable=too-many-locals
+    run = wandb.init(project='asym-rlpo', entity='abaisero', group='adqn')
+
     # hyper-parameters
     num_epochs = 1_000_000
     num_episodes_training = 1
@@ -161,10 +175,10 @@ def main():  # pylint: disable=too-many-locals
     epsilon_nsteps = num_epochs
 
     optim_lr = 0.001
-    optim_lr = 0.0001
+    # optim_lr = 0.0001
 
     optim_eps = 1e-08
-    optim_eps = 1e-04
+    # optim_eps = 1e-04
 
     # insiantiate environment
     print('creating environment')
@@ -209,7 +223,10 @@ def main():  # pylint: disable=too-many-locals
         nsteps=epsilon_nsteps,
     )
 
+    wandb.watch(models)
+
     # main learning loop
+    timestep = 0
     for epoch in range(num_epochs):
         models.eval()
 
@@ -234,6 +251,14 @@ def main():  # pylint: disable=too-many-locals
             )
             mean, sem = returns.mean(), standard_error(returns)
             print(f'EVALUATE epoch {epoch} return {mean:.3f} ({sem:.3f})')
+            for ret in returns:
+                wandb.log(
+                    {
+                        'epoch': epoch,
+                        'timestep': timestep,
+                        'return': ret,
+                    }
+                )
 
         # populate episode buffer
         behavior_policy.epsilon = epsilon_schedule(epoch)
@@ -258,15 +283,24 @@ def main():  # pylint: disable=too-many-locals
         models.train()
         target_models.train()
 
-        for _ in range(num_optimizer_steps):
-            episodes = episode_buffer.sample_episodes(
+        for optimization_step in range(num_optimizer_steps):
+            training_episodes = episode_buffer.sample_episodes(
                 num_samples=num_episodes_buffer_samples,
                 replacement=True,
             )
 
             optimizer.zero_grad()
-            loss = dqn_loss(models, target_models, episodes, discount)
+            loss = dqn_loss(models, target_models, training_episodes, discount)
             loss.backward()
+
+            wandb.log(
+                {
+                    'epoch': epoch,
+                    'timestep': timestep,
+                    'optimization_step': optimization_step,
+                    'loss': loss,
+                }
+            )
 
             # TODO right now the losses and the gradients are both increasing,
             # slowly but surely, over time
@@ -282,6 +316,10 @@ def main():  # pylint: disable=too-many-locals
             # TODO clip gradients
             optimizer.step()
 
+        timestep += sum(len(episode) for episode in episodes)
+
+    run.finish()
+
 
 def dqn_loss(
     models: nn.ModuleDict,
@@ -289,37 +327,118 @@ def dqn_loss(
     episodes: Sequence[Episode],
     discount: float,
 ) -> torch.Tensor:
-    def compute_q_values(models, actions, observations):
+    def compute_q_values(models, actions, observations, states):
         action_features = models.action_model(actions)
         action_features = action_features.roll(1, 0)
         action_features[0, :] = 0.0
         observation_features = models.observation_model(observations)
+
         inputs = torch.cat([action_features, observation_features], dim=-1)
         history_features, _ = models.history_model(inputs.unsqueeze(0))
         history_features = history_features.squeeze(0)
-        q_values = models.q_model(history_features)
-        return q_values
+        qh_values = models.qh_model(history_features)
+
+        state_features = models.state_model(states)
+        inputs = torch.cat([history_features, state_features], dim=-1)
+        qhs_values = models.qhs_model(inputs)
+
+        return qh_values, qhs_values
+
+    def qhs_loss(
+        episode,
+        qh_values,
+        qhs_values,
+        target_qh_values,
+        target_qhs_values,
+    ) -> torch.Tensor:
+
+        qhs_values = qhs_values.gather(
+            1, episode.actions.unsqueeze(-1)
+        ).squeeze(-1)
+        qhs_values_bootstrap = torch.tensor(0.0).where(
+            episode.dones,
+            target_qhs_values.gather(
+                1, target_qh_values.argmax(-1).unsqueeze(-1)
+            )
+            .squeeze(-1)
+            .roll(-1, 0),
+        )
+
+        loss = F.mse_loss(
+            qhs_values,
+            episode.rewards + discount * qhs_values_bootstrap,
+        )
+        return loss
+
+    def qh_loss(
+        episode,
+        qh_values,
+        qhs_values,
+        target_qh_values,
+        target_qhs_values,
+    ) -> torch.Tensor:
+        # loss = F.mse_loss(qh_values, target_qhs_values)
+        # return loss
+
+        # qh_values = qh_values.gather(1, episode.actions.unsqueeze(-1)).squeeze(
+        #     -1
+        # )
+        # target_qhs_values = target_qhs_values.gather(
+        #     1, episode.actions.unsqueeze(-1)
+        # ).squeeze(-1)
+        # loss = F.mse_loss(qh_values, target_qhs_values)
+        # return loss
+
+        qh_values = qh_values.gather(1, episode.actions.unsqueeze(-1)).squeeze(
+            -1
+        )
+        qhs_values_bootstrap = torch.tensor(0.0).where(
+            episode.dones,
+            target_qhs_values.gather(
+                1, target_qh_values.argmax(-1).unsqueeze(-1)
+            )
+            .squeeze(-1)
+            .roll(-1, 0),
+        )
+
+        loss = F.mse_loss(
+            qh_values,
+            episode.rewards + discount * qhs_values_bootstrap,
+        )
+        return loss
 
     losses = []
     for episode in episodes:
         episode = episode.torch()
 
-        q_values = compute_q_values(
-            models, episode.actions, episode.observations
+        qh_values, qhs_values = compute_q_values(
+            models, episode.actions, episode.observations, episode.states
         )
         with torch.no_grad():
-            target_q_values = compute_q_values(
-                target_models, episode.actions, episode.observations
+            target_qh_values, target_qhs_values = compute_q_values(
+                target_models,
+                episode.actions,
+                episode.observations,
+                episode.states,
             )
 
-        q_values = q_values.gather(1, episode.actions.unsqueeze(-1)).squeeze(-1)
-        q_values_bootstrap = torch.tensor(0.0).where(
-            episode.dones, target_q_values.max(-1).values.roll(-1, 0)
-        )
-        loss = F.mse_loss(
-            q_values,
-            episode.rewards + discount * q_values_bootstrap,
-        )
+        loss = (
+            qhs_loss(
+                episode,
+                qh_values,
+                qhs_values,
+                target_qh_values,
+                target_qhs_values,
+            )
+            + qh_loss(
+                episode,
+                qh_values,
+                qhs_values,
+                target_qh_values,
+                target_qhs_values,
+            )
+        ) / 2
+
         losses.append(loss)
 
     return sum(losses, start=torch.tensor(0.0)) / len(losses)

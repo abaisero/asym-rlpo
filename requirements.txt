@@ -14,3 +14,4 @@ pyflakes
 pylint
 pytest
 torch
+wandb
