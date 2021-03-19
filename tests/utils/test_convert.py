@@ -10,7 +10,7 @@ from asym_rlpo.utils.debugging import nested_equal
     [
         (
             0,
-            torch.tensor(0),
+            0,
         ),
         (
             np.array([0, 1, 2, 3, 4, 5]),
@@ -43,5 +43,4 @@ from asym_rlpo.utils.debugging import nested_equal
     ],
 )
 def test_numpy2torch(data, expected):
-    # np.testing.assert_equal(numpy2torch(data), expected)
     assert nested_equal(numpy2torch(data), expected)

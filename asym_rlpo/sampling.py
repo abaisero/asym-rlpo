@@ -2,8 +2,10 @@ from typing import Dict, List
 
 import gym
 import numpy as np
+import torch
 
 from asym_rlpo.policies.base import Policy
+from asym_rlpo.utils.collate import collate
 from asym_rlpo.utils.convert import numpy2torch
 
 from .data import Episode, Interaction, RawEpisode
@@ -33,16 +35,18 @@ def sample_episode(
     start, done = True, False
     observation = env.reset()
     state = env.state
-    policy.reset(numpy2torch(observation))
+    policy.reset(numpy2torch(collate(observation)))
 
     if render:
         env.render()
 
     for _ in range(num_steps):
-        action = policy.sample_action(numpy2torch(state))
+        action = policy.sample_action(numpy2torch(collate(state)))
         next_observation, reward, done, _ = env.step(action)
         next_state = env.state
-        policy.step(numpy2torch(action), numpy2torch(next_observation))
+        policy.step(
+            torch.tensor(action), numpy2torch(collate(next_observation))
+        )
 
         if render:
             env.render()
