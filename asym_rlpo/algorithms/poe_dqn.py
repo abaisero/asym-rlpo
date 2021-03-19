@@ -23,60 +23,12 @@ from .base import EpisodicDQN
 class POE_DQN(EpisodicDQN):
     def make_models(self, env: gym.Env) -> nn.ModuleDict:
         if re.fullmatch(r'CartPole-v\d+', env.spec.id):
-            # action_model = EmbeddingRepresentation(env.action_space.n, 128)
-            # observation_model = MLPRepresentation(env.observation_space, 128)
+            return make_models_cartpole(env)
 
-            action_model = OneHotRepresentation(env.action_space)
-            observation_model = IdentityRepresentation(env.observation_space)
+        # if ###:
+        #     return make_models_gv(env)
 
-            history_model = RNNHistoryRepresentation(
-                action_model,
-                observation_model,
-                hidden_size=128,
-                nonlinearity='tanh',
-            )
-            q_model = nn.Sequential(
-                make_module('linear', 'leaky_relu', history_model.dim, 512),
-                nn.LeakyReLU(),
-                make_module('linear', 'leaky_relu', 512, 256),
-                nn.LeakyReLU(),
-                make_module('linear', 'linear', 256, env.action_space.n),
-            )
-            models = nn.ModuleDict(
-                {
-                    'action_model': action_model,
-                    'observation_model': observation_model,
-                    'history_model': history_model,
-                    'q_model': q_model,
-                }
-            )
-
-        else:
-            raise NotImplementedError
-            # action_model = EmbeddingRepresentation(env.action_space.n, 64)
-            # observation_model = GV_ObservationRepresentation(env.observation_space)
-            # history_model = RNNHistoryRepresentation(
-            #     action_model,
-            #     observation_model,
-            #     hidden_size=128,
-            # )
-            # q_model = nn.Sequential(
-            #     nn.Linear(history_model.dim, 128),
-            #     nn.ReLU(),
-            #     nn.Linear(128, 128),
-            #     nn.ReLU(),
-            #     nn.Linear(128, env.action_space.n),
-            # )
-            # models = nn.ModuleDict(
-            #     {
-            #         'action_model': action_model,
-            #         'observation_model': observation_model,
-            #         'history_model': history_model,
-            #         'q_model': q_model,
-            #     }
-            # )
-
-        return models
+        raise NotImplementedError
 
     def target_policy(self) -> TargetPolicy:
         return TargetPolicy(self.models)
@@ -193,3 +145,59 @@ class BehaviorPolicy(PartiallyObservablePolicy):
             if random.random() < self.epsilon
             else self.target_policy.po_sample_action()
         )
+
+
+def make_models_cartpole(env: gym.Env) -> nn.ModuleDict:
+    # action_model = EmbeddingRepresentation(env.action_space.n, 128)
+    # observation_model = MLPRepresentation(env.observation_space, 128)
+
+    action_model = OneHotRepresentation(env.action_space)
+    observation_model = IdentityRepresentation(env.observation_space)
+
+    history_model = RNNHistoryRepresentation(
+        action_model,
+        observation_model,
+        hidden_size=128,
+        nonlinearity='tanh',
+    )
+    q_model = nn.Sequential(
+        make_module('linear', 'leaky_relu', history_model.dim, 512),
+        nn.LeakyReLU(),
+        make_module('linear', 'leaky_relu', 512, 256),
+        nn.LeakyReLU(),
+        make_module('linear', 'linear', 256, env.action_space.n),
+    )
+    return nn.ModuleDict(
+        {
+            'action_model': action_model,
+            'observation_model': observation_model,
+            'history_model': history_model,
+            'q_model': q_model,
+        }
+    )
+
+
+def make_models_gv(env: gym.Env) -> nn.ModuleDict:
+    raise NotImplementedError
+    # action_model = EmbeddingRepresentation(env.action_space.n, 64)
+    # observation_model = GV_ObservationRepresentation(env.observation_space)
+    # history_model = RNNHistoryRepresentation(
+    #     action_model,
+    #     observation_model,
+    #     hidden_size=128,
+    # )
+    # q_model = nn.Sequential(
+    #     nn.Linear(history_model.dim, 128),
+    #     nn.ReLU(),
+    #     nn.Linear(128, 128),
+    #     nn.ReLU(),
+    #     nn.Linear(128, env.action_space.n),
+    # )
+    # models = nn.ModuleDict(
+    #     {
+    #         'action_model': action_model,
+    #         'observation_model': observation_model,
+    #         'history_model': history_model,
+    #         'q_model': q_model,
+    #     }
+    # )
