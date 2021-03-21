@@ -37,20 +37,21 @@ def parse_args():
     )
 
     parser.add_argument('--render', action='store_true')
+    parser.add_argument('--wandb-project', default='asym-rlpo')
 
     return parser.parse_args()
 
 
 def main(args):  # pylint: disable=too-many-locals,too-many-statements
     run = wandb.init(
-        project='asym-rlpo-new-metric',
+        project=args.wandb_project,
         entity='abaisero',
         name=f'{args.algo} - {args.env}',
     )
     wandb.config.update(args)  # pylint: disable=no-member
 
     # hyper-parameters
-    num_epochs = 10_000
+    max_simulation_timesteps = 1_000_000
     max_steps_per_episode = 1_000  # NOTE over the practical limit
 
     episode_buffer_size = 10_000
@@ -59,8 +60,8 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
 
     target_update_period = 10
 
-    evaluation_period = 10
-    evaluation_num_episodes = 10
+    evaluation_period = 100
+    evaluation_num_episodes = 20
 
     training_steps_per_epoch = 4  # TODO make dynamic?
     training_num_episodes = 4
@@ -122,9 +123,10 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
     wandb.watch(algo.models)
 
     # main learning loop
+    epoch = 0
     simulation_timesteps = 0
     training_timesteps = 0
-    for epoch in range(num_epochs):
+    while simulation_timesteps < max_simulation_timesteps:
         algo.models.eval()
 
         # evaluate target policy
@@ -211,6 +213,8 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
 
             nn.utils.clip_grad_norm_(algo.models.parameters(), max_norm=10.0)
             optimizer.step()
+
+        epoch += 1
 
     run.finish()
 
