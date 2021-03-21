@@ -7,7 +7,7 @@ import gym
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from asym_rlpo.data import EpisodeBuffer
+from asym_rlpo.data import Batch
 from asym_rlpo.modules import make_module
 from asym_rlpo.policies.base import FullyObservablePolicy
 
@@ -39,14 +39,10 @@ class FOB_DQN(BatchedDQN):
 
     def batched_loss(
         self,
-        episode_buffer: EpisodeBuffer,
+        batch: Batch,
         *,
         discount: float,
-        batch_size: int,
-    ):
-        batch = episode_buffer.sample_batch(batch_size=batch_size)
-        batch = batch.torch()
-
+    ) -> torch.Tensor:
         q_values = self.models.q_model(batch.states)
         with torch.no_grad():
             target_q_values = self.target_models.q_model(batch.next_states)

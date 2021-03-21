@@ -77,6 +77,9 @@ class Batch(Generic[S, O]):
             dones=numpy2torch(self.dones),
         )
 
+    def __len__(self):
+        return len(self.dones)
+
 
 class RawEpisode(Generic[S, O]):
     """Storage for non-collated episode data."""

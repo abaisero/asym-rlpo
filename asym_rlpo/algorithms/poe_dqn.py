@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import random
 import re
+from typing import Sequence
 
 import gym
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from asym_rlpo.data import EpisodeBuffer
+from asym_rlpo.data import Episode
 from asym_rlpo.modules import make_module
 from asym_rlpo.policies.base import PartiallyObservablePolicy
 from asym_rlpo.representations.embedding import EmbeddingRepresentation
@@ -40,17 +41,10 @@ class POE_DQN(EpisodicDQN):
 
     def episodic_loss(
         self,
-        episode_buffer: EpisodeBuffer,
+        episodes: Sequence[Episode],
         *,
         discount: float,
-        num_episodes: int,
-    ):
-
-        episodes = episode_buffer.sample_episodes(
-            num_samples=num_episodes,
-            replacement=True,
-        )
-
+    ) -> torch.Tensor:
         def compute_q_values(models, actions, observations):
             action_features = models.action_model(actions)
             action_features = action_features.roll(1, 0)
@@ -64,7 +58,6 @@ class POE_DQN(EpisodicDQN):
 
         losses = []
         for episode in episodes:
-            episode = episode.torch()
 
             q_values = compute_q_values(
                 self.models, episode.actions, episode.observations

@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 
 import wandb
-from asym_rlpo.algorithms import make_algorithm
+from asym_rlpo.algorithms import Algorithm, make_algorithm
 from asym_rlpo.data import EpisodeBuffer
 from asym_rlpo.env import make_env
 from asym_rlpo.evaluation import evaluate
@@ -43,7 +43,7 @@ def parse_args():
 
 def main(args):  # pylint: disable=too-many-locals,too-many-statements
     run = wandb.init(
-        project='asym-rlpo',
+        project='asym-rlpo-new-metric',
         entity='abaisero',
         name=f'{args.algo} - {args.env}',
     )
@@ -122,7 +122,8 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
     wandb.watch(algo.models)
 
     # main learning loop
-    time_step = 0
+    simulation_timesteps = 0
+    training_timesteps = 0
     for epoch in range(num_epochs):
         algo.models.eval()
 
@@ -150,7 +151,7 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
                 wandb.log(
                     {
                         'epoch': epoch,
-                        'time_step': time_step,
+                        'simulation_timesteps': simulation_timesteps,
                         'evaluation_step': evaluation_step,
                         'return': return_,
                     }
@@ -165,35 +166,52 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
             num_steps=max_steps_per_episode,
         )
         episode_buffer.append_episodes(episodes)
+        simulation_timesteps += sum(len(episode) for episode in episodes)
 
         # train based on episode buffer
         if epoch % target_update_period == 0:
             algo.target_models.load_state_dict(algo.models.state_dict())
 
         algo.models.train()
-        for training_step in range(training_steps_per_epoch):
+        for _ in range(training_steps_per_epoch):
             optimizer.zero_grad()
-            loss = algo.loss(
-                episode_buffer,
-                discount=discount,
-                num_episodes=training_num_episodes,
-                batch_size=training_batch_size,
-            )
+
+            if algo.episodic_training:
+                episodes = episode_buffer.sample_episodes(
+                    num_samples=training_num_episodes,
+                    replacement=True,
+                )
+                episodes = [episode.torch() for episode in episodes]
+
+                loss = algo.episodic_loss(episodes, discount=discount)
+
+            else:
+                batch = episode_buffer.sample_batch(
+                    batch_size=training_batch_size
+                )
+                batch = batch.torch()
+
+                loss = algo.batched_loss(batch, discount=discount)
+
             loss.backward()
 
             wandb.log(
                 {
                     'epoch': epoch,
-                    'time_step': time_step,
-                    'training_step': training_step,
+                    'simulation_timesteps': simulation_timesteps,
+                    'training_timesteps': training_timesteps,
                     'loss': loss,
                 }
             )
 
+            training_timesteps += (
+                sum(len(episode) for episode in episodes)
+                if algo.episodic_training
+                else len(batch)
+            )
+
             nn.utils.clip_grad_norm_(algo.models.parameters(), max_norm=10.0)
             optimizer.step()
-
-        time_step += sum(len(episode) for episode in episodes)
 
     run.finish()
 

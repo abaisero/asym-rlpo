@@ -40,14 +40,27 @@ def make_env(id_or_path: str) -> gym.Env:
     return env
 
 
+po_env_id_re = re.compile(r'^PO-([\w:.-]+)-([\w:.-]+)-v(\d+)$')
+
+
 def make_po_env(name: str) -> gym.Env:
-    m = re.match(r'PO-(?P<po_type>\w+)-(?P<fo_name>(?P<name>\w+)-v\d+)', name)
+    m = po_env_id_re.match(name)
     # m[0] is the full name
     # m[1] is the first capture, i.e., the type of partial observability
-    # m[2] is the second capture, i.e., the name w/ the version
-    # m[3] is the third capture, i.e., the name w/o the version
+    # m[2] is the second capture, i.e., the name w/o the version
+    # m[3] is the third capture, i.e., the version
 
-    if m and m['name'] == 'CartPole':
+    checkraise(
+        m is not None, ValueError, f'env name {name} does not satisfy regex'
+    )
+
+    assert m is not None  # silly forcing of type checking
+    po_type = m[1]
+    env_name = m[2]
+    version = m[3]
+    non_po_name = f'{env_name}-v{version}'
+
+    if env_name == 'CartPole':
         indices_dict = {
             'pos': [0, 2],  # ignore velocities
             'vel': [1, 3],  # ignore positions
@@ -55,16 +68,16 @@ def make_po_env(name: str) -> gym.Env:
         }
 
         checkraise(
-            m['po_type'] in indices_dict.keys(),
+            po_type in indices_dict.keys(),
             ValueError,
-            f'invalid partial observability {m["po_type"]}',
+            f'invalid partial observability {po_type}',
         )
 
-        env = gym.make(m['fo_name'])
-        indices = indices_dict[m['po_type']]
+        env = gym.make(non_po_name)
+        indices = indices_dict[po_type]
         return IndexWrapper(env, indices)
 
-    raise ValueError('invalid env name {name}')
+    raise ValueError('invalid env name {env_name}')
 
 
 def make_gv_env(path: str) -> GymEnvironment:
