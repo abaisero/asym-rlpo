@@ -147,15 +147,14 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
             )
             mean, sem = returns.mean(), standard_error(returns)
             print(f'EVALUATE epoch {epoch} return {mean:.3f} ({sem:.3f})')
-            for evaluation_step, return_ in enumerate(returns):
-                wandb.log(
-                    {
-                        'epoch': epoch,
-                        'simulation_timesteps': simulation_timesteps,
-                        'evaluation_step': evaluation_step,
-                        'return': return_,
-                    }
-                )
+            wandb.log(
+                {
+                    'epoch': epoch,
+                    'simulation_timesteps': simulation_timesteps,
+                    'training_timesteps': training_timesteps,
+                    'return': returns.mean(),
+                }
+            )
 
         # populate episode buffer
         behavior_policy.epsilon = epsilon_schedule(epoch)
