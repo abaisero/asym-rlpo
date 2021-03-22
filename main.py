@@ -8,7 +8,7 @@ import wandb
 from asym_rlpo.algorithms import make_algorithm
 from asym_rlpo.data import EpisodeBuffer
 from asym_rlpo.env import make_env
-from asym_rlpo.evaluation import evaluate
+from asym_rlpo.evaluation import evaluate, evaluate_returns
 from asym_rlpo.policies.random import RandomPolicy
 from asym_rlpo.sampling import sample_episodes
 from asym_rlpo.utils.scheduling import make_schedule
@@ -154,7 +154,7 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
                     'epoch': epoch,
                     'simulation_timesteps': simulation_timesteps,
                     'training_timesteps': training_timesteps,
-                    'return': returns.mean(),
+                    'target_mean_return': returns.mean(),
                 }
             )
 
@@ -166,6 +166,17 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
             num_episodes=episode_buffer_episodes_per_epoch,
             num_steps=max_steps_per_episode,
         )
+
+        returns = evaluate_returns(episodes, discount=discount)
+        wandb.log(
+            {
+                'epoch': epoch,
+                'simulation_timesteps': simulation_timesteps,
+                'training_timesteps': training_timesteps,
+                'behavior_mean_return': returns.mean(),
+            }
+        )
+
         episode_buffer.append_episodes(episodes)
         simulation_timesteps += sum(len(episode) for episode in episodes)
 

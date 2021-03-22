@@ -1,6 +1,9 @@
+from typing import Sequence
+
 import gym
 import numpy as np
 
+from asym_rlpo.data import Episode
 from asym_rlpo.policies.base import Policy
 from asym_rlpo.sampling import sample_episode
 from asym_rlpo.utils.returns import returns
@@ -25,10 +28,17 @@ def evaluate(
     Returns:
         np.ndarray:
     """
-    rewards = [
-        sample_episode(env, policy, num_steps=num_steps).rewards
+    episodes = [
+        sample_episode(env, policy, num_steps=num_steps)
         for _ in range(num_episodes)
     ]
+    return evaluate_returns(episodes, discount=discount)
+
+
+def evaluate_returns(
+    episodes: Sequence[Episode], *, discount: float
+) -> np.ndarray:
+    rewards = [episode.rewards for episode in episodes]
     tot_num_steps = max(len(rs) for rs in rewards)
     rewards_array = np.vstack(
         [
