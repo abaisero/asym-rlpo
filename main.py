@@ -37,16 +37,15 @@ def parse_args():
     )
 
     parser.add_argument('--render', action='store_true')
-    parser.add_argument('--wandb-project', default='asym-rlpo')
 
     return parser.parse_args()
 
 
 def main(args):  # pylint: disable=too-many-locals,too-many-statements
     run = wandb.init(
-        project=args.wandb_project,
+        project=f'rlpo-asym - env={args.env}',
         entity='abaisero',
-        name=f'{args.algo} - {args.env}',
+        name=args.algo,
     )
     wandb.config.update(args)  # pylint: disable=no-member
 
@@ -173,6 +172,7 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
                 'epoch': epoch,
                 'simulation_timesteps': simulation_timesteps,
                 'training_timesteps': training_timesteps,
+                'epsilon': behavior_policy.epsilon,
                 'behavior_mean_return': returns.mean(),
             }
         )
