@@ -36,47 +36,54 @@ def parse_args():
         default='PO-pos-CartPole-v1',
     )
 
+    # general
+    parser.add_argument(
+        '--max-simulation-timesteps', type=int, default=1_000_000
+    )
+    parser.add_argument('--max-steps-per-episode', type=int, default=1_000)
+
+    # evaluation
+    parser.add_argument('--evaluation-period', type=int, default=100)
+    parser.add_argument('--evaluation-num-episodes', type=int, default=20)
+
+    # episode buffer
+    parser.add_argument('--episode-buffer-size', type=int, default=10_000)
+    parser.add_argument('--episode-buffer-prepopulate', type=int, default=1_000)
+    parser.add_argument(
+        '--episode-buffer-episodes-per-epoch', type=int, default=1
+    )
+
+    # target
+    parser.add_argument('--target-update-period', type=int, default=10)
+
+    # training parameters
+    # TODO make dynamic?
+    parser.add_argument('--training-steps-per-epoch', type=int, default=4)
+    parser.add_argument('--training-num-episodes', type=int, default=4)
+    parser.add_argument('--training-batch-size', type=int, default=64)
+
+    # epsilon schedule
+    parser.add_argument('--epsilon-schedule', default='linear')
+    parser.add_argument('--epsilon-value-from', type=float, default=1.0)
+    parser.add_argument('--epsilon-value-to', type=float, default=0.05)
+    parser.add_argument('--epsilon-nsteps', type=int, default=10_000)
+
+    # optimization
+    parser.add_argument('--optim-lr', type=float, default=0.001)
+    parser.add_argument('--optim-eps', type=float, default=1e-8)
+    parser.add_argument('--optim-max-norm', type=float, default=10.0)
+
     parser.add_argument('--render', action='store_true')
 
     return parser.parse_args()
 
 
-def main(args):  # pylint: disable=too-many-locals,too-many-statements
-    run = wandb.init(
-        project='asym-rlpo',
-        entity='abaisero',
-        name=args.algo,
-    )
-    wandb.config.update(args)  # pylint: disable=no-member
+def main():  # pylint: disable=too-many-locals,too-many-statements
+    config = wandb.config
+    # pylint: disable=no-member
 
-    # hyper-parameters
-    max_simulation_timesteps = 1_000_000
-    max_steps_per_episode = 1_000  # NOTE over the practical limit
-
-    episode_buffer_size = 10_000
-    episode_buffer_prepopulate = 1_000
-    episode_buffer_episodes_per_epoch = 1
-
-    target_update_period = 10
-
-    evaluation_period = 100
-    evaluation_num_episodes = 20
-
-    training_steps_per_epoch = 4  # TODO make dynamic?
-    training_num_episodes = 4
-    training_batch_size = 64
-
-    epsilon_schedule_name = 'linear'
-    epsilon_value_from = 1.0
-    epsilon_value_to = 0.05
-    epsilon_nsteps = 10_000
-
-    optim_lr = 0.001
-    # optim_lr = 0.0001
-    optim_eps = 1e-08
-    # optim_eps = 1e-04
-
-    counts = {
+    # counts and stats useful as x-axis
+    xstats = {
         'epoch': 0,
         'simulation_episodes': 0,
         'simulation_timesteps': 0,
@@ -85,9 +92,15 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
         'training_timesteps': 0,
     }
 
+    # counts and stats useful as y-axis
+    ystats = {
+        'performance/cum_target_mean_return': 0.0,
+        'performance/cum_behavior_mean_return': 0.0,
+    }
+
     # insiantiate environment
     print('creating environment')
-    env = make_env(args.env)
+    env = make_env(config.env)
     # env = make_env('PO-pos-CartPole-v1')
     # env = make_env('PO-vel-CartPole-v1')
     # env = make_env('PO-full-CartPole-v1')
@@ -96,7 +109,7 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
 
     # instantiate models and policies
     print('creating models and policies')
-    algo = make_algorithm(args.algo, env)
+    algo = make_algorithm(config.algo, env)
 
     random_policy = RandomPolicy(env.action_space)
     behavior_policy = algo.behavior_policy(env.action_space)
@@ -104,45 +117,45 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
 
     # instantiate optimizer
     optimizer = torch.optim.Adam(
-        algo.models.parameters(), lr=optim_lr, eps=optim_eps
+        algo.models.parameters(), lr=config.optim_lr, eps=config.optim_eps
     )
 
     # instantiate and prepopulate buffer
     print('creating episode_buffer')
-    episode_buffer = EpisodeBuffer(maxlen=episode_buffer_size)
+    episode_buffer = EpisodeBuffer(maxlen=config.episode_buffer_size)
     print('prepopulating episode_buffer')
     episodes = sample_episodes(
         env,
         random_policy,
-        num_episodes=episode_buffer_prepopulate,
-        num_steps=max_steps_per_episode,
+        num_episodes=config.episode_buffer_prepopulate,
+        num_steps=config.max_steps_per_episode,
     )
     # TODO consider storing pytorch format directly.. at least we do conversion
     # only once!
     episode_buffer.append_episodes(episodes)
-    counts['simulation_episodes'] = len(episodes)
-    counts['simulation_timesteps'] = sum(len(episode) for episode in episodes)
+    xstats['simulation_episodes'] = len(episodes)
+    xstats['simulation_timesteps'] = sum(len(episode) for episode in episodes)
 
     epsilon_schedule = make_schedule(
-        epsilon_schedule_name,
-        value_from=epsilon_value_from,
-        value_to=epsilon_value_to,
-        nsteps=epsilon_nsteps,
+        config.epsilon_schedule,
+        value_from=config.epsilon_value_from,
+        value_to=config.epsilon_value_to,
+        nsteps=config.epsilon_nsteps,
     )
 
     # main learning loop
     wandb.watch(algo.models)
-    while counts['simulation_timesteps'] < max_simulation_timesteps:
+    while xstats['simulation_timesteps'] < config.max_simulation_timesteps:
         algo.models.eval()
 
         # evaluate target policy
-        if counts['epoch'] % evaluation_period == 0:
-            if args.render:
+        if xstats['epoch'] % config.evaluation_period == 0:
+            if config.render:
                 sample_episodes(
                     env,
                     target_policy,
                     num_episodes=1,
-                    num_steps=max_steps_per_episode,
+                    num_steps=config.max_steps_per_episode,
                     render=True,
                 )
 
@@ -150,55 +163,66 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
                 env,
                 target_policy,
                 discount=discount,
-                num_episodes=evaluation_num_episodes,
-                num_steps=max_steps_per_episode,
+                num_episodes=config.evaluation_num_episodes,
+                num_steps=config.max_steps_per_episode,
             )
-            mean, sem = returns.mean(), standard_error(returns)
+            mean_return = returns.mean().item()
+            sem_return = standard_error(returns)
             print(
-                f'EVALUATE epoch {counts["epoch"]} return {mean:.3f} ({sem:.3f})'
+                f'EVALUATE epoch {xstats["epoch"]}'
+                f' return {mean_return:.3f} ({sem_return:.3f})'
             )
+            ystats['performance/cum_target_mean_return'] += mean_return
             wandb.log(
                 {
-                    **counts,
-                    'performance/target_mean_return': returns.mean(),
+                    **xstats,
+                    'performance/target_mean_return': mean_return,
+                    'performance/cum_target_mean_return': ystats[
+                        'performance/cum_target_mean_return'
+                    ],
                 }
             )
 
         # populate episode buffer
-        behavior_policy.epsilon = epsilon_schedule(counts['epoch'])
+        behavior_policy.epsilon = epsilon_schedule(xstats['epoch'])
         episodes = sample_episodes(
             env,
             behavior_policy,
-            num_episodes=episode_buffer_episodes_per_epoch,
-            num_steps=max_steps_per_episode,
+            num_episodes=config.episode_buffer_episodes_per_epoch,
+            num_steps=config.max_steps_per_episode,
         )
 
         returns = evaluate_returns(episodes, discount=discount)
+        mean_return = returns.mean().item()
+        ystats['performance/cum_behavior_mean_return'] += mean_return
         wandb.log(
             {
-                **counts,
+                **xstats,
                 'diagnostics/epsilon': behavior_policy.epsilon,
-                'performance/behavior_mean_return': returns.mean(),
+                'performance/behavior_mean_return': mean_return,
+                'performance/cum_behavior_mean_return': ystats[
+                    'performance/cum_behavior_mean_return'
+                ],
             }
         )
 
         episode_buffer.append_episodes(episodes)
-        counts['simulation_episodes'] += len(episodes)
-        counts['simulation_timesteps'] += sum(
+        xstats['simulation_episodes'] += len(episodes)
+        xstats['simulation_timesteps'] += sum(
             len(episode) for episode in episodes
         )
 
         # train based on episode buffer
-        if counts['epoch'] % target_update_period == 0:
+        if xstats['epoch'] % config.target_update_period == 0:
             algo.target_models.load_state_dict(algo.models.state_dict())
 
         algo.models.train()
-        for _ in range(training_steps_per_epoch):
+        for _ in range(config.training_steps_per_epoch):
             optimizer.zero_grad()
 
             if algo.episodic_training:
                 episodes = episode_buffer.sample_episodes(
-                    num_samples=training_num_episodes,
+                    num_samples=config.training_num_episodes,
                     replacement=True,
                 )
                 episodes = [episode.torch() for episode in episodes]
@@ -207,7 +231,7 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
 
             else:
                 batch = episode_buffer.sample_batch(
-                    batch_size=training_batch_size
+                    batch_size=config.training_batch_size
                 )
                 batch = batch.torch()
 
@@ -215,12 +239,12 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
 
             loss.backward()
             gradient_norm = nn.utils.clip_grad_norm_(
-                algo.models.parameters(), max_norm=10.0
+                algo.models.parameters(), max_norm=config.optim_max_norm
             )
 
             wandb.log(
                 {
-                    **counts,
+                    **xstats,
                     'training/loss': loss,
                     'training/gradient_norm': gradient_norm,
                 }
@@ -228,22 +252,27 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
 
             optimizer.step()
 
-            counts['training_steps'] += 1
-            counts['training_episodes'] = (
-                counts['training_episodes'] + len(episodes)
+            xstats['training_steps'] += 1
+            xstats['training_episodes'] = (
+                xstats['training_episodes'] + len(episodes)
                 if algo.episodic_training
                 else None
             )
-            counts['training_timesteps'] += (
+            xstats['training_timesteps'] += (
                 sum(len(episode) for episode in episodes)
                 if algo.episodic_training
                 else len(batch)
             )
 
-        counts['epoch'] += 1
-
-    run.finish()
+        xstats['epoch'] += 1
 
 
 if __name__ == '__main__':
-    main(parse_args())
+    args = parse_args()
+    with wandb.init(
+        project='test',
+        entity='abaisero',
+        name=args.algo,
+        config=args,
+    ) as run:
+        main()
