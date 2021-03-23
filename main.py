@@ -3,8 +3,8 @@ import argparse
 
 import torch
 import torch.nn as nn
-
 import wandb
+
 from asym_rlpo.algorithms import make_algorithm
 from asym_rlpo.data import EpisodeBuffer
 from asym_rlpo.env import make_env
@@ -270,7 +270,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
 if __name__ == '__main__':
     args = parse_args()
     with wandb.init(
-        project='test',
+        project='asym-rlpo',
         entity='abaisero',
         name=args.algo,
         config=args,
