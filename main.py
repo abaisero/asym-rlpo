@@ -76,6 +76,15 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
     optim_eps = 1e-08
     # optim_eps = 1e-04
 
+    counts = {
+        'epoch': 0,
+        'simulation_episodes': 0,
+        'simulation_timesteps': 0,
+        'training_steps': 0,
+        'training_episodes': 0,
+        'training_timesteps': 0,
+    }
+
     # insiantiate environment
     print('creating environment')
     env = make_env(args.env)
@@ -111,6 +120,8 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
     # TODO consider storing pytorch format directly.. at least we do conversion
     # only once!
     episode_buffer.append_episodes(episodes)
+    counts['simulation_episodes'] = len(episodes)
+    counts['simulation_timesteps'] = sum(len(episode) for episode in episodes)
 
     epsilon_schedule = make_schedule(
         epsilon_schedule_name,
@@ -119,17 +130,8 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
         nsteps=epsilon_nsteps,
     )
 
-    wandb.watch(algo.models)
-
     # main learning loop
-    counts = {
-        'epoch': 0,
-        'simulation_episodes': 0,
-        'simulation_timesteps': 0,
-        'training_steps': 0,
-        'training_episodes': 0,
-        'training_timesteps': 0,
-    }
+    wandb.watch(algo.models)
     while counts['simulation_timesteps'] < max_simulation_timesteps:
         algo.models.eval()
 
