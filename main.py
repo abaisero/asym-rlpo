@@ -43,7 +43,7 @@ def parse_args():
 
 def main(args):  # pylint: disable=too-many-locals,too-many-statements
     run = wandb.init(
-        project=f'rlpo-asym - env={args.env}',
+        project='asym-rlpo',
         entity='abaisero',
         name=args.algo,
     )
@@ -122,14 +122,19 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
     wandb.watch(algo.models)
 
     # main learning loop
-    epoch = 0
-    simulation_timesteps = 0
-    training_timesteps = 0
-    while simulation_timesteps < max_simulation_timesteps:
+    counts = {
+        'epoch': 0,
+        'simulation_episodes': 0,
+        'simulation_timesteps': 0,
+        'training_steps': 0,
+        'training_episodes': 0,
+        'training_timesteps': 0,
+    }
+    while counts['simulation_timesteps'] < max_simulation_timesteps:
         algo.models.eval()
 
         # evaluate target policy
-        if epoch % evaluation_period == 0:
+        if counts['epoch'] % evaluation_period == 0:
             if args.render:
                 sample_episodes(
                     env,
@@ -147,18 +152,18 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
                 num_steps=max_steps_per_episode,
             )
             mean, sem = returns.mean(), standard_error(returns)
-            print(f'EVALUATE epoch {epoch} return {mean:.3f} ({sem:.3f})')
+            print(
+                f'EVALUATE epoch {counts["epoch"]} return {mean:.3f} ({sem:.3f})'
+            )
             wandb.log(
                 {
-                    'epoch': epoch,
-                    'simulation_timesteps': simulation_timesteps,
-                    'training_timesteps': training_timesteps,
-                    'target_mean_return': returns.mean(),
+                    **counts,
+                    'performance/target_mean_return': returns.mean(),
                 }
             )
 
         # populate episode buffer
-        behavior_policy.epsilon = epsilon_schedule(epoch)
+        behavior_policy.epsilon = epsilon_schedule(counts['epoch'])
         episodes = sample_episodes(
             env,
             behavior_policy,
@@ -169,19 +174,20 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
         returns = evaluate_returns(episodes, discount=discount)
         wandb.log(
             {
-                'epoch': epoch,
-                'simulation_timesteps': simulation_timesteps,
-                'training_timesteps': training_timesteps,
-                'epsilon': behavior_policy.epsilon,
-                'behavior_mean_return': returns.mean(),
+                **counts,
+                'diagnostics/epsilon': behavior_policy.epsilon,
+                'performance/behavior_mean_return': returns.mean(),
             }
         )
 
         episode_buffer.append_episodes(episodes)
-        simulation_timesteps += sum(len(episode) for episode in episodes)
+        counts['simulation_episodes'] += len(episodes)
+        counts['simulation_timesteps'] += sum(
+            len(episode) for episode in episodes
+        )
 
         # train based on episode buffer
-        if epoch % target_update_period == 0:
+        if counts['epoch'] % target_update_period == 0:
             algo.target_models.load_state_dict(algo.models.state_dict())
 
         algo.models.train()
@@ -206,26 +212,33 @@ def main(args):  # pylint: disable=too-many-locals,too-many-statements
                 loss = algo.batched_loss(batch, discount=discount)
 
             loss.backward()
+            gradient_norm = nn.utils.clip_grad_norm_(
+                algo.models.parameters(), max_norm=10.0
+            )
 
             wandb.log(
                 {
-                    'epoch': epoch,
-                    'simulation_timesteps': simulation_timesteps,
-                    'training_timesteps': training_timesteps,
-                    'loss': loss,
+                    **counts,
+                    'training/loss': loss,
+                    'training/gradient_norm': gradient_norm,
                 }
             )
 
-            training_timesteps += (
+            optimizer.step()
+
+            counts['training_steps'] += 1
+            counts['training_episodes'] = (
+                counts['training_episodes'] + len(episodes)
+                if algo.episodic_training
+                else None
+            )
+            counts['training_timesteps'] += (
                 sum(len(episode) for episode in episodes)
                 if algo.episodic_training
                 else len(batch)
             )
 
-            nn.utils.clip_grad_norm_(algo.models.parameters(), max_norm=10.0)
-            optimizer.step()
-
-        epoch += 1
+        counts['epoch'] += 1
 
     run.finish()
 
