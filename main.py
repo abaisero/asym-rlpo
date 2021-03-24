@@ -18,7 +18,8 @@ from asym_rlpo.utils.stats import standard_error
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--project', default='asym-rlpo')
+    parser.add_argument('--wandb-project', default='asym-rlpo')
+    parser.add_argument('--wandb-entity', default='abaisero')
 
     parser.add_argument(
         'algo',
@@ -272,8 +273,8 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
 if __name__ == '__main__':
     args = parse_args()
     with wandb.init(
-        project=args.project,
-        entity='abaisero',
+        project=args.wandb_project,
+        entity=args.wandb_entity,
         name=args.algo,
         config=args,
     ) as run:
