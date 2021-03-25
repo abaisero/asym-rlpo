@@ -20,6 +20,7 @@ def parse_args():
 
     parser.add_argument('--wandb-project', default='asym-rlpo')
     parser.add_argument('--wandb-entity', default='abaisero')
+    parser.add_argument('--wandb-group', default=None)
 
     parser.add_argument(
         'algo',
@@ -275,7 +276,7 @@ if __name__ == '__main__':
     with wandb.init(
         project=args.wandb_project,
         entity=args.wandb_entity,
-        name=args.algo,
+        group=args.wandb_group,
         config=args,
     ) as run:
         main()

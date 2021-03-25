@@ -21,5 +21,7 @@ command:
   - ${env}
   - ${interpreter}
   - ${program}
+  - "--group"
+  - "sweep-poe-adqn"
   - poe-adqn
   - ${args}
