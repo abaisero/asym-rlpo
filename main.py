@@ -22,22 +22,11 @@ def parse_args():
     parser.add_argument('--wandb-entity', default='abaisero')
     parser.add_argument('--wandb-group', default=None)
 
+    # algorithm and environment
+    parser.add_argument('env')
     parser.add_argument(
         'algo',
         choices=['fob-dqn', 'foe-dqn', 'poe-dqn', 'poe-adqn'],
-    )
-
-    parser.add_argument(
-        '--env',
-        choices=[
-            'PO-pos-CartPole-v0',
-            'PO-vel-CartPole-v0',
-            'PO-full-CartPole-v0',
-            'PO-pos-CartPole-v1',
-            'PO-vel-CartPole-v1',
-            'PO-full-CartPole-v1',
-        ],
-        default='PO-pos-CartPole-v1',
     )
 
     # general
