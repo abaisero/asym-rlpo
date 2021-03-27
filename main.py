@@ -61,9 +61,10 @@ def parse_args():
     parser.add_argument('--target-update-period', type=int, default=10)
 
     # training parameters
-    # TODO make dynamic?
-    parser.add_argument('--training-steps-per-epoch', type=int, default=4)
-    parser.add_argument('--training-num-episodes', type=int, default=4)
+    parser.add_argument(
+        '--training-timesteps-per-simulation-timestep', type=int, default=4
+    )
+    parser.add_argument('--training-num-episodes', type=int, default=1)
     parser.add_argument('--training-batch-size', type=int, default=64)
 
     # epsilon schedule
@@ -221,7 +222,11 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
             algo.target_models.load_state_dict(algo.models.state_dict())
 
         algo.models.train()
-        for _ in range(config.training_steps_per_epoch):
+        while (
+            xstats['training_timesteps']
+            < config.training_timesteps_per_simulation_timestep
+            * xstats['simulation_timesteps']
+        ):
             optimizer.zero_grad()
 
             if algo.episodic_training:
