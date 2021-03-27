@@ -77,6 +77,40 @@ def make_po_env(name: str) -> gym.Env:
         indices = indices_dict[po_type]
         return IndexWrapper(env, indices)
 
+    if env_name == 'LunarLander':
+        indices_dict = {
+            'pos': [0, 1, 4, 6, 7],  # ignore velocities
+            'vel': [2, 3, 5, 6, 7],  # ignore positions
+            'full': [0, 1, 2, 3, 4, 5, 6, 7],  # ignore nothing
+        }
+
+        checkraise(
+            po_type in indices_dict.keys(),
+            ValueError,
+            f'invalid partial observability {po_type}',
+        )
+
+        env = gym.make(non_po_name)
+        indices = indices_dict[po_type]
+        return IndexWrapper(env, indices)
+
+    if env_name == 'Acrobot':
+        indices_dict = {
+            'pos': [0, 1, 2, 3],  # ignore velocities
+            'vel': [4, 5],  # ignore positions
+            'full': [0, 1, 2, 3, 4, 5],  # ignore nothing
+        }
+
+        checkraise(
+            po_type in indices_dict.keys(),
+            ValueError,
+            f'invalid partial observability {po_type}',
+        )
+
+        env = gym.make(non_po_name)
+        indices = indices_dict[po_type]
+        return IndexWrapper(env, indices)
+
     raise ValueError('invalid env name {env_name}')
 
 
