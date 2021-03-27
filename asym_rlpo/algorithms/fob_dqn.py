@@ -37,12 +37,8 @@ class FOB_DQN(BatchedDQN):
     ) -> BehaviorPolicy:
         return BehaviorPolicy(self.models, action_space)
 
-    def batched_loss(
-        self,
-        batch: Batch,
-        *,
-        discount: float,
-    ) -> torch.Tensor:
+    def batched_loss(self, batch: Batch, *, discount: float) -> torch.Tensor:
+
         q_values = self.models.q_model(batch.states)
         with torch.no_grad():
             target_q_values = self.target_models.q_model(batch.next_states)

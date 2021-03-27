@@ -39,10 +39,7 @@ class FOE_DQN(EpisodicDQN):
         return BehaviorPolicy(self.models, action_space)
 
     def episodic_loss(
-        self,
-        episodes: Sequence[Episode],
-        *,
-        discount: float,
+        self, episodes: Sequence[Episode], *, discount: float
     ) -> torch.Tensor:
 
         losses = []

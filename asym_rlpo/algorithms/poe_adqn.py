@@ -40,10 +40,7 @@ class POE_ADQN(EpisodicDQN):
         return BehaviorPolicy(self.models, action_space)
 
     def episodic_loss(
-        self,
-        episodes: Sequence[Episode],
-        *,
-        discount: float,
+        self, episodes: Sequence[Episode], *, discount: float
     ) -> torch.Tensor:
         def compute_q_values(models, actions, observations, states):
             action_features = models.action_model(actions)
