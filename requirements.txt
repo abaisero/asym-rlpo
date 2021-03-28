@@ -1,6 +1,6 @@
 black
 flake8
-gym
+gym[box2d]
 gym-gridverse
 ipdb
 ipython
