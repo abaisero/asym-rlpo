@@ -23,8 +23,12 @@ from .base import EpisodicDQN
 
 class POE_DQN(EpisodicDQN):
     def make_models(self, env: gym.Env) -> nn.ModuleDict:
-        if re.fullmatch(r'CartPole-v\d+', env.spec.id):
-            return make_models_cartpole(env)
+        if (
+            re.fullmatch(r'CartPole-v\d+', env.spec.id)
+            or re.fullmatch(r'Acrobot-v\d+', env.spec.id)
+            or re.fullmatch(r'LunarLander-v\d+', env.spec.id)
+        ):
+            return make_models_box2d(env)
 
         # if ###:
         #     return make_models_gv(env)
@@ -137,7 +141,7 @@ class BehaviorPolicy(PartiallyObservablePolicy):
         )
 
 
-def make_models_cartpole(env: gym.Env) -> nn.ModuleDict:
+def make_models_box2d(env: gym.Env) -> nn.ModuleDict:
     # action_model = EmbeddingRepresentation(env.action_space.n, 128)
     # observation_model = MLPRepresentation(env.observation_space, 128)
 
