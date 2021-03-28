@@ -1,8 +1,8 @@
-name: poe-dqn.grid
+name: foe-dqn.grid
+method: grid
 metric:
   name: performance/cum_target_mean_return
   goal: maximize
-method: grid
 program: main.py
 parameters:
   optim-lr:
@@ -22,6 +22,6 @@ command:
   - ${interpreter}
   - ${program}
   - "--group"
-  - "sweep-poe-dqn"
-  - poe-dqn
+  - "sweep-foe-dqn"
+  - foe-dqn
   - ${args}

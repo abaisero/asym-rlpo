@@ -1,8 +1,8 @@
-name: fob-dqn.grid
+name: poe-dqn.grid
+method: grid
 metric:
   name: performance/cum_target_mean_return
   goal: maximize
-method: grid
 program: main.py
 parameters:
   optim-lr:
@@ -13,8 +13,8 @@ parameters:
     values: [ 10, 100, 200, 500 ]
   training-steps-per-epoch:
     values: [ 1, 2, 4, 8 ]
-  training-batch-size:
-    values: [ 8, 16, 32, 64 ]
+  training-num-episodes:
+    values: [ 1, 2, 4, 8 ]
 project: asym-rlpo
 entity: abaisero
 command: 
@@ -22,6 +22,6 @@ command:
   - ${interpreter}
   - ${program}
   - "--group"
-  - "sweep-fob-dqn"
-  - fob-dqn
+  - "sweep-poe-dqn"
+  - poe-dqn
   - ${args}

@@ -1,0 +1,27 @@
+name: foe-dqn.bayes
+method: bayes
+metric:
+  name: performance/avg_target_mean_return
+  goal: maximize
+program: main.py
+parameters:
+  optim-lr:
+    distribution: categorical
+    values: [ 0.0001, 0.0003, 0.001, 0.003 ]
+  target-update-period:
+    distribution: categorical
+    values: [ 10, 20, 50, 100, 200, 500 ]
+  training-timesteps-per-simulation-timestep:
+    distribution: categorical
+    values: [ 1, 2, 4, 8, 16 ]
+project: asym-rlpo
+entity: abaisero
+command: 
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - PO-pos-CartPole-v1
+  - foe-dqn
+  - "--wandb-group"
+  - sweep-bayes-cartpole-foe-dqn
+  - ${args}
