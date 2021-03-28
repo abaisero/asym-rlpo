@@ -8,11 +8,10 @@ import wandb
 from asym_rlpo.algorithms import make_algorithm
 from asym_rlpo.data import EpisodeBuffer
 from asym_rlpo.env import make_env
-from asym_rlpo.evaluation import evaluate, evaluate_returns
+from asym_rlpo.evaluation import evaluate_returns
 from asym_rlpo.policies.random import RandomPolicy
 from asym_rlpo.sampling import sample_episodes
 from asym_rlpo.utils.scheduling import make_schedule
-from asym_rlpo.utils.stats import standard_error
 
 
 def parse_args():
@@ -36,12 +35,14 @@ def parse_args():
     parser.add_argument('--max-steps-per-episode', type=int, default=1_000)
 
     # evaluation
-    parser.add_argument('--evaluation-period', type=int, default=100)
-    parser.add_argument('--evaluation-num-episodes', type=int, default=20)
+    parser.add_argument('--evaluation-period', type=int, default=10)
+    parser.add_argument('--evaluation-num-episodes', type=int, default=1)
 
     # episode buffer
     parser.add_argument('--episode-buffer-size', type=int, default=10_000)
-    parser.add_argument('--episode-buffer-prepopulate', type=int, default=1_000)
+    parser.add_argument(
+        '--episode-buffer-prepopulate-timesteps', type=int, default=10_000
+    )
     parser.add_argument(
         '--episode-buffer-episodes-per-epoch', type=int, default=1
     )
@@ -119,17 +120,21 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
     print('creating episode_buffer')
     episode_buffer = EpisodeBuffer(maxlen=config.episode_buffer_size)
     print('prepopulating episode_buffer')
-    episodes = sample_episodes(
-        env,
-        random_policy,
-        num_episodes=config.episode_buffer_prepopulate,
-        num_steps=config.max_steps_per_episode,
-    )
-    # TODO consider storing pytorch format directly.. at least we do conversion
-    # only once!
-    episode_buffer.append_episodes(episodes)
-    xstats['simulation_episodes'] = len(episodes)
-    xstats['simulation_timesteps'] = sum(len(episode) for episode in episodes)
+    while (
+        episode_buffer.num_interactions()
+        < config.episode_buffer_prepopulate_timesteps
+    ):
+        (episode,) = sample_episodes(
+            env,
+            random_policy,
+            num_episodes=1,
+            num_steps=config.max_steps_per_episode,
+        )
+        # TODO consider storing pytorch format directly.. at least we do conversion
+        # only once!
+        episode_buffer.append_episode(episode)
+    xstats['simulation_episodes'] = episode_buffer.num_episodes()
+    xstats['simulation_timesteps'] = episode_buffer.num_interactions()
 
     epsilon_schedule = make_schedule(
         config.epsilon_schedule,
@@ -154,27 +159,25 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
                     render=True,
                 )
 
-            returns = evaluate(
+            episodes = sample_episodes(
                 env,
                 target_policy,
-                discount=discount,
                 num_episodes=config.evaluation_num_episodes,
                 num_steps=config.max_steps_per_episode,
             )
-            mean_return = returns.mean().item()
-            sem_return = standard_error(returns)
+            mean_length = sum(map(len, episodes)) / len(episodes)
+            mean_return = evaluate_returns(episodes, discount=discount).mean()
             print(
                 f'EVALUATE epoch {xstats["epoch"]}'
-                f' return {mean_return:.3f} ({sem_return:.3f})'
+                f' simulation_timestep {xstats["simulation_timesteps"]}'
+                f' return {mean_return:.3f}'
             )
             ystats['performance/cum_target_mean_return'] += mean_return
             wandb.log(
                 {
                     **xstats,
+                    'diagnostics/target_mean_episode_length': mean_length,
                     'performance/target_mean_return': mean_return,
-                    # 'performance/cum_target_mean_return': ystats[
-                    #     'performance/cum_target_mean_return'
-                    # ],
                     'performance/avg_target_mean_return': ystats[
                         'performance/cum_target_mean_return'
                     ]
@@ -194,17 +197,15 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
             num_steps=config.max_steps_per_episode,
         )
 
-        returns = evaluate_returns(episodes, discount=discount)
-        mean_return = returns.mean().item()
+        mean_length = sum(map(len, episodes)) / len(episodes)
+        mean_return = evaluate_returns(episodes, discount=discount).mean()
         ystats['performance/cum_behavior_mean_return'] += mean_return
         wandb.log(
             {
                 **xstats,
                 'diagnostics/epsilon': behavior_policy.epsilon,
+                'diagnostics/behavior_mean_episode_length': mean_length,
                 'performance/behavior_mean_return': mean_return,
-                # 'performance/cum_behavior_mean_return': ystats[
-                #     'performance/cum_behavior_mean_return'
-                # ],
                 'performance/avg_behavior_mean_return': ystats[
                     'performance/cum_behavior_mean_return'
                 ]
