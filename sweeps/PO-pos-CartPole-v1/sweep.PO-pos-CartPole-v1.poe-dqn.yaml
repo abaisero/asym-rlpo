@@ -1,4 +1,4 @@
-name: poe-dqn.bayes
+name: bayes-PO-pos-CartPole-v1.poe-dqn
 method: bayes
 metric:
   name: performance/avg_target_mean_return

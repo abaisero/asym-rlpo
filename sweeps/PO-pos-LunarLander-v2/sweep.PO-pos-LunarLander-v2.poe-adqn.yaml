@@ -1,4 +1,4 @@
-name: poe-adqn.bayes
+name: bayes-PO-pos-LunarLander-v2.poe-adqn
 method: bayes
 metric:
   name: performance/avg_target_mean_return

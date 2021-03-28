@@ -1,4 +1,4 @@
-name: fob-dqn.bayes
+name: bayes-PO-pos-Acrobot-v1.fob-dqn
 method: bayes
 metric:
   name: performance/avg_target_mean_return
