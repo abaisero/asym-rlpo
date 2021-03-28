@@ -60,7 +60,7 @@ def parse_args():
     parser.add_argument('--epsilon-schedule', default='linear')
     parser.add_argument('--epsilon-value-from', type=float, default=1.0)
     parser.add_argument('--epsilon-value-to', type=float, default=0.05)
-    parser.add_argument('--epsilon-nsteps', type=int, default=10_000)
+    parser.add_argument('--epsilon-nsteps', type=int, default=900_000)
 
     # optimization
     parser.add_argument('--optim-lr', type=float, default=0.001)
@@ -81,6 +81,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         'epoch': 0,
         'simulation_episodes': 0,
         'simulation_timesteps': 0,
+        'evaluation_steps': 0,
         'training_steps': 0,
         'training_episodes': 0,
         'training_timesteps': 0,
@@ -171,14 +172,21 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
                 {
                     **xstats,
                     'performance/target_mean_return': mean_return,
-                    'performance/cum_target_mean_return': ystats[
+                    # 'performance/cum_target_mean_return': ystats[
+                    #     'performance/cum_target_mean_return'
+                    # ],
+                    'performance/avg_target_mean_return': ystats[
                         'performance/cum_target_mean_return'
-                    ],
+                    ]
+                    / (xstats['evaluation_steps'] + 1),
                 }
             )
+            xstats['evaluation_steps'] += 1
 
         # populate episode buffer
-        behavior_policy.epsilon = epsilon_schedule(xstats['epoch'])
+        behavior_policy.epsilon = epsilon_schedule(
+            xstats['simulation_timesteps']
+        )
         episodes = sample_episodes(
             env,
             behavior_policy,
@@ -194,9 +202,13 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
                 **xstats,
                 'diagnostics/epsilon': behavior_policy.epsilon,
                 'performance/behavior_mean_return': mean_return,
-                'performance/cum_behavior_mean_return': ystats[
+                # 'performance/cum_behavior_mean_return': ystats[
+                #     'performance/cum_behavior_mean_return'
+                # ],
+                'performance/avg_behavior_mean_return': ystats[
                     'performance/cum_behavior_mean_return'
-                ],
+                ]
+                / (xstats['epoch'] + 1),
             }
         )
 
