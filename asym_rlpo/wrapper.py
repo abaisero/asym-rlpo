@@ -33,7 +33,9 @@ class IndexWrapper(gym.ObservationWrapper):
         )
 
         checkraise(
-            min(indices) >= 0, ValueError, 'indices must be non-negative',
+            min(indices) >= 0,
+            ValueError,
+            'indices must be non-negative',
         )
 
         checkraise(
@@ -51,5 +53,8 @@ class IndexWrapper(gym.ObservationWrapper):
             env.observation_space.high[self.indices],
         )
 
+        self.state = None
+
     def observation(self, observation):
+        self.state = observation
         return observation[self.indices]
