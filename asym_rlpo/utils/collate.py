@@ -1,7 +1,7 @@
-from numbers import Number
 from typing import Dict, Sequence, TypeVar, Union, overload
 
 import numpy as np
+import torch
 
 T = TypeVar('T', np.ndarray, Dict[str, np.ndarray])
 
@@ -33,5 +33,21 @@ def collate(data):
 
     if isinstance(data[0], dict):
         return {k: collate([d[k] for d in data]) for k in data[0].keys()}
+
+    raise TypeError(f'unsupported data type {type(data[0])}')
+
+
+def collate_torch(data):
+    if np.isscalar(data[0]):
+        return torch.tensor(data)
+
+    if isinstance(data[0], tuple):
+        return torch.tensor(data)
+
+    if isinstance(data[0], torch.Tensor):
+        return torch.stack(data)
+
+    if isinstance(data[0], dict):
+        return {k: collate_torch([d[k] for d in data]) for k in data[0].keys()}
 
     raise TypeError(f'unsupported data type {type(data[0])}')

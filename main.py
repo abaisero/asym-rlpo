@@ -130,8 +130,8 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
             num_episodes=1,
             num_steps=config.max_steps_per_episode,
         )
-        # TODO consider storing pytorch format directly.. at least we do conversion
-        # only once!
+        # storing torch data directly
+        episode = episode.torch()
         episode_buffer.append_episode(episode)
     xstats['simulation_episodes'] = episode_buffer.num_episodes()
     xstats['simulation_timesteps'] = episode_buffer.num_interactions()
@@ -213,6 +213,8 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
             }
         )
 
+        # storing torch data directly
+        episodes = [episode.torch() for episode in episodes]
         episode_buffer.append_episodes(episodes)
         xstats['simulation_episodes'] += len(episodes)
         xstats['simulation_timesteps'] += sum(
@@ -236,16 +238,12 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
                     num_samples=config.training_num_episodes,
                     replacement=True,
                 )
-                episodes = [episode.torch() for episode in episodes]
-
                 loss = algo.episodic_loss(episodes, discount=discount)
 
             else:
                 batch = episode_buffer.sample_batch(
                     batch_size=config.training_batch_size
                 )
-                batch = batch.torch()
-
                 loss = algo.batched_loss(batch, discount=discount)
 
             loss.backward()

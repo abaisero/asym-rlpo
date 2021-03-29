@@ -5,13 +5,14 @@ from collections import deque
 from typing import Deque, Dict, Generic, List, Optional, Sequence, TypeVar
 
 import numpy as np
+import torch
 
-from asym_rlpo.utils.collate import collate
+from asym_rlpo.utils.collate import collate, collate_torch
 from asym_rlpo.utils.convert import numpy2torch
 from asym_rlpo.utils.debugging import checkraise
 
-S = TypeVar('S', np.ndarray, Dict[str, np.ndarray])
-O = TypeVar('O', np.ndarray, Dict[str, np.ndarray])
+S = TypeVar('S', torch.Tensor, np.ndarray, Dict[str, np.ndarray])
+O = TypeVar('O', torch.Tensor, np.ndarray, Dict[str, np.ndarray])
 
 
 class Interaction(Generic[S, O]):
@@ -273,10 +274,10 @@ class EpisodeBuffer(Generic[S, O]):
         num_interactions = self.num_interactions()
         for _ in range(batch_size):
             interaction_id = random.randrange(num_interactions)
-            lens = [len(episode) for episode in self.episodes]
+            lens = torch.tensor([len(episode) for episode in self.episodes])
             episode_id, cumlen = next(
                 (i, cumlen)
-                for i, cumlen in enumerate(np.cumsum(lens))
+                for i, cumlen in enumerate(torch.cumsum(lens, 0))
                 if interaction_id < cumlen
             )
 
@@ -288,12 +289,12 @@ class EpisodeBuffer(Generic[S, O]):
             actions.append(episode.actions[in_episode_interaction_id])
             rewards.append(episode.rewards[in_episode_interaction_id])
             next_states.append(
-                np.zeros_like(states[-1])
+                torch.zeros_like(states[-1])
                 if in_episode_interaction_id + 1 == len(episode)
                 else episode.states[in_episode_interaction_id + 1]
             )
             next_observations.append(
-                np.zeros_like(observations[-1])
+                torch.zeros_like(observations[-1])
                 if in_episode_interaction_id + 1 < len(episode)
                 else episode.observations[in_episode_interaction_id + 1]
             )
@@ -301,12 +302,12 @@ class EpisodeBuffer(Generic[S, O]):
             dones.append(episode.dones[in_episode_interaction_id])
 
         return Batch(
-            states=collate(states),
-            observations=collate(observations),
-            actions=collate(actions),
-            rewards=collate(rewards),
-            next_states=collate(next_states),
-            next_observations=collate(next_observations),
-            starts=collate(starts),
-            dones=collate(dones),
+            states=collate_torch(states),
+            observations=collate_torch(observations),
+            actions=collate_torch(actions),
+            rewards=collate_torch(rewards),
+            next_states=collate_torch(next_states),
+            next_observations=collate_torch(next_observations),
+            starts=collate_torch(starts),
+            dones=collate_torch(dones),
         )
