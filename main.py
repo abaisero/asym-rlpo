@@ -33,6 +33,7 @@ def parse_args():
         '--max-simulation-timesteps', type=int, default=1_000_000
     )
     parser.add_argument('--max-steps-per-episode', type=int, default=1_000)
+    parser.add_argument('--simulation-num-episodes', default=1)
 
     # evaluation
     parser.add_argument('--evaluation-period', type=int, default=10)
@@ -42,9 +43,6 @@ def parse_args():
     parser.add_argument('--episode-buffer-size', type=int, default=10_000)
     parser.add_argument(
         '--episode-buffer-prepopulate-timesteps', type=int, default=10_000
-    )
-    parser.add_argument(
-        '--episode-buffer-episodes-per-epoch', type=int, default=1
     )
 
     # target
@@ -79,7 +77,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
 
     # counts and stats useful as x-axis
     xstats = {
-        'epoch': 0,
+        'simulation_steps': 0,
         'simulation_episodes': 0,
         'simulation_timesteps': 0,
         'evaluation_steps': 0,
@@ -149,7 +147,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         algo.models.eval()
 
         # evaluate target policy
-        if xstats['epoch'] % config.evaluation_period == 0:
+        if xstats['simulation_steps'] % config.evaluation_period == 0:
             if config.render:
                 sample_episodes(
                     env,
@@ -168,7 +166,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
             mean_length = sum(map(len, episodes)) / len(episodes)
             mean_return = evaluate_returns(episodes, discount=discount).mean()
             print(
-                f'EVALUATE epoch {xstats["epoch"]}'
+                f'EVALUATE simulation_steps {xstats["simulation_steps"]}'
                 f' simulation_timestep {xstats["simulation_timesteps"]}'
                 f' return {mean_return:.3f}'
             )
@@ -193,7 +191,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         episodes = sample_episodes(
             env,
             behavior_policy,
-            num_episodes=config.episode_buffer_episodes_per_epoch,
+            num_episodes=config.simulation_num_episodes,
             num_steps=config.max_steps_per_episode,
         )
 
@@ -209,7 +207,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
                 'performance/avg_behavior_mean_return': ystats[
                     'performance/cum_behavior_mean_return'
                 ]
-                / (xstats['epoch'] + 1),
+                / (xstats['simulation_steps'] + 1),
             }
         )
 
@@ -222,7 +220,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         )
 
         # train based on episode buffer
-        if xstats['epoch'] % config.target_update_period == 0:
+        if xstats['simulation_steps'] % config.target_update_period == 0:
             algo.target_models.load_state_dict(algo.models.state_dict())
 
         algo.models.train()
@@ -273,7 +271,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
                 else len(batch)
             )
 
-        xstats['epoch'] += 1
+        xstats['simulation_steps'] += 1
 
 
 if __name__ == '__main__':
