@@ -1,30 +1,29 @@
-name: new-random-PO-pos-CartPole-v1.poe-dqn
+name: random-PO-pos-Acrobot-v1.poe-adqn
 method: random
 metric:
   name: performance/avg_target_mean_return
   goal: maximize
 program: main.py
 parameters:
+  epsilon-value-to:
+    values: [ 0.05, 0.01 ]
   optim-lr:
     distribution: categorical
     values: [ 0.0001, 0.0003, 0.001 ]
   target-update-period:
     distribution: categorical
-    values: [ 10, 30, 100, 300 ]
-  simulation-timesteps-per-training-step:
+    values: [ 10, 20, 50, 100, 200, 500 ]
+  training-timesteps-per-simulation-timestep:
     distribution: categorical
-    values: [ 2, 4, 8, 16 ]
-  training-num-episodes:
-    distribution: categorical
-    values: [ 1, 2, 4 ]
+    values: [ 1, 2, 4, 8, 16 ]
 project: asym-rlpo
 entity: abaisero
 command: 
   - ${env}
   - ${interpreter}
   - ${program}
-  - PO-pos-CartPole-v1
-  - poe-dqn
+  - PO-pos-Acrobot-v1
+  - poe-adqn
   - "--wandb-group"
-  - new-sweep-random-cartpole-poe-dqn
+  - sweep-random-acrobot-poe-adqn
   - ${args}
