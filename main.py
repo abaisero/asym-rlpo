@@ -30,7 +30,7 @@ def parse_args():
 
     # general
     parser.add_argument(
-        '--max-simulation-timesteps', type=int, default=1_000_000
+        '--max-simulation-timesteps', type=int, default=2_000_000
     )
     parser.add_argument('--max-steps-per-episode', type=int, default=1_000)
     parser.add_argument('--simulation-num-episodes', default=1)
@@ -40,7 +40,9 @@ def parse_args():
     parser.add_argument('--evaluation-num-episodes', type=int, default=1)
 
     # episode buffer
-    parser.add_argument('--episode-buffer-size', type=int, default=10_000)
+    parser.add_argument(
+        '--episode-buffer-num-episodes', type=int, default=10_000
+    )
     parser.add_argument(
         '--episode-buffer-prepopulate-timesteps', type=int, default=10_000
     )
@@ -53,13 +55,13 @@ def parse_args():
         '--training-timesteps-per-simulation-timestep', type=int, default=4
     )
     parser.add_argument('--training-num-episodes', type=int, default=1)
-    parser.add_argument('--training-batch-size', type=int, default=64)
+    parser.add_argument('--training-batch-size', type=int, default=32)
 
     # epsilon schedule
     parser.add_argument('--epsilon-schedule', default='linear')
     parser.add_argument('--epsilon-value-from', type=float, default=1.0)
-    parser.add_argument('--epsilon-value-to', type=float, default=0.05)
-    parser.add_argument('--epsilon-nsteps', type=int, default=900_000)
+    parser.add_argument('--epsilon-value-to', type=float, default=0.1)
+    parser.add_argument('--epsilon-nsteps', type=int, default=500_000)
 
     # optimization
     parser.add_argument('--optim-lr', type=float, default=0.001)
@@ -116,7 +118,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
 
     # instantiate and prepopulate buffer
     print('creating episode_buffer')
-    episode_buffer = EpisodeBuffer(maxlen=config.episode_buffer_size)
+    episode_buffer = EpisodeBuffer(maxlen=config.episode_buffer_num_episodes)
     print('prepopulating episode_buffer')
     while (
         episode_buffer.num_interactions()
