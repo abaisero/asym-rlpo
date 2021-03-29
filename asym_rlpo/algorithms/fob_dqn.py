@@ -26,7 +26,7 @@ class FOB_DQN(BatchedDQN):
             or re.fullmatch(r'Acrobot-v\d+', env.spec.id)
             or re.fullmatch(r'LunarLander-v\d+', env.spec.id)
         ):
-            return make_models_box2d(env)
+            return make_models_openai(env)
 
         # if ###:
         #     return make_models_gv(env)
@@ -84,7 +84,7 @@ class BehaviorPolicy(FullyObservablePolicy):
         )
 
 
-def make_models_box2d(env: gym.Env) -> nn.ModuleDict:
+def make_models_openai(env: gym.Env) -> nn.ModuleDict:
     (input_dim,) = env.state_space.shape
     q_model = nn.Sequential(
         make_module('linear', 'leaky_relu', input_dim, 512),
