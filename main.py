@@ -52,9 +52,9 @@ def parse_args():
 
     # training parameters
     parser.add_argument(
-        '--training-timesteps-per-simulation-timestep', type=int, default=4
+        '--simulation-timesteps-per-training-step', type=int, default=4
     )
-    parser.add_argument('--training-num-episodes', type=int, default=1)
+    parser.add_argument('--training-num-episodes', type=int, default=2)
     parser.add_argument('--training-batch-size', type=int, default=32)
 
     # epsilon schedule
@@ -227,9 +227,9 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
 
         algo.models.train()
         while (
-            xstats['training_timesteps']
-            < config.training_timesteps_per_simulation_timestep
-            * xstats['simulation_timesteps']
+            xstats['training_steps']
+            < xstats['simulation_timesteps']
+            / config.simulation_timesteps_per_training_step
         ):
             optimizer.zero_grad()
 
