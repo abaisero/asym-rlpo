@@ -4,6 +4,7 @@ import random
 import re
 
 import gym
+import gym_gridverse as gv
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -21,15 +22,15 @@ class FOB_DQN(BatchedDQN):
     """
 
     def make_models(self, env: gym.Env) -> nn.ModuleDict:
+        if isinstance(env, gv.gym.GymEnvironment):
+            return make_models_gv(env)
+
         if (
             re.fullmatch(r'CartPole-v\d+', env.spec.id)
             or re.fullmatch(r'Acrobot-v\d+', env.spec.id)
             or re.fullmatch(r'LunarLander-v\d+', env.spec.id)
         ):
             return make_models_openai(env)
-
-        # if ###:
-        #     return make_models_gv(env)
 
         raise NotImplementedError
 
