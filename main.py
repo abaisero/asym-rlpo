@@ -12,6 +12,7 @@ from asym_rlpo.evaluation import evaluate_returns
 from asym_rlpo.policies.random import RandomPolicy
 from asym_rlpo.sampling import sample_episodes
 from asym_rlpo.utils.scheduling import make_schedule
+from asym_rlpo.utils.timer import Timer
 
 
 def parse_args():
@@ -79,11 +80,11 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
 
     # counts and stats useful as x-axis
     xstats = {
-        'simulation_steps': 0,
+        'epoch': 0,
         'simulation_episodes': 0,
         'simulation_timesteps': 0,
         'evaluation_steps': 0,
-        'training_steps': 0,
+        'optimizer_steps': 0,
         'training_episodes': 0,
         'training_timesteps': 0,
     }
@@ -115,6 +116,9 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
     optimizer = torch.optim.Adam(
         algo.models.parameters(), lr=config.optim_lr, eps=config.optim_eps
     )
+
+    # instantiate timer
+    timer = Timer()
 
     # instantiate and prepopulate buffer
     print('creating episode_buffer')
@@ -149,7 +153,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         algo.models.eval()
 
         # evaluate target policy
-        if xstats['simulation_steps'] % config.evaluation_period == 0:
+        if xstats['epoch'] % config.evaluation_period == 0:
             if config.render:
                 sample_episodes(
                     env,
@@ -168,7 +172,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
             mean_length = sum(map(len, episodes)) / len(episodes)
             mean_return = evaluate_returns(episodes, discount=discount).mean()
             print(
-                f'EVALUATE simulation_steps {xstats["simulation_steps"]}'
+                f'EVALUATE epoch {xstats["epoch"]}'
                 f' simulation_timestep {xstats["simulation_timesteps"]}'
                 f' return {mean_return:.3f}'
             )
@@ -176,6 +180,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
             wandb.log(
                 {
                     **xstats,
+                    'hours': timer.hours,
                     'diagnostics/target_mean_episode_length': mean_length,
                     'performance/target_mean_return': mean_return,
                     'performance/avg_target_mean_return': ystats[
@@ -203,13 +208,14 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         wandb.log(
             {
                 **xstats,
+                'hours': timer.hours,
                 'diagnostics/epsilon': behavior_policy.epsilon,
                 'diagnostics/behavior_mean_episode_length': mean_length,
                 'performance/behavior_mean_return': mean_return,
                 'performance/avg_behavior_mean_return': ystats[
                     'performance/cum_behavior_mean_return'
                 ]
-                / (xstats['simulation_steps'] + 1),
+                / (xstats['epoch'] + 1),
             }
         )
 
@@ -222,12 +228,12 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         )
 
         # train based on episode buffer
-        if xstats['simulation_steps'] % config.target_update_period == 0:
+        if xstats['epoch'] % config.target_update_period == 0:
             algo.target_models.load_state_dict(algo.models.state_dict())
 
         algo.models.train()
         while (
-            xstats['training_steps']
+            xstats['optimizer_steps']
             < xstats['simulation_timesteps']
             / config.simulation_timesteps_per_training_step
         ):
@@ -254,6 +260,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
             wandb.log(
                 {
                     **xstats,
+                    'hours': timer.hours,
                     'training/loss': loss,
                     'training/gradient_norm': gradient_norm,
                 }
@@ -261,7 +268,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
 
             optimizer.step()
 
-            xstats['training_steps'] += 1
+            xstats['optimizer_steps'] += 1
             xstats['training_episodes'] = (
                 xstats['training_episodes'] + len(episodes)
                 if algo.episodic_training
@@ -273,7 +280,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
                 else len(batch)
             )
 
-        xstats['simulation_steps'] += 1
+        xstats['epoch'] += 1
 
 
 if __name__ == '__main__':
