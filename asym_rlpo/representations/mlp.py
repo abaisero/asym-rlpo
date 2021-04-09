@@ -1,6 +1,7 @@
 import gym
 import torch
 import torch.nn as nn
+
 from asym_rlpo.utils.debugging import checkraise
 
 from .base import Representation

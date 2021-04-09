@@ -4,6 +4,7 @@ import gym
 import numpy as np
 import torch
 import torch.nn as nn
+
 from asym_rlpo.utils.debugging import checkraise
 
 from .base import Representation
