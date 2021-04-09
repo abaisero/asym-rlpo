@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 import random
-import re
 from typing import Sequence
 
 import gym
-import gym_gridverse as gv
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from asym_rlpo.data import Episode
-from asym_rlpo.modules import make_module
+from asym_rlpo.models import make_models
 from asym_rlpo.policies.base import FullyObservablePolicy
 
 from .base import EpisodicDQN
@@ -24,17 +22,7 @@ class FOE_DQN(EpisodicDQN):
     """
 
     def make_models(self, env: gym.Env) -> nn.ModuleDict:
-        if isinstance(env, gv.gym.GymEnvironment):
-            return make_models_gv(env)
-
-        if (
-            re.fullmatch(r'CartPole-v\d+', env.spec.id)
-            or re.fullmatch(r'Acrobot-v\d+', env.spec.id)
-            or re.fullmatch(r'LunarLander-v\d+', env.spec.id)
-        ):
-            return make_models_openai(env)
-
-        raise NotImplementedError
+        return make_models(env)
 
     def target_policy(self) -> TargetPolicy:
         return TargetPolicy(self.models)
@@ -97,37 +85,3 @@ class BehaviorPolicy(FullyObservablePolicy):
             if random.random() < self.epsilon
             else self.target_policy.fo_sample_action(state)
         )
-
-
-def make_models_openai(env: gym.Env) -> nn.ModuleDict:
-    (input_dim,) = env.state_space.shape
-    q_model = nn.Sequential(
-        make_module('linear', 'leaky_relu', input_dim, 512),
-        nn.LeakyReLU(),
-        make_module('linear', 'leaky_relu', 512, 256),
-        nn.LeakyReLU(),
-        make_module('linear', 'linear', 256, env.action_space.n),
-    )
-    return nn.ModuleDict(
-        {
-            'q_model': q_model,
-        }
-    )
-
-
-def make_models_gv(env: gym.Env) -> nn.ModuleDict:
-    raise NotImplementedError
-    # observation_model = GV_ObservationRepresentation(env.observation_space)
-    # q_model = nn.Sequential(
-    #     nn.Linear(history_model.dim, 128),
-    #     nn.ReLU(),
-    #     nn.Linear(128, 128),
-    #     nn.ReLU(),
-    #     nn.Linear(128, env.action_space.n),
-    # )
-    # models = nn.ModuleDict(
-    #     {
-    #         'state_model': state_model,
-    #         'q_model': q_model,
-    #     }
-    # )
