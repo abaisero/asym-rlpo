@@ -38,8 +38,8 @@ class POE_DQN(EpisodicDQN):
             inputs = torch.cat([action_features, observation_features], dim=-1)
             history_features, _ = models.history_model(inputs.unsqueeze(0))
             history_features = history_features.squeeze(0)
-            q_values = models.q_model(history_features)
-            return q_values
+            qh_values = models.qh_model(history_features)
+            return qh_values
 
         losses = []
         for episode in episodes:
@@ -100,8 +100,8 @@ class TargetPolicy(PartiallyObservablePolicy):
         self.history_features = self.history_features.squeeze(0).squeeze(0)
 
     def po_sample_action(self):
-        q_values = self.models.q_model(self.history_features)
-        return q_values.argmax().item()
+        qh_values = self.models.qh_model(self.history_features)
+        return qh_values.argmax().item()
 
 
 class BehaviorPolicy(PartiallyObservablePolicy):
