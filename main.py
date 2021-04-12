@@ -234,7 +234,10 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         algo.models.train()
         while (
             xstats['optimizer_steps']
-            < xstats['simulation_timesteps']
+            < (
+                xstats['simulation_timesteps']
+                - config.episode_buffer_prepopulate_timesteps
+            )
             / config.simulation_timesteps_per_training_step
         ):
             optimizer.zero_grad()
