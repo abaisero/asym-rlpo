@@ -1,7 +1,6 @@
 from typing import List
 
 import gym
-import numpy as np
 
 from asym_rlpo.utils.debugging import checkraise
 
@@ -57,5 +56,5 @@ class IndexWrapper(gym.ObservationWrapper):
         self.state = None
 
     def observation(self, observation):
-        self.state = np.asarray(observation)
-        return np.asarray(observation[self.indices])
+        self.state = observation
+        return observation[self.indices]

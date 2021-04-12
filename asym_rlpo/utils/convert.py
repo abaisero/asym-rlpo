@@ -1,5 +1,5 @@
 from numbers import Number
-from typing import Dict, List, Union, overload
+from typing import Dict, List, Tuple, Union, overload
 
 import numpy as np
 import torch
@@ -42,7 +42,7 @@ def is_dtype_boolean(x: np.ndarray) -> bool:
 
 
 @overload
-def numpy2torch(data: Union[int, float]) -> torch.Tensor:
+def numpy2torch(data: Union[int, float, bool]) -> torch.Tensor:
     ...
 
 
@@ -57,39 +57,16 @@ def numpy2torch(data: List[np.ndarray]) -> List[torch.Tensor]:
 
 
 @overload
+def numpy2torch(data: Tuple[np.ndarray]) -> Tuple[torch.Tensor]:
+    ...
+
+
+@overload
 def numpy2torch(data: Dict[str, np.ndarray]) -> Dict[str, torch.Tensor]:
     ...
 
 
 def numpy2torch(data):
-    if isinstance(data, Number):
-        return torch.Tensor(data)
-
-    if isinstance(data, np.ndarray):
-        return (
-            torch.from_numpy(data).float()
-            if is_dtype_floating(data)
-            else torch.from_numpy(data)
-        )
-
-    # if isinstance(data, list):
-    #     assert False
-    #     return [numpy2torch(d) for d in data]
-
-    # if isinstance(data, tuple):
-    #     assert False
-    #     return tuple(numpy2torch(d) for d in data)
-
-    if isinstance(data, dict):
-        return {k: numpy2torch(v) for k, v in data.items()}
-
-    raise TypeError(f'unsupported data type {type(data)}')
-
-
-def astorch(data) -> torch.Tensor:
-    if isinstance(data, torch.Tensor):
-        return data
-
     if isinstance(data, Number):
         return torch.tensor(data)
 
