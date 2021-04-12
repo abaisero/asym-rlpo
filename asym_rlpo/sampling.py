@@ -35,17 +35,17 @@ def sample_episode(
     start, done = True, False
     observation = env.reset()
     state = env.state
-    policy.reset(numpy2torch(collate(observation)))
+    policy.reset(numpy2torch(collate([observation])))
 
     if render:
         env.render()
 
     for _ in range(num_steps):
-        action = policy.sample_action(numpy2torch(collate(state)))
+        action = policy.sample_action(numpy2torch(collate([state])))
         next_observation, reward, done, _ = env.step(action)
         next_state = env.state
         policy.step(
-            torch.tensor(action), numpy2torch(collate(next_observation))
+            torch.tensor(action), numpy2torch(collate([next_observation]))
         )
 
         if render:

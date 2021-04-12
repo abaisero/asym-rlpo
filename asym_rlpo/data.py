@@ -158,8 +158,19 @@ class Episode(Generic[S, O]):
 
     def torch(self) -> Episode:
         checkraise(
-            isinstance(self.states, np.ndarray)
-            and isinstance(self.observations, np.ndarray)
+            (
+                isinstance(self.states, np.ndarray)
+                or isinstance(self.states, dict)
+                and all(isinstance(v, np.ndarray) for v in self.states.values())
+            )
+            and (
+                isinstance(self.observations, np.ndarray)
+                or isinstance(self.observations, dict)
+                and all(
+                    isinstance(v, np.ndarray)
+                    for v in self.observations.values()
+                )
+            )
             and isinstance(self.actions, np.ndarray)
             and isinstance(self.rewards, np.ndarray)
             and isinstance(self.starts, np.ndarray)
