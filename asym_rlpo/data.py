@@ -7,7 +7,7 @@ from typing import Deque, Dict, Generic, List, Optional, Sequence, TypeVar
 import numpy as np
 import torch
 
-from asym_rlpo.utils.collate import collate, collate_torch
+from asym_rlpo.utils.collate import collate_numpy, collate_torch
 from asym_rlpo.utils.convert import numpy2torch
 from asym_rlpo.utils.debugging import checkraise
 
@@ -127,24 +127,42 @@ class Episode(Generic[S, O]):
         self.starts = starts
         self.dones = dones
 
+    def __getitem__(self, index) -> Interaction[S, O]:
+        return Interaction(
+            state=(
+                {k: v[index] for k, v in self.states.items()}
+                if isinstance(self.states, dict)
+                else self.states[index]
+            ),
+            observation=(
+                {k: v[index] for k, v in self.observations.items()}
+                if isinstance(self.observations, dict)
+                else self.observations[index]
+            ),
+            action=self.actions[index],
+            reward=self.rewards[index],
+            start=self.starts[index],
+            done=self.dones[index],
+        )
+
     @staticmethod
     def from_raw_episode(episode: RawEpisode[S, O]):
-        states: S = collate(
+        states: S = collate_numpy(
             [interaction.state for interaction in episode.interactions]
         )
-        observations: O = collate(
+        observations: O = collate_numpy(
             [interaction.observation for interaction in episode.interactions]
         )
-        actions = collate(
+        actions = collate_numpy(
             [interaction.action for interaction in episode.interactions]
         )
-        rewards = collate(
+        rewards = collate_numpy(
             [interaction.reward for interaction in episode.interactions]
         )
-        starts = collate(
+        starts = collate_numpy(
             [interaction.start for interaction in episode.interactions]
         )
-        dones = collate(
+        dones = collate_numpy(
             [interaction.done for interaction in episode.interactions]
         )
         return Episode(
@@ -294,23 +312,29 @@ class EpisodeBuffer(Generic[S, O]):
 
             episode = self.episodes[episode_id]
             in_episode_interaction_id = cumlen - len(episode) - interaction_id
+            interaction = episode[in_episode_interaction_id]
+            next_interaction = (
+                episode[in_episode_interaction_id + 1]
+                if in_episode_interaction_id + 1 < len(episode)
+                else None
+            )
 
-            states.append(episode.states[in_episode_interaction_id])
-            observations.append(episode.observations[in_episode_interaction_id])
-            actions.append(episode.actions[in_episode_interaction_id])
-            rewards.append(episode.rewards[in_episode_interaction_id])
+            states.append(interaction.state)
+            observations.append(interaction.observation)
+            actions.append(interaction.action)
+            rewards.append(interaction.reward)
             next_states.append(
                 torch.zeros_like(states[-1])
-                if in_episode_interaction_id + 1 == len(episode)
-                else episode.states[in_episode_interaction_id + 1]
+                if next_interaction is None
+                else next_interaction.state
             )
             next_observations.append(
                 torch.zeros_like(observations[-1])
-                if in_episode_interaction_id + 1 < len(episode)
-                else episode.observations[in_episode_interaction_id + 1]
+                if next_interaction is None
+                else next_interaction.observation
             )
-            starts.append(episode.starts[in_episode_interaction_id])
-            dones.append(episode.dones[in_episode_interaction_id])
+            starts.append(interaction.start)
+            dones.append(interaction.done)
 
         return Batch(
             states=collate_torch(states),

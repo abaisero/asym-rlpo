@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from asym_rlpo.data import Batch
 from asym_rlpo.models import make_models
 from asym_rlpo.policies.base import FullyObservablePolicy
+from asym_rlpo.utils.collate import collate_torch
 
 from .base import BatchedDQN
 
@@ -33,9 +34,11 @@ class FOB_DQN(BatchedDQN):
 
     def batched_loss(self, batch: Batch, *, discount: float) -> torch.Tensor:
 
-        q_values = self.models.q_model(batch.states)
+        q_values = self.models.q_model(self.models.state_model(batch.states))
         with torch.no_grad():
-            target_q_values = self.target_models.q_model(batch.next_states)
+            target_q_values = self.target_models.q_model(
+                self.models.state_model(batch.next_states)
+            )
 
         q_values = q_values.gather(1, batch.actions.unsqueeze(-1)).squeeze(-1)
         q_values_bootstrap = torch.tensor(0.0).where(
@@ -55,8 +58,9 @@ class TargetPolicy(FullyObservablePolicy):
         self.models = models
 
     def fo_sample_action(self, state):
-        q_values = self.models.q_model(state.unsqueeze(0)).squeeze(0)
-        return q_values.argmax().item()
+        state_batch = collate_torch([state])
+        q_values = self.models.q_model(self.models.state_model(state_batch))
+        return q_values.squeeze(0).argmax().item()
 
 
 class BehaviorPolicy(FullyObservablePolicy):

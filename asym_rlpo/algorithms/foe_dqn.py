@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from asym_rlpo.data import Episode
 from asym_rlpo.models import make_models
 from asym_rlpo.policies.base import FullyObservablePolicy
+from asym_rlpo.utils.collate import collate_torch
 
 from .base import EpisodicDQN
 
@@ -68,8 +69,9 @@ class TargetPolicy(FullyObservablePolicy):
         self.models = models
 
     def fo_sample_action(self, state):
-        q_values = self.models.q_model(state.unsqueeze(0)).squeeze(0)
-        return q_values.argmax().item()
+        state_batch = collate_torch([state])
+        q_values = self.models.q_model(self.models.state_model(state_batch))
+        return q_values.squeeze(0).argmax().item()
 
 
 class BehaviorPolicy(FullyObservablePolicy):

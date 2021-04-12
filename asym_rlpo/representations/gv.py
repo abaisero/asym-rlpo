@@ -133,7 +133,7 @@ class GV_StateRepresentation(Representation, nn.Module):
         item = self.embedding(item).flatten(start_dim=-2)
 
         # Handle the grid components (these are jointly processed by a CNN)
-        agent_id_grid.unsqueeze_(-1)
+        agent_id_grid = agent_id_grid.unsqueeze(-1)
         cnn_input = torch.cat([grid, agent_id_grid], dim=-1)
         cnn_input = torch.transpose(cnn_input, 1, 3)
         cnn_output = self.cnn(cnn_input)

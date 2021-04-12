@@ -11,7 +11,7 @@ from asym_rlpo.utils.debugging import nested_equal
     [
         (
             0,
-            0,
+            torch.tensor(0),
         ),
         (
             np.array([0, 1, 2, 3, 4, 5]),

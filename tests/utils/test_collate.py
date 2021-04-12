@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from asym_rlpo.utils.collate import collate
+from asym_rlpo.utils.collate import collate_numpy
 
 
 @pytest.mark.parametrize(
@@ -40,5 +40,5 @@ from asym_rlpo.utils.collate import collate
         ),
     ],
 )
-def test_collate(data, expected):
-    np.testing.assert_equal(collate(data), expected)
+def test_collate_numpy(data, expected):
+    np.testing.assert_equal(collate_numpy(data), expected)
