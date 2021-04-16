@@ -1,0 +1,12 @@
+---
+# This file tells https://pre-commit.com/
+# which hooks are provided by this repo
+# for use by other git repos.
+
+- id: no-commit
+  name: Check file content
+  description: Ensure file does not contain string
+  entry: no-commit.py
+  language: python
+  types: [ text ]
+  args: [ --tag=NOCOMMIT ]
