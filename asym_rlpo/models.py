@@ -1,30 +1,46 @@
 import re
+from typing import Container, Optional
 
 import gym
 import gym_gridverse as gv
 import torch.nn as nn
+
 from asym_rlpo.modules import make_module
 from asym_rlpo.representations.embedding import EmbeddingRepresentation
-from asym_rlpo.representations.gv import GV_ObservationRepresentation
-from asym_rlpo.representations.gv import GV_StateRepresentation
+from asym_rlpo.representations.gv import (
+    GV_ObservationRepresentation,
+    GV_StateRepresentation,
+)
 from asym_rlpo.representations.history import RNNHistoryRepresentation
 from asym_rlpo.representations.identity import IdentityRepresentation
 from asym_rlpo.representations.mlp import MLPRepresentation
 from asym_rlpo.representations.onehot import OneHotRepresentation
 
 
-def make_models(env: gym.Env) -> nn.ModuleDict:
-    if isinstance(env, gv.gym.GymEnvironment):
-        return make_models_gv(env)
+def make_models(
+    env: gym.Env, *, keys: Optional[Container[str]] = None
+) -> nn.ModuleDict:
 
-    if (
+    if isinstance(env, gv.gym.GymEnvironment):
+        models = make_models_gv(env)
+
+    elif (
         re.fullmatch(r'CartPole-v\d+', env.spec.id)
         or re.fullmatch(r'Acrobot-v\d+', env.spec.id)
         or re.fullmatch(r'LunarLander-v\d+', env.spec.id)
     ):
-        return make_models_openai(env)
+        models = make_models_openai(env)
 
-    raise NotImplementedError
+    else:
+        raise NotImplementedError
+
+    return (
+        models
+        if keys is None
+        else nn.ModuleDict(
+            {key: model for key, model in models.items() if key in keys}
+        )
+    )
 
 
 def make_models_openai(env: gym.Env) -> nn.ModuleDict:

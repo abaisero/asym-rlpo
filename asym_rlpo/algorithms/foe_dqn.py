@@ -9,7 +9,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from asym_rlpo.data import Episode
-from asym_rlpo.models import make_models
 from asym_rlpo.policies.base import FullyObservablePolicy
 from asym_rlpo.utils.collate import collate_torch
 
@@ -17,13 +16,7 @@ from .base import EpisodicDQN
 
 
 class FOE_DQN(EpisodicDQN):
-    """FOE_DQN.
-
-    Fully observable episodic DQN
-    """
-
-    def make_models(self, env: gym.Env) -> nn.ModuleDict:
-        return make_models(env)
+    model_keys = frozenset(['state_model', 'q_model'])
 
     def target_policy(self) -> TargetPolicy:
         return TargetPolicy(self.models)

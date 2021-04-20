@@ -9,15 +9,22 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from asym_rlpo.data import Episode
-from asym_rlpo.models import make_models
 from asym_rlpo.policies.base import PartiallyObservablePolicy
 
 from .base import EpisodicDQN
 
 
 class POE_ADQN(EpisodicDQN):
-    def make_models(self, env: gym.Env) -> nn.ModuleDict:
-        return make_models(env)
+    model_keys = frozenset(
+        [
+            'action_model',
+            'observation_model',
+            'history_model',
+            'qh_model',
+            'state_model',
+            'qhs_model',
+        ]
+    )
 
     def target_policy(self) -> TargetPolicy:
         return TargetPolicy(self.models)

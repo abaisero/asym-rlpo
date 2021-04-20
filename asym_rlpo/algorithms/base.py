@@ -1,18 +1,24 @@
 import abc
-from typing import Sequence
+from typing import FrozenSet, Sequence
 
 import gym
 import torch
-import torch.nn as nn
 
 from asym_rlpo.data import Batch, Episode
+from asym_rlpo.models import make_models
 from asym_rlpo.policies.base import Policy
 
 
 class DQN(metaclass=abc.ABCMeta):
     def __init__(self, env: gym.Env):
-        self.models = self.make_models(env)
-        self.target_models = self.make_models(env)
+        super().__init__()
+        self.models = make_models(env, keys=self.model_keys)
+        self.target_models = make_models(env, keys=self.model_keys)
+
+    @property
+    @abc.abstractmethod
+    def model_keys(self) -> FrozenSet[str]:
+        assert False
 
     @property
     @abc.abstractmethod
@@ -22,10 +28,6 @@ class DQN(metaclass=abc.ABCMeta):
     @property
     @abc.abstractmethod
     def batched_training(self) -> bool:
-        assert False
-
-    @abc.abstractmethod
-    def make_models(self, env: gym.Env) -> nn.ModuleDict:
         assert False
 
     @abc.abstractmethod
