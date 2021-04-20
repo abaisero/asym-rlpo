@@ -33,9 +33,13 @@ class FOE_DQN(EpisodicDQN):
         losses = []
         for episode in episodes:
 
-            q_values = self.models.q_model(episode.states)
+            q_values = self.models.q_model(
+                self.models.state_model(episode.states)
+            )
             with torch.no_grad():
-                target_q_values = self.target_models.q_model(episode.states)
+                target_q_values = self.target_models.q_model(
+                    self.models.state_model(episode.states)
+                )
 
             q_values = q_values.gather(
                 1, episode.actions.unsqueeze(-1)
