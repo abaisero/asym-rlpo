@@ -34,7 +34,7 @@ def parse_args():
         '--max-simulation-timesteps', type=int, default=2_000_000
     )
     parser.add_argument('--max-steps-per-episode', type=int, default=1_000)
-    parser.add_argument('--simulation-num-episodes', default=1)
+    parser.add_argument('--simulation-num-episodes', type=int, default=1)
 
     # evaluation
     parser.add_argument('--evaluation-period', type=int, default=10)
