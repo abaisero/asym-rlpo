@@ -62,7 +62,7 @@ def parse_args():
     parser.add_argument('--epsilon-schedule', default='linear')
     parser.add_argument('--epsilon-value-from', type=float, default=1.0)
     parser.add_argument('--epsilon-value-to', type=float, default=0.1)
-    parser.add_argument('--epsilon-nsteps', type=int, default=500_000)
+    parser.add_argument('--epsilon-nsteps', type=int, default=1_000_000)
 
     # optimization
     parser.add_argument('--optim-lr', type=float, default=0.001)
@@ -194,6 +194,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         # populate episode buffer
         behavior_policy.epsilon = epsilon_schedule(
             xstats['simulation_timesteps']
+            - config.episode_buffer_prepopulate_timesteps
         )
         episodes = sample_episodes(
             env,
