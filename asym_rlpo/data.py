@@ -265,8 +265,9 @@ class RawEpisodeBuffer(Generic[S, O]):
 
 
 class EpisodeBuffer(Generic[S, O]):
-    def __init__(self, maxlen: int):
-        self.episodes: Deque[Episode[S, O]] = deque(maxlen=maxlen)
+    def __init__(self, max_timesteps: int):
+        self.episodes: Deque[Episode[S, O]] = deque()
+        self.max_timesteps = max_timesteps
 
     def num_interactions(self):
         return sum(len(episode) for episode in self.episodes)
@@ -274,12 +275,20 @@ class EpisodeBuffer(Generic[S, O]):
     def num_episodes(self):
         return len(self.episodes)
 
+    def _check_num_timesteps(self):
+        num_timesteps = self.num_interactions()
+        while num_timesteps > self.max_timesteps:
+            episode = self.episodes.popleft()
+            num_timesteps -= len(episode)
+
     def append_episode(self, episode: Episode[S, O]):
         self.episodes.append(episode)
+        self._check_num_timesteps()
 
     def append_episodes(self, episodes: Sequence[Episode[S, O]]):
         for episode in episodes:
-            self.append_episode(episode)
+            self.episodes.append(episode)
+        self._check_num_timesteps()
 
     def sample_episode(self) -> Episode[S, O]:
         return random.choice(self.episodes)

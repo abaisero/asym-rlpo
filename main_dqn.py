@@ -42,10 +42,10 @@ def parse_args():
 
     # episode buffer
     parser.add_argument(
-        '--episode-buffer-num-episodes', type=int, default=10_000
+        '--episode-buffer-max-timesteps', type=int, default=1_000_000
     )
     parser.add_argument(
-        '--episode-buffer-prepopulate-timesteps', type=int, default=10_000
+        '--episode-buffer-prepopulate-timesteps', type=int, default=50_000
     )
 
     # target
@@ -122,7 +122,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
 
     # instantiate and prepopulate buffer
     print('creating episode_buffer')
-    episode_buffer = EpisodeBuffer(maxlen=config.episode_buffer_num_episodes)
+    episode_buffer = EpisodeBuffer(config.episode_buffer_max_timesteps)
     print('prepopulating episode_buffer')
     while (
         episode_buffer.num_interactions()
