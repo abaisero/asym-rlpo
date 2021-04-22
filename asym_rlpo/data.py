@@ -66,6 +66,9 @@ class Batch(Generic[S, O]):
         self.starts = starts
         self.dones = dones
 
+    def __len__(self):
+        return len(self.dones)
+
     def torch(self) -> Batch:
         checkraise(
             isinstance(self.states, np.ndarray)
@@ -88,8 +91,17 @@ class Batch(Generic[S, O]):
             dones=numpy2torch(self.dones),
         )
 
-    def __len__(self):
-        return len(self.dones)
+    def to(self, device: torch.device) -> Batch:
+        return Batch(
+            states=self.states.to(device),
+            observations=self.observations.to(device),
+            actions=self.actions.to(device),
+            rewards=self.rewards.to(device),
+            next_states=self.next_states.to(device),
+            next_observations=self.next_observations.to(device),
+            starts=self.starts.to(device),
+            dones=self.dones.to(device),
+        )
 
 
 class RawEpisode(Generic[S, O]):
@@ -136,6 +148,9 @@ class Episode(Generic[S, O]):
         self.rewards = rewards
         self.starts = starts
         self.dones = dones
+
+    def __len__(self):
+        return len(self.dones)
 
     def __getitem__(self, index) -> Interaction[S, O]:
         return Interaction(
@@ -215,8 +230,15 @@ class Episode(Generic[S, O]):
             dones=numpy2torch(self.dones),
         )
 
-    def __len__(self):
-        return len(self.dones)
+    def to(self, device: torch.device) -> Episode:
+        return Episode(
+            states=self.states.to(device),
+            observations=self.observations.to(device),
+            actions=self.actions.to(device),
+            rewards=self.rewards.to(device),
+            starts=self.starts.to(device),
+            dones=self.dones.to(device),
+        )
 
 
 # TODO how do we want to structure this?  I assume flat list of interactions?

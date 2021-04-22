@@ -10,6 +10,7 @@ from asym_rlpo.env import make_env
 from asym_rlpo.evaluation import evaluate_returns
 from asym_rlpo.sampling import sample_episodes
 from asym_rlpo.utils.aggregate import average
+from asym_rlpo.utils.device import get_device
 from asym_rlpo.utils.scheduling import make_schedule
 from asym_rlpo.utils.timer import Timer
 
@@ -50,6 +51,9 @@ def parse_args():
     parser.add_argument('--optim-eps', type=float, default=1e-8)
     parser.add_argument('--optim-max-norm', type=float, default=10.0)
 
+    # device
+    parser.add_argument('--device', default='auto')
+
     parser.add_argument('--render', action='store_true')
 
     return parser.parse_args()
@@ -58,6 +62,8 @@ def parse_args():
 def main():  # pylint: disable=too-many-locals,too-many-statements
     config = wandb.config
     # pylint: disable=no-member
+
+    device = get_device(config.device)
 
     # counts and stats useful as x-axis
     xstats = {
@@ -84,6 +90,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
     # instantiate models and policies
     print('creating models and policies')
     algo = make_algorithm(config.algo, env)
+    algo.models.to(device)
     policy = algo.policy()
 
     # instantiate optimizer
@@ -172,7 +179,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         )
 
         # storing torch data directly
-        episodes = [episode.torch() for episode in episodes]
+        episodes = [episode.torch().to(device) for episode in episodes]
         xstats['simulation_episodes'] += len(episodes)
         xstats['simulation_timesteps'] += sum(
             len(episode) for episode in episodes
