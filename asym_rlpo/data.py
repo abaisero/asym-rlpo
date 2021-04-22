@@ -2,7 +2,16 @@ from __future__ import annotations
 
 import random
 from collections import deque
-from typing import Deque, Dict, Generic, List, Optional, Sequence, TypeVar
+from typing import (
+    Deque,
+    Dict,
+    Generic,
+    List,
+    Optional,
+    Sequence,
+    TypeVar,
+    Union,
+)
 
 import numpy as np
 import torch
@@ -300,6 +309,15 @@ class EpisodeBuffer(Generic[S, O]):
         starts = []
         dones = []
 
+        def zeros_like(
+            x: Union[torch.Tensor, Dict[str, torch.Tensor]]
+        ) -> Union[torch.Tensor, Dict[str, torch.Tensor]]:
+            return (
+                {k: torch.zeros_like(v) for k, v in x.items()}
+                if isinstance(x, dict)
+                else torch.zeros_like(x)
+            )
+
         num_interactions = self.num_interactions()
         for _ in range(batch_size):
             interaction_id = random.randrange(num_interactions)
@@ -324,12 +342,12 @@ class EpisodeBuffer(Generic[S, O]):
             actions.append(interaction.action)
             rewards.append(interaction.reward)
             next_states.append(
-                torch.zeros_like(states[-1])
+                zeros_like(states[-1])
                 if next_interaction is None
                 else next_interaction.state
             )
             next_observations.append(
-                torch.zeros_like(observations[-1])
+                zeros_like(observations[-1])
                 if next_interaction is None
                 else next_interaction.observation
             )
