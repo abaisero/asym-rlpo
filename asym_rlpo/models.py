@@ -53,23 +53,18 @@ def make_models(
 
 
 def make_models_openai(env: gym.Env) -> nn.ModuleDict:
+    # gen purpose models
+    state_model = IdentityRepresentation(env.state_space)
     action_model = OneHotRepresentation(env.action_space)
     observation_model = IdentityRepresentation(env.observation_space)
-    state_model = IdentityRepresentation(env.state_space)
-
     history_model = RNNHistoryRepresentation(
         action_model,
         observation_model,
         hidden_size=128,
         nonlinearity='tanh',
     )
-    q_model = nn.Sequential(
-        make_module('linear', 'leaky_relu', state_model.dim, 512),
-        nn.LeakyReLU(),
-        make_module('linear', 'leaky_relu', 512, 256),
-        nn.LeakyReLU(),
-        make_module('linear', 'linear', 256, env.action_space.n),
-    )
+
+    # DQN models
     qh_model = nn.Sequential(
         make_module('linear', 'leaky_relu', history_model.dim, 512),
         nn.LeakyReLU(),
@@ -89,15 +84,45 @@ def make_models_openai(env: gym.Env) -> nn.ModuleDict:
         nn.LeakyReLU(),
         make_module('linear', 'linear', 256, env.action_space.n),
     )
+    q_model = nn.Sequential(
+        make_module('linear', 'leaky_relu', state_model.dim, 512),
+        nn.LeakyReLU(),
+        make_module('linear', 'leaky_relu', 512, 256),
+        nn.LeakyReLU(),
+        make_module('linear', 'linear', 256, env.action_space.n),
+    )
+
+    # A2C models
+    policy_model = nn.Sequential(
+        make_module('linear', 'leaky_relu', history_model.dim, 512),
+        nn.LeakyReLU(),
+        make_module('linear', 'leaky_relu', 512, 256),
+        nn.LeakyReLU(),
+        make_module('linear', 'linear', 256, env.action_space.n),
+        nn.LogSoftmax(dim=-1),
+    )
+    vh_model = nn.Sequential(
+        make_module('linear', 'leaky_relu', history_model.dim, 512),
+        nn.LeakyReLU(),
+        make_module('linear', 'leaky_relu', 512, 256),
+        nn.LeakyReLU(),
+        make_module('linear', 'linear', 256, 1),
+    )
+
     return nn.ModuleDict(
         {
+            # GENERIC
             'action_model': action_model,
             'observation_model': observation_model,
             'state_model': state_model,
             'history_model': history_model,
+            # DQN
             'q_model': q_model,
             'qh_model': qh_model,
             'qhs_model': qhs_model,
+            # A2C
+            'policy_model': policy_model,
+            'vh_model': vh_model,
         }
     )
 
