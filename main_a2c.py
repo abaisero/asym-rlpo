@@ -232,7 +232,4 @@ if __name__ == '__main__':
         group=args.wandb_group,
         config=args,
     ) as run:
-        try:
-            main()
-        except RuntimeError:
-            breakpoint()  # XXX BREAKPOINT
+        main()
