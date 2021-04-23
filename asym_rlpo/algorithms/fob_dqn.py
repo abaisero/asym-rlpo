@@ -15,7 +15,7 @@ from .base import BatchedDQN
 
 
 class FOB_DQN(BatchedDQN):
-    model_keys = frozenset({'state_model', 'q_model'})
+    model_keys = ['state_model', 'q_model']
 
     def target_policy(self) -> TargetPolicy:
         return TargetPolicy(self.models)

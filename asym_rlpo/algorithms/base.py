@@ -1,5 +1,5 @@
 import abc
-from typing import FrozenSet, Sequence
+from typing import List, Sequence
 
 import gym
 import torch
@@ -17,7 +17,7 @@ class DQN(metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def model_keys(self) -> FrozenSet[str]:
+    def model_keys(self) -> List[str]:
         assert False
 
     @property

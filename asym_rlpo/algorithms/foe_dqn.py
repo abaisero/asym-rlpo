@@ -16,7 +16,7 @@ from .base import EpisodicDQN
 
 
 class FOE_DQN(EpisodicDQN):
-    model_keys = frozenset(['state_model', 'q_model'])
+    model_keys = ['state_model', 'q_model']
 
     def target_policy(self) -> TargetPolicy:
         return TargetPolicy(self.models)

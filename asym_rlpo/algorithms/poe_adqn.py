@@ -16,16 +16,14 @@ from .base import EpisodicDQN
 
 
 class POE_ADQN(EpisodicDQN):
-    model_keys = frozenset(
-        [
-            'action_model',
-            'observation_model',
-            'history_model',
-            'qh_model',
-            'state_model',
-            'qhs_model',
-        ]
-    )
+    model_keys = [
+        'action_model',
+        'observation_model',
+        'history_model',
+        'qh_model',
+        'state_model',
+        'qhs_model',
+    ]
 
     def target_policy(self) -> TargetPolicy:
         return TargetPolicy(self.models)
