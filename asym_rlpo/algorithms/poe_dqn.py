@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import asym_rlpo.generalized_torch as gtorch
 from asym_rlpo.data import Episode
 from asym_rlpo.policies.base import PartiallyObservablePolicy
 
@@ -82,21 +83,23 @@ class TargetPolicy(PartiallyObservablePolicy):
         self.hidden = None
 
     def reset(self, observation):
-        action_features = torch.zeros(self.models.action_model.dim)
-        observation_features = self.models.observation_model(observation)
+        action_features = torch.zeros(1, self.models.action_model.dim)
+        observation_features = self.models.observation_model(
+            gtorch.unsqueeze(observation, 0)
+        )
         self._update(action_features, observation_features)
 
     def step(self, action, observation):
-        action_features = self.models.action_model(action)
-        observation_features = self.models.observation_model(observation)
+        action_features = self.models.action_model(action.unsqueeze(0))
+        observation_features = self.models.observation_model(
+            gtorch.unsqueeze(observation, 0)
+        )
         self._update(action_features, observation_features)
 
     def _update(self, action_features, observation_features):
-        input_features = (
-            torch.cat([action_features, observation_features])
-            .unsqueeze(0)
-            .unsqueeze(0)
-        )
+        input_features = torch.cat(
+            [action_features, observation_features], dim=-1
+        ).unsqueeze(1)
         self.history_features, self.hidden = self.models.history_model(
             input_features, hidden=self.hidden
         )
