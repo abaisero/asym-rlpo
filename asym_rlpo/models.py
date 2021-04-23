@@ -1,5 +1,5 @@
 import re
-from typing import Container, Optional
+from typing import Iterable, Optional
 
 import gym
 import gym_gridverse as gv
@@ -15,10 +15,11 @@ from asym_rlpo.representations.history import RNNHistoryRepresentation
 from asym_rlpo.representations.identity import IdentityRepresentation
 from asym_rlpo.representations.mlp import MLPRepresentation
 from asym_rlpo.representations.onehot import OneHotRepresentation
+from asym_rlpo.utils.debugging import checkraise
 
 
 def make_models(
-    env: gym.Env, *, keys: Optional[Container[str]] = None
+    env: gym.Env, *, keys: Optional[Iterable[str]] = None
 ) -> nn.ModuleDict:
 
     if isinstance(env, gv.gym.GymEnvironment):
@@ -34,12 +35,20 @@ def make_models(
     else:
         raise NotImplementedError
 
-    return (
-        models
-        if keys is None
-        else nn.ModuleDict(
-            {key: model for key, model in models.items() if key in keys}
-        )
+    if keys is None:
+        return models
+
+    keys = set(keys)
+    missing_keys = keys - models.keys()
+    checkraise(
+        len(missing_keys) == 0,
+        ValueError,
+        'models dictionary does not contains keys {}',
+        missing_keys,
+    )
+
+    return nn.ModuleDict(
+        {key: model for key, model in models.items() if key in keys}
     )
 
 
