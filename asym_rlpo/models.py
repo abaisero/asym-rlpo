@@ -98,9 +98,16 @@ def make_models_openai(env: gym.Env) -> nn.ModuleDict:
     )
 
 
-# fob-dqn
 def make_models_gv(env: gym.Env) -> nn.ModuleDict:
+    action_model = EmbeddingRepresentation(env.action_space.n, 64)
+    observation_model = GV_ObservationRepresentation(env.observation_space)
     state_model = GV_StateRepresentation(env.state_space)
+
+    history_model = RNNHistoryRepresentation(
+        action_model,
+        observation_model,
+        hidden_size=128,
+    )
     q_model = nn.Sequential(
         nn.Linear(state_model.dim, 128),
         nn.ReLU(),
@@ -110,54 +117,13 @@ def make_models_gv(env: gym.Env) -> nn.ModuleDict:
     )
     return nn.ModuleDict(
         {
+            'action_model': action_model,
+            'observation_model': observation_model,
             'state_model': state_model,
+            'history_model': history_model,
             'q_model': q_model,
         }
     )
-
-
-# foe-dqn
-# def make_models_gv(env: gym.Env) -> nn.ModuleDict:
-#     observation_model = GV_ObservationRepresentation(env.observation_space)
-#     q_model = nn.Sequential(
-#         nn.Linear(history_model.dim, 128),
-#         nn.ReLU(),
-#         nn.Linear(128, 128),
-#         nn.ReLU(),
-#         nn.Linear(128, env.action_space.n),
-#     )
-#     models = nn.ModuleDict(
-#         {
-#             'state_model': state_model,
-#             'q_model': q_model,
-#         }
-#     )
-
-
-# poe-adqn
-# def make_models_gv(env: gym.Env) -> nn.ModuleDict:
-#     action_model = EmbeddingRepresentation(env.action_space.n, 64)
-#     observation_model = GV_ObservationRepresentation(env.observation_space)
-#     history_model = RNNHistoryRepresentation(
-#         action_model,
-#         observation_model,
-#         hidden_size=128,
-#     )
-#     q_model = nn.Sequential(
-#         nn.Linear(history_model.dim, 128),
-#         nn.ReLU(),
-#         nn.Linear(128, 128),
-#         nn.ReLU(),
-#         nn.Linear(128, env.action_space.n),
-#     )
-#     models = nn.ModuleDict(
-#         {
-#             'action_model': action_model,
-#             'observation_model': observation_model,
-#             'history_model': history_model,
-#             'q_model': q_model,
-#         }
-#     )
 
 
 # poe-dqn
