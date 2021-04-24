@@ -1,5 +1,5 @@
 import abc
-from typing import FrozenSet, TypedDict
+from typing import FrozenSet, Optional, TypedDict
 
 import gym
 import torch
@@ -9,6 +9,7 @@ import asym_rlpo.generalized_torch as gtorch
 from asym_rlpo.data import Episode
 from asym_rlpo.models import make_models
 from asym_rlpo.policies.base import PartiallyObservablePolicy
+from asym_rlpo.targets import TargetFunction
 
 
 class LossesDict(TypedDict):
@@ -35,7 +36,13 @@ class A2C(metaclass=abc.ABCMeta):
         return ActorPolicy(self.models, device=self.device)
 
     @abc.abstractmethod
-    def losses(self, episode: Episode, *, discount: float) -> LossesDict:
+    def losses(
+        self,
+        episode: Episode,
+        *,
+        discount: float,
+        target_f: Optional[TargetFunction] = None
+    ) -> LossesDict:
         raise NotImplementedError
 
 

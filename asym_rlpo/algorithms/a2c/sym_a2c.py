@@ -1,9 +1,10 @@
-from typing import Dict
+from typing import Optional
 
 import torch
 import torch.nn.functional as F
 
 from asym_rlpo.data import Episode
+from asym_rlpo.targets import TargetFunction, td0_target
 
 from .base import A2C, LossesDict
 
@@ -19,7 +20,16 @@ class SymA2C(A2C):
         ]
     )
 
-    def losses(self, episode: Episode, *, discount: float) -> LossesDict:
+    def losses(
+        self,
+        episode: Episode,
+        *,
+        discount: float,
+        target_f: Optional[TargetFunction] = None
+    ) -> LossesDict:
+        if target_f is None:
+            target_f = td0_target
+
         action_features = self.models.action_model(episode.actions)
         action_features = action_features.roll(1, 0)
         action_features[0, :] = 0.0
@@ -36,7 +46,9 @@ class SymA2C(A2C):
         vh_values_bootstrap = torch.tensor(0.0, device=self.device).where(
             episode.dones, vh_values.detach().roll(-1)
         )
-        vh_targets = episode.rewards + discount * vh_values_bootstrap
+        vh_targets = target_f(
+            episode.rewards, vh_values.detach(), discount=discount
+        )
 
         discounts = discount ** torch.arange(len(episode), device=self.device)
         action_nlls = -action_logits.gather(

@@ -3,12 +3,13 @@ import argparse
 
 import torch
 import torch.nn as nn
-
 import wandb
+
 from asym_rlpo.algorithms import make_algorithm
 from asym_rlpo.env import make_env
 from asym_rlpo.evaluation import evaluate_returns
 from asym_rlpo.sampling import sample_episodes
+from asym_rlpo.targets import target_function_factory
 from asym_rlpo.utils.aggregate import average
 from asym_rlpo.utils.device import get_device
 from asym_rlpo.utils.scheduling import make_schedule
@@ -39,6 +40,15 @@ def parse_args():
     # evaluation
     parser.add_argument('--evaluation-period', type=int, default=10)
     parser.add_argument('--evaluation-num-episodes', type=int, default=1)
+
+    # targets
+    parser.add_argument(
+        '--target',
+        choices=['mc', 'td0', 'td-n', 'td-lambda'],
+        default='td0',
+    )
+    parser.add_argument('--target-n', type=int, default=None)
+    parser.add_argument('--target-lambda', type=float, default=None)
 
     # negentropy schedule
     parser.add_argument('--negentropy-schedule', default='linear')
@@ -86,6 +96,13 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
     print('creating environment')
     env = make_env(config.env)
     discount = 1.0
+
+    # initialize return type
+    target_f = target_function_factory(
+        config.target,
+        n=config.target_n,
+        lambda_=config.target_lambda,
+    )
 
     # instantiate models and policies
     print('creating models and policies')
@@ -189,7 +206,8 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         algo.models.train()
         optimizer.zero_grad()
         losses = [
-            algo.losses(episode, discount=discount) for episode in episodes
+            algo.losses(episode, discount=discount, target_f=target_f)
+            for episode in episodes
         ]
         loss_actor = average([l['actor'] for l in losses])
         loss_critic = average([l['critic'] for l in losses])
