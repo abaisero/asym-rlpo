@@ -26,12 +26,12 @@ class POE_ADQN(EpisodicDQN):
     ]
 
     def target_policy(self) -> TargetPolicy:
-        return TargetPolicy(self.models)
+        return TargetPolicy(self.models, device=self.device)
 
     def behavior_policy(
         self, action_space: gym.spaces.Discrete
     ) -> BehaviorPolicy:
-        return BehaviorPolicy(self.models, action_space)
+        return BehaviorPolicy(self.models, action_space, device=self.device)
 
     def episodic_loss(
         self, episodes: Sequence[Episode], *, discount: float
@@ -64,7 +64,7 @@ class POE_ADQN(EpisodicDQN):
             qhs_values = qhs_values.gather(
                 1, episode.actions.unsqueeze(-1)
             ).squeeze(-1)
-            qhs_values_bootstrap = torch.tensor(0.0).where(
+            qhs_values_bootstrap = torch.tensor(0.0, device=self.device).where(
                 episode.dones,
                 target_qhs_values.gather(
                     1, target_qh_values.argmax(-1).unsqueeze(-1)
@@ -101,7 +101,7 @@ class POE_ADQN(EpisodicDQN):
             qh_values = qh_values.gather(
                 1, episode.actions.unsqueeze(-1)
             ).squeeze(-1)
-            qhs_values_bootstrap = torch.tensor(0.0).where(
+            qhs_values_bootstrap = torch.tensor(0.0, device=self.device).where(
                 episode.dones,
                 target_qhs_values.gather(
                     1, target_qh_values.argmax(-1).unsqueeze(-1)
@@ -152,31 +152,38 @@ class POE_ADQN(EpisodicDQN):
 
             losses.append(loss)
 
-        return sum(losses, start=torch.tensor(0.0)) / len(losses)
+        return sum(losses, start=torch.tensor(0.0, device=self.device)) / len(
+            losses
+        )
         # return sum(losses, start=torch.tensor(0.0)) / sum(
         #     len(episode) for episode in episodes
         # )
 
 
 class TargetPolicy(PartiallyObservablePolicy):
-    def __init__(self, models: nn.ModuleDict):
+    def __init__(self, models: nn.ModuleDict, *, device: torch.device):
         super().__init__()
         self.models = models
+        self.device = device
 
         self.history_features = None
         self.hidden = None
 
     def reset(self, observation):
-        action_features = torch.zeros(1, self.models.action_model.dim)
+        action_features = torch.zeros(
+            1, self.models.action_model.dim, device=self.device
+        )
         observation_features = self.models.observation_model(
-            gtorch.unsqueeze(observation, 0)
+            gtorch.to(gtorch.unsqueeze(observation, 0), self.device)
         )
         self._update(action_features, observation_features)
 
     def step(self, action, observation):
-        action_features = self.models.action_model(action.unsqueeze(0))
+        action_features = self.models.action_model(
+            action.unsqueeze(0).to(self.device)
+        )
         observation_features = self.models.observation_model(
-            gtorch.unsqueeze(observation, 0)
+            gtorch.to(gtorch.unsqueeze(observation, 0), self.device)
         )
         self._update(action_features, observation_features)
 
@@ -195,9 +202,15 @@ class TargetPolicy(PartiallyObservablePolicy):
 
 
 class BehaviorPolicy(PartiallyObservablePolicy):
-    def __init__(self, models: nn.ModuleDict, action_space: gym.Space):
+    def __init__(
+        self,
+        models: nn.ModuleDict,
+        action_space: gym.Space,
+        *,
+        device: torch.device
+    ):
         super().__init__()
-        self.target_policy = TargetPolicy(models)
+        self.target_policy = TargetPolicy(models, device=device)
         self.action_space = action_space
         self.epsilon: float
 

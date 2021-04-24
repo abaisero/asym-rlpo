@@ -31,3 +31,7 @@ def squeeze(x: GTensor, *args, **kwargs) -> GTensor:
 
 def unsqueeze(x: GTensor, *args, **kwargs) -> GTensor:
     return tensor_apply(x, 'unsqueeze', *args, **kwargs)
+
+
+def to(x: GTensor, *args, **kwargs) -> GTensor:
+    return tensor_apply(x, 'to', *args, **kwargs)

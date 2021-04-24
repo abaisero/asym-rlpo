@@ -3,8 +3,8 @@ import argparse
 
 import torch
 import torch.nn as nn
-import wandb
 
+import wandb
 from asym_rlpo.algorithms import make_algorithm
 from asym_rlpo.env import make_env
 from asym_rlpo.evaluation import evaluate_returns
@@ -90,7 +90,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
     # instantiate models and policies
     print('creating models and policies')
     algo = make_algorithm(config.algo, env)
-    algo.models.to(device)
+    algo.to(device)
     policy = algo.policy()
 
     # instantiate optimizer

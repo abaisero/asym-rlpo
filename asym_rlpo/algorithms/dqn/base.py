@@ -14,6 +14,12 @@ class DQN(metaclass=abc.ABCMeta):
         super().__init__()
         self.models = make_models(env, keys=self.model_keys)
         self.target_models = make_models(env, keys=self.model_keys)
+        self.device = next(self.models.parameters()).device
+
+    def to(self, device: torch.device):
+        self.models.to(device)
+        self.target_models.to(device)
+        self.device = device
 
     @property
     @abc.abstractmethod

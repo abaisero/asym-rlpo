@@ -33,12 +33,12 @@ class SymA2C(A2C):
 
         action_logits = self.models.policy_model(history_features)
         vh_values = self.models.vh_model(history_features).squeeze(-1)
-        vh_values_bootstrap = torch.tensor(0.0).where(
+        vh_values_bootstrap = torch.tensor(0.0, device=self.device).where(
             episode.dones, vh_values.detach().roll(-1)
         )
         vh_targets = episode.rewards + discount * vh_values_bootstrap
 
-        discounts = discount ** torch.arange(len(episode))
+        discounts = discount ** torch.arange(len(episode), device=self.device)
         action_nlls = -action_logits.gather(
             1, episode.actions.unsqueeze(-1)
         ).squeeze(-1)

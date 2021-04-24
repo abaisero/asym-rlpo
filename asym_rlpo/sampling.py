@@ -1,9 +1,10 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import gym
 import numpy as np
 import torch
 
+import asym_rlpo.generalized_torch as gtorch
 from asym_rlpo.policies.base import Policy
 from asym_rlpo.utils.convert import numpy2torch
 
@@ -79,7 +80,12 @@ def sample_episodes(
     render: bool = False,
 ) -> List[GV_Episode]:
     return [
-        sample_episode(env, policy, num_steps=num_steps, render=render)
+        sample_episode(
+            env,
+            policy,
+            num_steps=num_steps,
+            render=render,
+        )
         for _ in range(num_episodes)
     ]
 
