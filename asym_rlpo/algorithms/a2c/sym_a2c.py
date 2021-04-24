@@ -10,15 +10,13 @@ from .base import A2C, LossesDict
 
 
 class SymA2C(A2C):
-    model_keys = frozenset(
-        [
-            'action_model',
-            'observation_model',
-            'history_model',
-            'policy_model',
-            'vh_model',
-        ]
-    )
+    model_keys = [
+        'action_model',
+        'observation_model',
+        'history_model',
+        'policy_model',
+        'vh_model',
+    ]
 
     def losses(
         self,

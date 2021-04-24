@@ -1,5 +1,5 @@
 import abc
-from typing import FrozenSet, Optional, TypedDict
+from typing import List, Optional, TypedDict
 
 import gym
 import torch
@@ -29,7 +29,7 @@ class A2C(metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def model_keys(self) -> FrozenSet[str]:
+    def model_keys(self) -> List[str]:
         assert False
 
     def policy(self) -> PartiallyObservablePolicy:
