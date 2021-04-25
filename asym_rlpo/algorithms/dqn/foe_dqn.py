@@ -17,7 +17,7 @@ from .base import EpisodicDQN
 
 
 class FOE_DQN(EpisodicDQN):
-    model_keys = ['state_model', 'q_model']
+    model_keys = ['state_model', 'qs_model']
 
     def target_policy(self) -> TargetPolicy:
         return TargetPolicy(self.models, device=self.device)
@@ -34,24 +34,24 @@ class FOE_DQN(EpisodicDQN):
         losses = []
         for episode in episodes:
 
-            q_values = self.models.q_model(
+            qs_values = self.models.qs_model(
                 self.models.state_model(episode.states)
             )
             with torch.no_grad():
-                target_q_values = self.target_models.q_model(
+                target_qs_values = self.target_models.qs_model(
                     self.models.state_model(episode.states)
                 )
 
-            q_values = q_values.gather(
+            qs_values = qs_values.gather(
                 1, episode.actions.unsqueeze(-1)
             ).squeeze(-1)
-            q_values_bootstrap = torch.tensor(0.0, device=self.device).where(
-                episode.dones, target_q_values.max(-1).values.roll(-1, 0)
+            qs_values_bootstrap = torch.tensor(0.0, device=self.device).where(
+                episode.dones, target_qs_values.max(-1).values.roll(-1, 0)
             )
 
             loss = F.mse_loss(
-                q_values,
-                episode.rewards + discount * q_values_bootstrap,
+                qs_values,
+                episode.rewards + discount * qs_values_bootstrap,
             )
             losses.append(loss)
 
@@ -71,8 +71,8 @@ class TargetPolicy(FullyObservablePolicy):
 
     def fo_sample_action(self, state):
         state_batch = gtorch.to(collate_torch([state]), self.device)
-        q_values = self.models.q_model(self.models.state_model(state_batch))
-        return q_values.squeeze(0).argmax().item()
+        qs_values = self.models.qs_model(self.models.state_model(state_batch))
+        return qs_values.squeeze(0).argmax().item()
 
 
 class BehaviorPolicy(FullyObservablePolicy):

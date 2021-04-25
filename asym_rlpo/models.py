@@ -84,7 +84,7 @@ def make_models_openai(env: gym.Env) -> nn.ModuleDict:
         nn.LeakyReLU(),
         make_module('linear', 'linear', 256, env.action_space.n),
     )
-    q_model = nn.Sequential(
+    qs_model = nn.Sequential(
         make_module('linear', 'leaky_relu', state_model.dim, 512),
         nn.LeakyReLU(),
         make_module('linear', 'leaky_relu', 512, 256),
@@ -112,12 +112,12 @@ def make_models_openai(env: gym.Env) -> nn.ModuleDict:
     return nn.ModuleDict(
         {
             # GENERIC
+            'state_model': state_model,
             'action_model': action_model,
             'observation_model': observation_model,
-            'state_model': state_model,
             'history_model': history_model,
             # DQN
-            'q_model': q_model,
+            'qs_model': qs_model,
             'qh_model': qh_model,
             'qhs_model': qhs_model,
             # A2C
@@ -128,22 +128,17 @@ def make_models_openai(env: gym.Env) -> nn.ModuleDict:
 
 
 def make_models_gv(env: gym.Env) -> nn.ModuleDict:
+    # gen purpose models
+    state_model = GV_StateRepresentation(env.state_space)
     action_model = EmbeddingRepresentation(env.action_space.n, 64)
     observation_model = GV_ObservationRepresentation(env.observation_space)
-    state_model = GV_StateRepresentation(env.state_space)
-
     history_model = RNNHistoryRepresentation(
         action_model,
         observation_model,
         hidden_size=128,
     )
-    q_model = nn.Sequential(
-        make_module('linear', 'relu', state_model.dim, 128),
-        nn.ReLU(),
-        make_module('linear', 'relu', 128, 128),
-        nn.ReLU(),
-        make_module('linear', 'linear', 128, env.action_space.n),
-    )
+
+    # DQN models
     qh_model = nn.Sequential(
         make_module('linear', 'relu', history_model.dim, 128),
         nn.ReLU(),
@@ -163,14 +158,44 @@ def make_models_gv(env: gym.Env) -> nn.ModuleDict:
         nn.ReLU(),
         make_module('linear', 'linear', 128, env.action_space.n),
     )
+    qs_model = nn.Sequential(
+        make_module('linear', 'relu', state_model.dim, 128),
+        nn.ReLU(),
+        make_module('linear', 'relu', 128, 128),
+        nn.ReLU(),
+        make_module('linear', 'linear', 128, env.action_space.n),
+    )
+
+    # A2C models
+    policy_model = nn.Sequential(
+        make_module('linear', 'leaky_relu', history_model.dim, 128),
+        nn.LeakyReLU(),
+        make_module('linear', 'leaky_relu', 128, 128),
+        nn.LeakyReLU(),
+        make_module('linear', 'linear', 128, env.action_space.n),
+        nn.LogSoftmax(dim=-1),
+    )
+    vh_model = nn.Sequential(
+        make_module('linear', 'leaky_relu', history_model.dim, 128),
+        nn.LeakyReLU(),
+        make_module('linear', 'leaky_relu', 128, 128),
+        nn.LeakyReLU(),
+        make_module('linear', 'linear', 128, 1),
+    )
+
     return nn.ModuleDict(
         {
+            # GENERIC
+            'state_model': state_model,
             'action_model': action_model,
             'observation_model': observation_model,
-            'state_model': state_model,
             'history_model': history_model,
-            'q_model': q_model,
+            # DQN
+            'qs_model': qs_model,
             'qh_model': qh_model,
             'qhs_model': qhs_model,
+            # A2C
+            'policy_model': policy_model,
+            'vh_model': vh_model,
         }
     )
