@@ -56,7 +56,7 @@ def parse_args():
     # optimization
     parser.add_argument('--optim-lr', type=float, default=0.001)
     parser.add_argument('--optim-eps', type=float, default=1e-8)
-    parser.add_argument('--optim-max-norm', type=float, default=10.0)
+    parser.add_argument('--optim-max-norm', type=float, default=float('inf'))
 
     # device
     parser.add_argument('--device', default='auto')
