@@ -93,14 +93,14 @@ class Batch(Generic[S, O]):
 
     def to(self, device: torch.device) -> Batch:
         return Batch(
-            states=self.states.to(device),
-            observations=self.observations.to(device),
-            actions=self.actions.to(device),
-            rewards=self.rewards.to(device),
-            next_states=self.next_states.to(device),
-            next_observations=self.next_observations.to(device),
-            starts=self.starts.to(device),
-            dones=self.dones.to(device),
+            states=gtorch.to(self.states, device),
+            observations=gtorch.to(self.observations, device),
+            actions=gtorch.to(self.actions, device),
+            rewards=gtorch.to(self.rewards, device),
+            next_states=gtorch.to(self.next_states, device),
+            next_observations=gtorch.to(self.next_observations, device),
+            starts=gtorch.to(self.starts, device),
+            dones=gtorch.to(self.dones, device),
         )
 
 
@@ -232,12 +232,12 @@ class Episode(Generic[S, O]):
 
     def to(self, device: torch.device) -> Episode:
         return Episode(
-            states=self.states.to(device),
-            observations=self.observations.to(device),
-            actions=self.actions.to(device),
-            rewards=self.rewards.to(device),
-            starts=self.starts.to(device),
-            dones=self.dones.to(device),
+            states=gtorch.to(self.states, device),
+            observations=gtorch.to(self.observations, device),
+            actions=gtorch.to(self.actions, device),
+            rewards=gtorch.to(self.rewards, device),
+            starts=gtorch.to(self.starts, device),
+            dones=gtorch.to(self.dones, device),
         )
 
 

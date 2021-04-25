@@ -57,26 +57,26 @@ class ActorPolicy(PartiallyObservablePolicy):
 
     def reset(self, observation):
         action_features = torch.zeros(
-            self.models.action_model.dim, device=self.device
+            1, self.models.action_model.dim, device=self.device
         )
         observation_features = self.models.observation_model(
-            gtorch.to(observation, self.device)
+            gtorch.to(gtorch.unsqueeze(observation, 0), self.device)
         )
         self._update(action_features, observation_features)
 
     def step(self, action, observation):
-        action_features = self.models.action_model(action.to(self.device))
+        action_features = self.models.action_model(
+            action.unsqueeze(0).to(self.device)
+        )
         observation_features = self.models.observation_model(
-            gtorch.to(observation, self.device)
+            gtorch.to(gtorch.unsqueeze(observation, 0), self.device)
         )
         self._update(action_features, observation_features)
 
     def _update(self, action_features, observation_features):
-        input_features = (
-            torch.cat([action_features, observation_features])
-            .unsqueeze(0)
-            .unsqueeze(0)
-        )
+        input_features = torch.cat(
+            [action_features, observation_features], dim=-1
+        ).unsqueeze(1)
         self.history_features, self.hidden = self.models.history_model(
             input_features, hidden=self.hidden
         )
