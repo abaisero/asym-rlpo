@@ -51,6 +51,9 @@ def parse_args():
     parser.add_argument('--negentropy-schedule', default='linear')
     parser.add_argument('--negentropy-value-from', type=float, default=1.0)
     parser.add_argument('--negentropy-value-to', type=float, default=0.01)
+    parser.add_argument(
+        '--negentropy-value-to-factor', type=float, default=None
+    )
     parser.add_argument('--negentropy-nsteps', type=int, default=500_000)
 
     # optimization
@@ -120,7 +123,9 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
     negentropy_schedule = make_schedule(
         config.negentropy_schedule,
         value_from=config.negentropy_value_from,
-        value_to=config.negentropy_value_to,
+        value_to=config.negentropy_value_to
+        if config.negentropy_value_to_factor is None
+        else config.negentropy_value_from * config.negentropy_value_to_factor,
         nsteps=config.negentropy_nsteps,
     )
     weight_negentropy = negentropy_schedule(xstats['simulation_timesteps'])
