@@ -1,22 +1,20 @@
-name: new-random-PO-pos-Acrobot-v1.poe-adqn
+name: random-PO-pos-Acrobot-v1.poe-adqn
 method: random
 metric:
   name: performance/avg_target_mean_return
   goal: maximize
-program: main.py
+program: main_dqn.py
 parameters:
   optim-lr:
-    distribution: categorical
-    values: [ 0.0001, 0.0003, 0.001 ]
+    values: [ 0.00003, 0.0001, 0.0003, 0.001 ]
+  optim-max-norm:
+    values: [ 10.0, 'inf' ]
   target-update-period:
-    distribution: categorical
-    values: [ 10, 30, 100, 300 ]
+    values: [ 1, 3, 10, 30, 100 ]
   simulation-timesteps-per-training-step:
-    distribution: categorical
-    values: [ 2, 4, 8, 16 ]
+    values: [ 2, 4, 8 ]
   training-num-episodes:
-    distribution: categorical
-    values: [ 1, 2, 4 ]
+    values: [ 1, 2 ]
 project: asym-rlpo
 entity: abaisero
 command: 
@@ -26,5 +24,5 @@ command:
   - PO-pos-Acrobot-v1
   - poe-adqn
   - "--wandb-group"
-  - new-sweep-random-acrobot-poe-adqn
+  - sweep-random-acrobot-poe-adqn
   - ${args}
