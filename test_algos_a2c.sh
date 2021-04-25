@@ -5,7 +5,7 @@ export WANDB_CONSOLE=off
 export WANDB_SILENT=true
 
 envs=(PO-pos-CartPole-v1 ../gym-gridverse/yaml/gv_empty.4x4.yaml)
-algos=(sym-a2c)
+algos=(sym-a2c asym-a2c)
 
 args=(
   --max-simulation-timesteps 500

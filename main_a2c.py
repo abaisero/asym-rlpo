@@ -25,10 +25,7 @@ def parse_args():
 
     # algorithm and environment
     parser.add_argument('env')
-    parser.add_argument(
-        'algo',
-        choices=['sym-a2c', 'biased-asym-a2c', 'unbiased-asym-a2c'],
-    )
+    parser.add_argument('algo', choices=['sym-a2c', 'asym-a2c'])
 
     # general
     parser.add_argument(

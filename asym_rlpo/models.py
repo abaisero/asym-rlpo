@@ -108,6 +108,15 @@ def make_models_openai(env: gym.Env) -> nn.ModuleDict:
         nn.LeakyReLU(),
         make_module('linear', 'linear', 256, 1),
     )
+    vhs_model = nn.Sequential(
+        make_module(
+            'linear', 'leaky_relu', history_model.dim + state_model.dim, 512
+        ),
+        nn.LeakyReLU(),
+        make_module('linear', 'leaky_relu', 512, 256),
+        nn.LeakyReLU(),
+        make_module('linear', 'linear', 256, 1),
+    )
 
     return nn.ModuleDict(
         {
@@ -123,6 +132,7 @@ def make_models_openai(env: gym.Env) -> nn.ModuleDict:
             # A2C
             'policy_model': policy_model,
             'vh_model': vh_model,
+            'vhs_model': vhs_model,
         }
     )
 
@@ -182,6 +192,15 @@ def make_models_gv(env: gym.Env) -> nn.ModuleDict:
         nn.LeakyReLU(),
         make_module('linear', 'linear', 128, 1),
     )
+    vhs_model = nn.Sequential(
+        make_module(
+            'linear', 'leaky_relu', history_model.dim + state_model.dim, 128
+        ),
+        nn.LeakyReLU(),
+        make_module('linear', 'leaky_relu', 128, 128),
+        nn.LeakyReLU(),
+        make_module('linear', 'linear', 128, 1),
+    )
 
     return nn.ModuleDict(
         {
@@ -197,5 +216,6 @@ def make_models_gv(env: gym.Env) -> nn.ModuleDict:
             # A2C
             'policy_model': policy_model,
             'vh_model': vh_model,
+            'vhs_model': vhs_model,
         }
     )

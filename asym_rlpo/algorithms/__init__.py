@@ -2,6 +2,7 @@ from typing import Union
 
 import gym
 
+from .a2c.asym_a2c import AsymA2C
 from .a2c.base import A2C
 from .a2c.sym_a2c import SymA2C
 from .dqn.base import DQN
@@ -26,5 +27,8 @@ def make_algorithm(name, env: gym.Env) -> Union[DQN, A2C]:
 
     if name == 'sym-a2c':
         return SymA2C(env)
+
+    if name == 'asym-a2c':
+        return AsymA2C(env)
 
     raise ValueError(f'invalid algorithm name {name}')
