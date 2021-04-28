@@ -1,6 +1,7 @@
 import re
 
 import gym
+from gym_gridverse.debugging import reset_gv_debug
 from gym_gridverse.envs.yaml.factory import factory_env_from_yaml
 from gym_gridverse.gym import GymEnvironment
 from gym_gridverse.outer_env import OuterEnv
@@ -115,6 +116,8 @@ def make_po_env(name: str) -> gym.Env:
 
 
 def make_gv_env(path: str) -> GymEnvironment:
+    reset_gv_debug(False)
+
     print('Loading using YAML')
     inner_env = factory_env_from_yaml(path)
     obs_rep = DefaultObservationRepresentation(inner_env.observation_space)
