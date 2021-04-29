@@ -71,7 +71,7 @@ def parse_args():
     )
 
     # target
-    parser.add_argument('--target-update-period', type=int, default=10)
+    parser.add_argument('--target-update-period', type=int, default=10_000)
 
     # training parameters
     parser.add_argument(
@@ -186,6 +186,8 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         nsteps=config.epsilon_nsteps,
     )
 
+    last_target_update_timestep = 0  # Tracks when we last updated the target network
+
     # main learning loop
     wandb.watch(algo.models)
     while xstats['simulation_timesteps'] < config.max_simulation_timesteps:
@@ -271,8 +273,11 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         )
 
         # train based on episode buffer
-        if xstats['epoch'] % config.target_update_period == 0:
+        if (xstats['simulation_timesteps'] - last_target_update_timestep) >= config.target_update_period:
+            # Update the target network
             algo.target_models.load_state_dict(algo.models.state_dict())
+            # Record the current timestep
+            last_target_update_timestep = xstats['simulation_timesteps']
 
         algo.models.train()
         while (
