@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 import argparse
+import random
 
+import numpy as np
 import torch
 import torch.nn as nn
 import wandb
+from gym_gridverse.rng import reset_gv_rng
 
 from asym_rlpo.algorithms import make_algorithm
 from asym_rlpo.env import make_env
@@ -26,6 +29,10 @@ def parse_args():
     # algorithm and environment
     parser.add_argument('env')
     parser.add_argument('algo', choices=['sym-a2c', 'asym-a2c'])
+
+    # reproducibility
+    parser.add_argument('--seed', type=int, default=None)
+    parser.add_argument('--deterministic', action='store_true')
 
     # general
     parser.add_argument(
@@ -96,6 +103,20 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
     print('creating environment')
     env = make_env(config.env)
     discount = 1.0
+
+    # reproducibility
+    if config.seed is not None:
+        random.seed(config.seed)
+        np.random.seed(config.seed)
+        torch.manual_seed(config.seed)
+        reset_gv_rng(config.seed)
+        env.seed(config.seed)
+        env.state_space.seed(config.seed)
+        env.action_space.seed(config.seed)
+        env.observation_space.seed(config.seed)
+
+    if config.deterministic:
+        torch.use_deterministic_algorithms(True)
 
     # initialize return type
     target_f = target_function_factory(
