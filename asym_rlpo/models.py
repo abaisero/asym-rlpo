@@ -11,7 +11,7 @@ from asym_rlpo.representations.gv import (
     GV_ObservationRepresentation,
     GV_StateRepresentation,
 )
-from asym_rlpo.representations.history import RNNHistoryRepresentation
+from asym_rlpo.representations.history import GRUHistoryRepresentation
 from asym_rlpo.representations.identity import IdentityRepresentation
 from asym_rlpo.representations.mlp import MLPRepresentation
 from asym_rlpo.representations.onehot import OneHotRepresentation
@@ -57,11 +57,10 @@ def make_models_openai(env: gym.Env) -> nn.ModuleDict:
     state_model = IdentityRepresentation(env.state_space)
     action_model = OneHotRepresentation(env.action_space)
     observation_model = IdentityRepresentation(env.observation_space)
-    history_model = RNNHistoryRepresentation(
+    history_model = GRUHistoryRepresentation(
         action_model,
         observation_model,
         hidden_size=128,
-        nonlinearity='tanh',
     )
 
     # DQN models
@@ -142,7 +141,7 @@ def make_models_gv(env: gym.Env) -> nn.ModuleDict:
     state_model = GV_StateRepresentation(env.state_space)
     action_model = EmbeddingRepresentation(env.action_space.n, 64)
     observation_model = GV_ObservationRepresentation(env.observation_space)
-    history_model = RNNHistoryRepresentation(
+    history_model = GRUHistoryRepresentation(
         action_model,
         observation_model,
         hidden_size=128,
