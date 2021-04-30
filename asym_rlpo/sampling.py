@@ -7,13 +7,7 @@ import torch
 from asym_rlpo.policies.base import Policy
 from asym_rlpo.utils.convert import numpy2torch
 
-from .data import Episode, Interaction, RawEpisode
-
-# gridverse types
-GV_State = Dict[str, np.ndarray]
-GV_Observation = Dict[str, np.ndarray]
-GV_Interaction = Interaction[GV_State, GV_Observation]
-GV_Episode = Episode[GV_State, GV_Observation]
+from .data import Episode, Interaction, O, S
 
 
 def sample_episode(
@@ -21,9 +15,9 @@ def sample_episode(
     policy: Policy,
     *,
     render: bool = False,
-) -> GV_Episode:
+) -> Episode[S, O]:
     with torch.no_grad():
-        interactions: List[GV_Interaction] = []
+        interactions: List[Interaction[S, O]] = []
 
         start, done = True, False
         observation = env.reset()
@@ -57,7 +51,7 @@ def sample_episode(
             observation = next_observation
             start = False
 
-    return Episode.from_raw_episode(RawEpisode(interactions))
+    return Episode.from_interactions(interactions)
 
 
 def sample_episodes(
@@ -66,7 +60,7 @@ def sample_episodes(
     *,
     num_episodes: int,
     render: bool = False,
-) -> List[GV_Episode]:
+) -> List[Episode[S, O]]:
     return [
         sample_episode(env, policy, render=render) for _ in range(num_episodes)
     ]
