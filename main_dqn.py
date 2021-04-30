@@ -41,7 +41,7 @@ def parse_args():
     parser.add_argument(
         '--max-simulation-timesteps', type=int, default=2_000_000
     )
-    parser.add_argument('--max-steps-per-episode', type=int, default=1_000)
+    parser.add_argument('--max-episode-timesteps', type=int, default=None)
     parser.add_argument('--simulation-num-episodes', type=int, default=1)
 
     # evaluation
@@ -110,7 +110,10 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
 
     # insiantiate environment
     print('creating environment')
-    env = make_env(config.env)
+    env = make_env(
+        config.env,
+        max_episode_timesteps=config.max_episode_timesteps,
+    )
     discount = 1.0
 
     # reproducibility
@@ -156,7 +159,6 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
             env,
             random_policy,
             num_episodes=1,
-            num_steps=config.max_steps_per_episode,
         )
         # storing torch data directly
         episode = episode.torch()
@@ -183,7 +185,6 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
                     env,
                     target_policy,
                     num_episodes=1,
-                    num_steps=config.max_steps_per_episode,
                     render=True,
                 )
 
@@ -191,7 +192,6 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
                 env,
                 target_policy,
                 num_episodes=config.evaluation_num_episodes,
-                num_steps=config.max_steps_per_episode,
             )
             mean_length = sum(map(len, episodes)) / len(episodes)
             mean_return = evaluate_returns(episodes, discount=discount).mean()
@@ -224,7 +224,6 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
             env,
             behavior_policy,
             num_episodes=config.simulation_num_episodes,
-            num_steps=config.max_steps_per_episode,
         )
 
         mean_length = sum(map(len, episodes)) / len(episodes)

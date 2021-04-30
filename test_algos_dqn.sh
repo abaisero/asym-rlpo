@@ -8,7 +8,9 @@ envs=(PO-pos-CartPole-v1 ../gym-gridverse/yaml/gv_empty.4x4.yaml)
 algos=(fob-dqn foe-dqn poe-dqn poe-adqn)
 
 args=(
-  --episode-buffer-prepopulate-timesteps 100 --max-simulation-timesteps 500
+  --episode-buffer-prepopulate-timesteps 100
+  --max-simulation-timesteps 500
+  --max-episode-timesteps 50
 )
 
 for env in ${envs[@]}; do

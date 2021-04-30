@@ -22,7 +22,7 @@ def make_models(
     env: gym.Env, *, keys: Optional[Iterable[str]] = None
 ) -> nn.ModuleDict:
 
-    if isinstance(env, gv.gym.GymEnvironment):
+    if isinstance(env.unwrapped, gv.gym.GymEnvironment):
         models = make_models_gv(env)
 
     elif (

@@ -1,6 +1,8 @@
 import re
+from typing import Optional
 
 import gym
+from gym.wrappers import TimeLimit
 from gym_gridverse.debugging import reset_gv_debug
 from gym_gridverse.envs.yaml.factory import factory_env_from_yaml
 from gym_gridverse.gym import GymEnvironment
@@ -16,7 +18,9 @@ from asym_rlpo.utils.debugging import checkraise
 from asym_rlpo.wrapper import IndexWrapper
 
 
-def make_env(id_or_path: str) -> gym.Env:
+def make_env(
+    id_or_path: str, *, max_episode_timesteps: Optional[int] = None
+) -> gym.Env:
     try:
         env = make_po_env(id_or_path)
 
@@ -38,6 +42,10 @@ def make_env(id_or_path: str) -> gym.Env:
         ValueError,
         f'env {id_or_path} does not have state_space',
     )
+
+    if max_episode_timesteps is not None:
+        env = TimeLimit(env, max_episode_timesteps)
+
     return env
 
 

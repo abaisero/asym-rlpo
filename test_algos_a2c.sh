@@ -9,6 +9,7 @@ algos=(sym-a2c asym-a2c)
 
 args=(
   --max-simulation-timesteps 500
+  --max-episode-timesteps 50
 )
 
 for env in ${envs[@]}; do
