@@ -42,6 +42,11 @@ def is_dtype_boolean(x: np.ndarray) -> bool:
 
 
 @overload
+def numpy2torch(data: None) -> None:
+    ...
+
+
+@overload
 def numpy2torch(data: Union[int, float, bool]) -> torch.Tensor:
     ...
 
@@ -67,6 +72,9 @@ def numpy2torch(data: Dict[str, np.ndarray]) -> Dict[str, torch.Tensor]:
 
 
 def numpy2torch(data):
+    if data is None:
+        return None
+
     if isinstance(data, Number):
         return torch.tensor(data)
 

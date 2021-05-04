@@ -4,7 +4,7 @@ export WANDB_MODE=dryrun
 export WANDB_CONSOLE=off
 export WANDB_SILENT=true
 
-envs=(PO-pos-CartPole-v1 ../gym-gridverse/yaml/gv_empty.4x4.yaml)
+envs=(POMDP-heavenhell-episodic-v0 PO-pos-CartPole-v1 ../gym-gridverse/yaml/gv_empty.4x4.yaml)
 algos=(fob-dqn foe-dqn poe-dqn poe-adqn)
 
 args=(

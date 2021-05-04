@@ -2,6 +2,7 @@ import re
 from typing import Optional
 
 import gym
+import gym_pomdps
 from gym.wrappers import TimeLimit
 from gym_gridverse.debugging import reset_gv_debug
 from gym_gridverse.envs.yaml.factory import factory_env_from_yaml
@@ -15,7 +16,7 @@ from gym_gridverse.representations.state_representations import (
 )
 
 from asym_rlpo.utils.debugging import checkraise
-from asym_rlpo.wrapper import IndexWrapper
+from asym_rlpo.wrapper import FlatPaddingWrapper, IndexWrapper
 
 
 def make_env(
@@ -42,6 +43,9 @@ def make_env(
         ValueError,
         f'env {id_or_path} does not have state_space',
     )
+
+    if isinstance(env.unwrapped, gym_pomdps.POMDP):
+        env = FlatPaddingWrapper(env)
 
     if max_episode_timesteps is not None:
         env = TimeLimit(env, max_episode_timesteps)
