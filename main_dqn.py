@@ -22,9 +22,13 @@ from asym_rlpo.utils.timer import Timer
 def parse_args():
     parser = argparse.ArgumentParser()
 
+    # wandb arguments
     parser.add_argument('--wandb-project', default='asym-rlpo')
     parser.add_argument('--wandb-entity', default='abaisero')
     parser.add_argument('--wandb-group', default=None)
+
+    # wandb related
+    parser.add_argument('--wandb-log-period', type=int, default=10)
 
     # algorithm and environment
     parser.add_argument('env')
@@ -229,19 +233,21 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         mean_length = sum(map(len, episodes)) / len(episodes)
         mean_return = evaluate_returns(episodes, discount=discount).mean()
         ystats['performance/cum_behavior_mean_return'] += mean_return
-        wandb.log(
-            {
-                **xstats,
-                'hours': timer.hours,
-                'diagnostics/epsilon': behavior_policy.epsilon,
-                'diagnostics/behavior_mean_episode_length': mean_length,
-                'performance/behavior_mean_return': mean_return,
-                'performance/avg_behavior_mean_return': ystats[
-                    'performance/cum_behavior_mean_return'
-                ]
-                / (xstats['epoch'] + 1),
-            }
-        )
+
+        if xstats['epoch'] % config.wandb_log_period == 0:
+            wandb.log(
+                {
+                    **xstats,
+                    'hours': timer.hours,
+                    'diagnostics/epsilon': behavior_policy.epsilon,
+                    'diagnostics/behavior_mean_episode_length': mean_length,
+                    'performance/behavior_mean_return': mean_return,
+                    'performance/avg_behavior_mean_return': ystats[
+                        'performance/cum_behavior_mean_return'
+                    ]
+                    / (xstats['epoch'] + 1),
+                }
+            )
 
         # storing torch data directly
         episodes = [episode.torch() for episode in episodes]
@@ -286,14 +292,15 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
                 algo.models.parameters(), max_norm=config.optim_max_norm
             )
 
-            wandb.log(
-                {
-                    **xstats,
-                    'hours': timer.hours,
-                    'training/loss': loss,
-                    'training/gradient_norm': gradient_norm,
-                }
-            )
+            if xstats['epoch'] % config.wandb_log_period == 0:
+                wandb.log(
+                    {
+                        **xstats,
+                        'hours': timer.hours,
+                        'training/loss': loss,
+                        'training/gradient_norm': gradient_norm,
+                    }
+                )
 
             optimizer.step()
 
