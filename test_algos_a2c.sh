@@ -8,8 +8,8 @@ envs=(POMDP-heavenhell-episodic-v0 PO-pos-CartPole-v1 ../gym-gridverse/yaml/gv_e
 algos=(sym-a2c asym-a2c)
 
 args=(
-  --max-simulation-timesteps 500
-  --max-episode-timesteps 50
+  --max-simulation-timesteps 1_000
+  --max-episode-timesteps 100
 )
 
 for env in ${envs[@]}; do

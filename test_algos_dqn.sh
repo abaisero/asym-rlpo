@@ -9,8 +9,8 @@ algos=(fob-dqn foe-dqn poe-dqn poe-adqn)
 
 args=(
   --episode-buffer-prepopulate-timesteps 100
-  --max-simulation-timesteps 500
-  --max-episode-timesteps 50
+  --max-simulation-timesteps 1_000
+  --max-episode-timesteps 100
 )
 
 for env in ${envs[@]}; do
