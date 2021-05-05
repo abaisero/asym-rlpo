@@ -44,6 +44,7 @@ def parse_args():
     # evaluation
     parser.add_argument('--evaluation-period', type=int, default=10)
     parser.add_argument('--evaluation-num-episodes', type=int, default=1)
+    parser.add_argument('--evaluation-greedy', action='store_true')
 
     # targets
     parser.add_argument(
@@ -132,7 +133,10 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
     print('creating models and policies')
     algo = make_algorithm(config.algo, env)
     algo.to(device)
-    policy = algo.policy()
+    behavior_policy = algo.actor_policy()
+    evaluation_policy = (
+        algo.greedy_policy() if config.evaluation_greedy else behavior_policy
+    )
 
     # instantiate optimizer
     optimizer = torch.optim.Adam(
@@ -164,14 +168,14 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
             if config.render:
                 sample_episodes(
                     env,
-                    policy,
+                    evaluation_policy,
                     num_episodes=1,
                     render=True,
                 )
 
             episodes = sample_episodes(
                 env,
-                policy,
+                evaluation_policy,
                 num_episodes=config.evaluation_num_episodes,
             )
             mean_length = sum(map(len, episodes)) / len(episodes)
@@ -198,7 +202,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
 
         episodes = sample_episodes(
             env,
-            policy,
+            behavior_policy,
             num_episodes=config.simulation_num_episodes,
         )
 
