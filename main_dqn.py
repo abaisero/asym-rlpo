@@ -52,6 +52,10 @@ def parse_args():
     parser.add_argument('--evaluation-period', type=int, default=10)
     parser.add_argument('--evaluation-num-episodes', type=int, default=1)
 
+    # discounts
+    parser.add_argument('--evaluation-discount', type=float, default=1.0)
+    parser.add_argument('--training-discount', type=float, default=0.99)
+
     # episode buffer
     parser.add_argument(
         '--episode-buffer-max-timesteps', type=int, default=1_000_000
@@ -118,7 +122,6 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         config.env,
         max_episode_timesteps=config.max_episode_timesteps,
     )
-    discount = 1.0
 
     # reproducibility
     if config.seed is not None:
@@ -198,7 +201,9 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
                 num_episodes=config.evaluation_num_episodes,
             )
             mean_length = sum(map(len, episodes)) / len(episodes)
-            mean_return = evaluate_returns(episodes, discount=discount).mean()
+            mean_return = evaluate_returns(
+                episodes, discount=config.evaluation_discount
+            ).mean()
             print(
                 f'EVALUATE epoch {xstats["epoch"]}'
                 f' simulation_timestep {xstats["simulation_timesteps"]}'
@@ -231,7 +236,9 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         )
 
         mean_length = sum(map(len, episodes)) / len(episodes)
-        mean_return = evaluate_returns(episodes, discount=discount).mean()
+        mean_return = evaluate_returns(
+            episodes, discount=config.evaluation_discount
+        ).mean()
         ystats['performance/cum_behavior_mean_return'] += mean_return
 
         if xstats['epoch'] % config.wandb_log_period == 0:
@@ -278,14 +285,18 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
                     replacement=True,
                 )
                 episodes = [episode.to(device) for episode in episodes]
-                loss = algo.episodic_loss(episodes, discount=discount)
+                loss = algo.episodic_loss(
+                    episodes, discount=config.training_discount
+                )
 
             else:
                 batch = episode_buffer.sample_batch(
                     batch_size=config.training_batch_size
                 )
                 batch = batch.to(device)
-                loss = algo.batched_loss(batch, discount=discount)
+                loss = algo.batched_loss(
+                    batch, discount=config.training_discount
+                )
 
             loss.backward()
             gradient_norm = nn.utils.clip_grad_norm_(

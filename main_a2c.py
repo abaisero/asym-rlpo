@@ -50,6 +50,10 @@ def parse_args():
     parser.add_argument('--evaluation-num-episodes', type=int, default=1)
     parser.add_argument('--evaluation-greedy', action='store_true')
 
+    # discounts
+    parser.add_argument('--evaluation-discount', type=float, default=1.0)
+    parser.add_argument('--training-discount', type=float, default=0.99)
+
     # targets
     parser.add_argument(
         '--target',
@@ -110,7 +114,6 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         config.env,
         max_episode_timesteps=config.max_episode_timesteps,
     )
-    discount = 1.0
 
     # reproducibility
     if config.seed is not None:
@@ -183,7 +186,9 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
                 num_episodes=config.evaluation_num_episodes,
             )
             mean_length = sum(map(len, episodes)) / len(episodes)
-            mean_return = evaluate_returns(episodes, discount=discount).mean()
+            mean_return = evaluate_returns(
+                episodes, discount=config.evaluation_discount
+            ).mean()
             print(
                 f'EVALUATE epoch {xstats["epoch"]}'
                 f' simulation_timestep {xstats["simulation_timesteps"]}'
@@ -211,7 +216,9 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         )
 
         mean_length = sum(map(len, episodes)) / len(episodes)
-        mean_return = evaluate_returns(episodes, discount=discount).mean()
+        mean_return = evaluate_returns(
+            episodes, discount=config.evaluation_discount
+        ).mean()
         ystats['performance/cum_behavior_mean_return'] += mean_return
 
         if xstats['epoch'] % config.wandb_log_period == 0:
@@ -239,7 +246,9 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         algo.models.train()
         optimizer.zero_grad()
         losses = [
-            algo.losses(episode, discount=discount, target_f=target_f)
+            algo.losses(
+                episode, discount=config.training_discount, target_f=target_f
+            )
             for episode in episodes
         ]
         loss_actor = average([l['actor'] for l in losses])
