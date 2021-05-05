@@ -61,7 +61,7 @@ def parse_args():
 
     # training parameters
     parser.add_argument(
-        '--simulation-timesteps-per-training-timestep', type=int, default=8
+        '--training-timesteps-per-simulation-timestep', type=int, default=8
     )
     parser.add_argument('--training-num-episodes', type=int, default=1)
     parser.add_argument('--training-batch-size', type=int, default=32)
@@ -262,7 +262,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
                 xstats['simulation_timesteps']
                 - config.episode_buffer_prepopulate_timesteps
             )
-            / config.simulation_timesteps_per_training_timestep
+            * config.training_timesteps_per_simulation_timestep
         ):
             optimizer.zero_grad()
 
