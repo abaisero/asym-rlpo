@@ -41,14 +41,11 @@ class GV_ObservationRepresentation(Representation, nn.Module):
         for k in self._keys():
             s = observation_space[k]
             num_embeddings = max(num_embeddings, s.high.max() - s.low.min() + 1)
-        embedding_size = 8
+        embedding_size = 1
         self.embedding = EmbeddingRepresentation(num_embeddings, embedding_size)
 
         in_channels = 3 * embedding_size
-        self.cnn = nn.Sequential(
-            nn.Conv2d(in_channels, 16, kernel_size=3, padding=1),
-            nn.Conv2d(16, 1, kernel_size=3, padding=1),
-        )
+        self.cnn = gv_cnn(in_channels)
 
         test_obs = batchify(numpy2torch(observation_space.sample()))
         y = self(test_obs)
@@ -104,14 +101,11 @@ class GV_StateRepresentation(Representation, nn.Module):
         for k in ['grid', 'item']:
             s = state_space[k]
             num_embeddings = max(num_embeddings, s.high.max() - s.low.min() + 1)
-        embedding_size = 8
+        embedding_size = 1
         self.embedding = EmbeddingRepresentation(num_embeddings, embedding_size)
 
         in_channels = 3 * embedding_size + 1
-        self.cnn = nn.Sequential(
-            nn.Conv2d(in_channels, 16, kernel_size=3, padding=1),
-            nn.Conv2d(16, 1, kernel_size=3, padding=1),
-        )
+        self.cnn = gv_cnn(in_channels)
 
         test_state = batchify(numpy2torch(state_space.sample()))
         y = self(test_state)
@@ -141,6 +135,15 @@ class GV_StateRepresentation(Representation, nn.Module):
 
         # Concatenate CNN output with the vector inputs
         return torch.cat([agent, item, cnn_output], dim=-1)
+
+
+def gv_cnn(in_channels):
+    """Gridverse convolutional network shared by the observation/state representations."""
+    return nn.Sequential(
+        nn.Conv2d(in_channels, 32, kernel_size=3, padding=1),
+        nn.Conv2d(32, 64, kernel_size=3, padding=1),
+        nn.Conv2d(64, 64, kernel_size=3, padding=1),
+    )
 
 
 def batchify(gv_dict):

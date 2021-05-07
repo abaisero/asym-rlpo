@@ -258,11 +258,9 @@ def make_models_gv(env: gym.Env) -> nn.ModuleDict:
         make_module('linear', 'linear', 128, env.action_space.n),
     )
     qs_model = nn.Sequential(
-        make_module('linear', 'relu', state_model.dim, 128),
+        make_module('linear', 'relu', state_model.dim, 512),
         nn.ReLU(),
-        make_module('linear', 'relu', 128, 128),
-        nn.ReLU(),
-        make_module('linear', 'linear', 128, env.action_space.n),
+        make_module('linear', 'linear', 512, env.action_space.n),
     )
 
     # A2C models
