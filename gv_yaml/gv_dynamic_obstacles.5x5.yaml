@@ -49,4 +49,3 @@ terminating_function:
   terminating_functions:
     - name: reach_goal
     - name: bump_moving_obstacle
-    - name: bump_into_wall
