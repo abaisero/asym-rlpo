@@ -34,7 +34,13 @@ def parse_args():
     parser.add_argument('env')
     parser.add_argument(
         'algo',
-        choices=['fob-dqn', 'foe-dqn', 'poe-dqn', 'poe-adqn'],
+        choices=[
+            'fob-dqn',
+            'foe-dqn',
+            'poe-dqn',
+            'poe-adqn',
+            'poe-adqn-bootstrap',
+        ],
     )
 
     # reproducibility

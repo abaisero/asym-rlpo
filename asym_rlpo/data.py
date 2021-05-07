@@ -12,6 +12,17 @@ from asym_rlpo.utils.collate import collate_numpy, collate_torch
 from asym_rlpo.utils.convert import numpy2torch
 from asym_rlpo.utils.debugging import checkraise
 
+Torch_S = TypeVar(
+    'Torch_S',
+    torch.Tensor,
+    Dict[str, torch.Tensor],
+)
+Torch_O = TypeVar(
+    'Torch_O',
+    torch.Tensor,
+    Dict[str, torch.Tensor],
+)
+
 S = TypeVar(
     'S',
     torch.Tensor,
