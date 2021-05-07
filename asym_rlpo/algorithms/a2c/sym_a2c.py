@@ -6,10 +6,10 @@ import torch.nn.functional as F
 from asym_rlpo.data import Episode
 from asym_rlpo.targets import TargetFunction, td0_target
 
-from .base import A2C, LossesDict
+from .base import A2C_Base, LossesDict
 
 
-class SymA2C(A2C):
+class SymA2C(A2C_Base):
     model_keys = [
         'action_model',
         'observation_model',

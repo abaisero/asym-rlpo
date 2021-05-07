@@ -55,12 +55,7 @@ class FOE_DQN(EpisodicDQN):
             )
             losses.append(loss)
 
-        return sum(losses, start=torch.tensor(0.0, device=self.device)) / len(
-            losses
-        )
-        # return sum(losses, start=torch.tensor(0.0)) / sum(
-        #     len(episode) for episode in episodes
-        # )
+        return sum(losses) / len(losses)  # type: ignore
 
 
 class TargetPolicy(FullyObservablePolicy):

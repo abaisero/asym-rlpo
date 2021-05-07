@@ -142,12 +142,7 @@ class ADQN(EpisodicDQN):
             loss = (qhs_loss + qh_loss) / 2
             losses.append(loss)
 
-        return sum(losses, start=torch.tensor(0.0, device=self.device)) / len(
-            losses
-        )
-        # return sum(losses, start=torch.tensor(0.0)) / sum(
-        #     len(episode) for episode in episodes
-        # )
+        return sum(losses) / len(losses)  # type: ignore
 
 
 class ADQN_Bootstrap(ADQN):

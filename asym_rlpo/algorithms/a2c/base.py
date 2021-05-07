@@ -18,7 +18,7 @@ class LossesDict(TypedDict):
     negentropy: torch.Tensor
 
 
-class A2C(metaclass=abc.ABCMeta):
+class A2C_Base(metaclass=abc.ABCMeta):
     def __init__(self, env: gym.Env):
         self.models = make_models(env, keys=self.model_keys)
         self.device = next(self.models.parameters()).device

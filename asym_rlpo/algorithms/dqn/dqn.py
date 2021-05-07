@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import asym_rlpo.generalized_torch as gtorch
-from asym_rlpo.data import Episode
+from asym_rlpo.data import Episode, Torch_O
 from asym_rlpo.policies.base import PartiallyObservablePolicy
 
 from .base import EpisodicDQN
@@ -31,28 +31,34 @@ class DQN(EpisodicDQN):
     ) -> BehaviorPolicy:
         return BehaviorPolicy(self.models, action_space, device=self.device)
 
+    @staticmethod
+    def compute_q_values(
+        models: nn.ModuleDict,
+        actions: torch.Tensor,
+        observations: Torch_O,
+    ) -> torch.Tensor:
+        action_features = models.action_model(actions)
+        action_features = action_features.roll(1, 0)
+        action_features[0, :] = 0.0
+        observation_features = models.observation_model(observations)
+        inputs = torch.cat([action_features, observation_features], dim=-1)
+        history_features, _ = models.history_model(inputs.unsqueeze(0))
+        history_features = history_features.squeeze(0)
+        qh_values = models.qh_model(history_features)
+        return qh_values
+
     def episodic_loss(
         self, episodes: Sequence[Episode], *, discount: float
     ) -> torch.Tensor:
-        def compute_q_values(models, actions, observations):
-            action_features = models.action_model(actions)
-            action_features = action_features.roll(1, 0)
-            action_features[0, :] = 0.0
-            observation_features = models.observation_model(observations)
-            inputs = torch.cat([action_features, observation_features], dim=-1)
-            history_features, _ = models.history_model(inputs.unsqueeze(0))
-            history_features = history_features.squeeze(0)
-            qh_values = models.qh_model(history_features)
-            return qh_values
 
         losses = []
         for episode in episodes:
 
-            q_values = compute_q_values(
+            q_values = self.compute_q_values(
                 self.models, episode.actions, episode.observations
             )
             with torch.no_grad():
-                target_q_values = compute_q_values(
+                target_q_values = self.compute_q_values(
                     self.target_models, episode.actions, episode.observations
                 )
 
@@ -68,12 +74,7 @@ class DQN(EpisodicDQN):
             )
             losses.append(loss)
 
-        return sum(losses, start=torch.tensor(0.0, device=self.device)) / len(
-            losses
-        )
-        # return sum(losses, start=torch.tensor(0.0)) / sum(
-        #     len(episode) for episode in episodes
-        # )
+        return sum(losses) / len(losses)  # type: ignore
 
 
 class TargetPolicy(PartiallyObservablePolicy):

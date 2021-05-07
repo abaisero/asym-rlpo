@@ -9,7 +9,7 @@ from asym_rlpo.models import make_models
 from asym_rlpo.policies.base import Policy
 
 
-class DQN(metaclass=abc.ABCMeta):
+class DQN_Base(metaclass=abc.ABCMeta):
     def __init__(self, env: gym.Env):
         super().__init__()
         self.models = make_models(env, keys=self.model_keys)
@@ -45,7 +45,7 @@ class DQN(metaclass=abc.ABCMeta):
         assert False
 
 
-class EpisodicDQN(DQN):
+class EpisodicDQN(DQN_Base):
     episodic_training: bool = True
     batched_training: bool = False
 
@@ -59,7 +59,7 @@ class EpisodicDQN(DQN):
         assert False
 
 
-class BatchedDQN(DQN):
+class BatchedDQN(DQN_Base):
     episodic_training: bool = False
     batched_training: bool = True
 
