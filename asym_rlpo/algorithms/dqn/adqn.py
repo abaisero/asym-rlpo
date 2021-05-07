@@ -15,7 +15,7 @@ from asym_rlpo.policies.base import PartiallyObservablePolicy
 from .base import EpisodicDQN
 
 
-class POE_ADQN(EpisodicDQN):
+class ADQN(EpisodicDQN):
     model_keys = [
         'action_model',
         'observation_model',
@@ -150,7 +150,7 @@ class POE_ADQN(EpisodicDQN):
         # )
 
 
-class POE_ADQN_Bootstrap(POE_ADQN):
+class ADQN_Bootstrap(ADQN):
     def qh_loss(
         self,
         episode: Episode,

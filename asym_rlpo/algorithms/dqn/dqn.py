@@ -15,7 +15,7 @@ from asym_rlpo.policies.base import PartiallyObservablePolicy
 from .base import EpisodicDQN
 
 
-class POE_DQN(EpisodicDQN):
+class DQN(EpisodicDQN):
     model_keys = [
         'action_model',
         'observation_model',

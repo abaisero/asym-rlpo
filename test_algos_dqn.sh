@@ -5,7 +5,7 @@ export WANDB_CONSOLE=off
 export WANDB_SILENT=true
 
 envs=(POMDP-heavenhell-episodic-v0 PO-pos-CartPole-v1 ../gym-gridverse/yaml/gv_empty.4x4.yaml)
-algos=(fob-dqn foe-dqn poe-dqn poe-adqn poe-adqn-bootstrap)
+algos=(fob-dqn foe-dqn dqn adqn adqn-bootstrap)
 
 args=(
   --episode-buffer-prepopulate-timesteps 100

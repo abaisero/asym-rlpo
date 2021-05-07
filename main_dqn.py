@@ -37,9 +37,9 @@ def parse_args():
         choices=[
             'fob-dqn',
             'foe-dqn',
-            'poe-dqn',
-            'poe-adqn',
-            'poe-adqn-bootstrap',
+            'dqn',
+            'adqn',
+            'adqn-bootstrap',
         ],
     )
 
