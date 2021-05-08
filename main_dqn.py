@@ -87,8 +87,8 @@ def parse_args():
     parser.add_argument('--epsilon-nsteps', type=int, default=1_000_000)
 
     # optimization
-    parser.add_argument('--optim-lr', type=float, default=0.001)
-    parser.add_argument('--optim-eps', type=float, default=1e-8)
+    parser.add_argument('--optim-lr', type=float, default=1e-4)
+    parser.add_argument('--optim-eps', type=float, default=1e-4)
     parser.add_argument('--optim-max-norm', type=float, default=float('inf'))
 
     # device
