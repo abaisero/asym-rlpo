@@ -244,6 +244,7 @@ def make_models_gv(env: gym.Env) -> nn.ModuleDict:
             nn.ReLU(),
             make_module('linear', 'linear', 512, env.action_space.n),
         )
+
     qh_model = make_q_model(history_model.dim)
     qhs_model = make_q_model(history_model.dim + state_model.dim)
     qs_model = make_q_model(state_model.dim)
