@@ -229,39 +229,24 @@ def make_models_openai(env: gym.Env) -> nn.ModuleDict:
 def make_models_gv(env: gym.Env) -> nn.ModuleDict:
     # gen purpose models
     state_model = GV_StateRepresentation(env.state_space)
-    action_model = EmbeddingRepresentation(env.action_space.n, 64)
+    action_model = EmbeddingRepresentation(env.action_space.n, 1)
     observation_model = GV_ObservationRepresentation(env.observation_space)
     history_model = GRUHistoryRepresentation(
         action_model,
         observation_model,
-        hidden_size=128,
+        hidden_size=64,
     )
 
     # DQN models
-    qh_model = nn.Sequential(
-        make_module('linear', 'relu', history_model.dim, 128),
-        nn.ReLU(),
-        make_module('linear', 'relu', 128, 128),
-        nn.ReLU(),
-        make_module('linear', 'linear', 128, env.action_space.n),
-    )
-    qhs_model = nn.Sequential(
-        make_module(
-            'linear',
-            'relu',
-            history_model.dim + state_model.dim,
-            128,
-        ),
-        nn.ReLU(),
-        make_module('linear', 'relu', 128, 128),
-        nn.ReLU(),
-        make_module('linear', 'linear', 128, env.action_space.n),
-    )
-    qs_model = nn.Sequential(
-        make_module('linear', 'relu', state_model.dim, 512),
-        nn.ReLU(),
-        make_module('linear', 'linear', 512, env.action_space.n),
-    )
+    def make_q_model(in_size):
+        return nn.Sequential(
+            make_module('linear', 'relu', in_size, 512),
+            nn.ReLU(),
+            make_module('linear', 'linear', 512, env.action_space.n),
+        )
+    qh_model = make_q_model(history_model.dim)
+    qhs_model = make_q_model(history_model.dim + state_model.dim)
+    qs_model = make_q_model(state_model.dim)
 
     # A2C models
     policy_model = nn.Sequential(
