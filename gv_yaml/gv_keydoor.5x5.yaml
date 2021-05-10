@@ -27,8 +27,7 @@ reward_functions:
   - name: actuate_door
     reward_open: 1.0
     reward_close: -1.0
-  - name: getting_closer
-    distance_function: manhattan
+  - name: getting_closer_shortest_path
     object_type: Goal
     reward_closer: 0.2
     reward_further: -0.2
