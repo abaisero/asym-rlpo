@@ -16,6 +16,10 @@ from asym_rlpo.evaluation import evaluate_returns
 from asym_rlpo.policies.random import RandomPolicy
 from asym_rlpo.sampling import sample_episodes
 from asym_rlpo.utils.device import get_device
+from asym_rlpo.utils.running_average import (
+    InfiniteRunningAverage,
+    WindowRunningAverage,
+)
 from asym_rlpo.utils.scheduling import make_schedule
 from asym_rlpo.utils.timer import Timer
 
@@ -111,18 +115,15 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         'epoch': 0,
         'simulation_episodes': 0,
         'simulation_timesteps': 0,
-        'evaluation_steps': 0,
         'optimizer_steps': 0,
         'training_episodes': 0,
         'training_timesteps': 0,
     }
 
     # counts and stats useful as y-axis
-    ystats = {
-        'performance/cum_target_mean_return': 0.0,
-        'performance/cum_behavior_mean_return': 0.0,
-    }
-    avg100_behavior_deque = deque(maxlen=100)
+    avg_target_returns = InfiniteRunningAverage()
+    avg_behavior_returns = InfiniteRunningAverage()
+    avg100_behavior_returns = WindowRunningAverage(100)
 
     # insiantiate environment
     print('creating environment')
@@ -212,28 +213,24 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
                 num_episodes=config.evaluation_num_episodes,
             )
             mean_length = sum(map(len, episodes)) / len(episodes)
-            mean_return = evaluate_returns(
+            returns = evaluate_returns(
                 episodes, discount=config.evaluation_discount
-            ).mean()
+            )
+            avg_target_returns.extend(returns.tolist())
             print(
                 f'EVALUATE epoch {xstats["epoch"]}'
                 f' simulation_timestep {xstats["simulation_timesteps"]}'
-                f' return {mean_return:.3f}'
+                f' return {returns.mean():.3f}'
             )
-            ystats['performance/cum_target_mean_return'] += mean_return
             wandb.log(
                 {
                     **xstats,
                     'hours': timer.hours,
                     'diagnostics/target_mean_episode_length': mean_length,
-                    'performance/target_mean_return': mean_return,
-                    'performance/avg_target_mean_return': ystats[
-                        'performance/cum_target_mean_return'
-                    ]
-                    / (xstats['evaluation_steps'] + 1),
+                    'performance/target_mean_return': returns.mean(),
+                    'performance/avg_target_mean_return': avg_target_returns.value(),
                 }
             )
-            xstats['evaluation_steps'] += 1
 
         # populate episode buffer
         behavior_policy.epsilon = epsilon_schedule(
@@ -247,11 +244,11 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         )
 
         mean_length = sum(map(len, episodes)) / len(episodes)
-        mean_return = evaluate_returns(
+        returns = evaluate_returns(
             episodes, discount=config.evaluation_discount
-        ).mean()
-        ystats['performance/cum_behavior_mean_return'] += mean_return
-        avg100_behavior_deque.append(mean_return)
+        )
+        avg_behavior_returns.extend(returns.tolist())
+        avg100_behavior_returns.extend(returns.tolist())
 
         if xstats['epoch'] % config.wandb_log_period == 0:
             wandb.log(
@@ -260,14 +257,9 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
                     'hours': timer.hours,
                     'diagnostics/epsilon': behavior_policy.epsilon,
                     'diagnostics/behavior_mean_episode_length': mean_length,
-                    'performance/behavior_mean_return': mean_return,
-                    'performance/avg_behavior_mean_return': ystats[
-                        'performance/cum_behavior_mean_return'
-                    ]
-                    / (xstats['epoch'] + 1),
-                    'performance/avg100_behavior_mean_return': (
-                        sum(avg100_behavior_deque) / len(avg100_behavior_deque)
-                    ),
+                    'performance/behavior_mean_return': returns.mean(),
+                    'performance/avg_behavior_mean_return': avg_behavior_returns.value(),
+                    'performance/avg100_behavior_mean_return': avg100_behavior_returns.value(),
                 }
             )
 
