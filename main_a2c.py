@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import random
+from collections import deque
 
 import numpy as np
 import torch
@@ -107,6 +108,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         'performance/cum_target_mean_return': 0.0,
         'performance/cum_behavior_mean_return': 0.0,
     }
+    avg100_behavior_deque = deque(maxlen=100)
 
     # insiantiate environment
     print('creating environment')
@@ -220,6 +222,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
             episodes, discount=config.evaluation_discount
         ).mean()
         ystats['performance/cum_behavior_mean_return'] += mean_return
+        avg100_behavior_deque.append(mean_return)
 
         if xstats['epoch'] % config.wandb_log_period == 0:
             wandb.log(
@@ -232,6 +235,9 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
                         'performance/cum_behavior_mean_return'
                     ]
                     / (xstats['epoch'] + 1),
+                    'performance/avg100_behavior_mean_return': (
+                        sum(avg100_behavior_deque) / len(avg100_behavior_deque)
+                    ),
                 }
             )
 
