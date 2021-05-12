@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import argparse
 import random
-from collections import deque
 
 import numpy as np
 import torch
@@ -45,6 +44,8 @@ def parse_args():
             'dqn',
             'adqn',
             'adqn-bootstrap',
+            'adqn-state',
+            'adqn-state-bootstrap',
         ],
     )
 
