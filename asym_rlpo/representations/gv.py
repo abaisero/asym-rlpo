@@ -141,8 +141,11 @@ def gv_cnn(in_channels):
     """Gridverse convolutional network shared by the observation/state representations."""
     return nn.Sequential(
         nn.Conv2d(in_channels, 32, kernel_size=3, padding=1),
+        nn.ReLU(),
         nn.Conv2d(32, 64, kernel_size=3, padding=1),
+        nn.ReLU(),
         nn.Conv2d(64, 64, kernel_size=3, padding=1),
+        nn.ReLU(),
     )
 
 
