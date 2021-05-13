@@ -9,13 +9,14 @@ from asym_rlpo.targets import TargetFunction, td0_target
 from .base import A2C_Base, LossesDict
 
 
-class SymA2C(A2C_Base):
+class AsymA2C_State(A2C_Base):
     model_keys = [
+        'state_model',
         'action_model',
         'observation_model',
         'history_model',
         'policy_model',
-        'vh_model',
+        'vs_model',
     ]
 
     def losses(
@@ -40,22 +41,23 @@ class SymA2C(A2C_Base):
         history_features = history_features.squeeze(0)
 
         action_logits = self.models.policy_model(history_features)
-        vh_values = self.models.vh_model(history_features).squeeze(-1)
-        vh_values_bootstrap = torch.tensor(0.0, device=self.device).where(
-            episode.dones, vh_values.detach().roll(-1)
+        state_features = self.models.state_model(episode.states)
+        vs_values = self.models.vs_model(state_features).squeeze(-1)
+        vs_values_bootstrap = torch.tensor(0.0, device=self.device).where(
+            episode.dones, vs_values.detach().roll(-1)
         )
-        vh_targets = target_f(
-            episode.rewards, vh_values.detach(), discount=discount
+        vs_targets = target_f(
+            episode.rewards, vs_values.detach(), discount=discount
         )
 
         discounts = discount ** torch.arange(len(episode), device=self.device)
         action_nlls = -action_logits.gather(
             1, episode.actions.unsqueeze(-1)
         ).squeeze(-1)
-        advantages = vh_targets - vh_values.detach()
+        advantages = vs_targets - vs_values.detach()
         actor_loss = (discounts * advantages * action_nlls).sum()
 
-        critic_loss = F.mse_loss(vh_values, vh_targets, reduction='sum')
+        critic_loss = F.mse_loss(vs_values, vs_targets, reduction='sum')
 
         action_dists = torch.distributions.Categorical(logits=action_logits)
         negentropy_loss = -action_dists.entropy().sum()

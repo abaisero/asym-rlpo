@@ -106,6 +106,7 @@ def make_models_flat(env: gym.Env) -> nn.ModuleDict:
     policy_model = make_policy_model(history_model.dim)
     vh_model = make_v_model(history_model.dim)
     vhs_model = make_v_model(history_model.dim + state_model.dim)
+    vs_model = make_v_model(state_model.dim)
 
     return nn.ModuleDict(
         {
@@ -122,6 +123,7 @@ def make_models_flat(env: gym.Env) -> nn.ModuleDict:
             'policy_model': policy_model,
             'vh_model': vh_model,
             'vhs_model': vhs_model,
+            'vs_model': vs_model,
         }
     )
 
@@ -174,6 +176,7 @@ def make_models_openai(env: gym.Env) -> nn.ModuleDict:
     policy_model = make_policy_model(history_model.dim)
     vh_model = make_v_model(history_model.dim)
     vhs_model = make_v_model(history_model.dim + state_model.dim)
+    vs_model = make_v_model(state_model.dim)
 
     return nn.ModuleDict(
         {
@@ -190,6 +193,7 @@ def make_models_openai(env: gym.Env) -> nn.ModuleDict:
             'policy_model': policy_model,
             'vh_model': vh_model,
             'vhs_model': vhs_model,
+            'vs_model': vs_model,
         }
     )
 
@@ -236,6 +240,7 @@ def make_models_gv(env: gym.Env) -> nn.ModuleDict:
     policy_model = make_policy_model(history_model.dim)
     vh_model = make_v_model(history_model.dim)
     vhs_model = make_v_model(history_model.dim + state_model.dim)
+    vs_model = make_v_model(state_model.dim)
 
     return nn.ModuleDict(
         {
@@ -252,5 +257,6 @@ def make_models_gv(env: gym.Env) -> nn.ModuleDict:
             'policy_model': policy_model,
             'vh_model': vh_model,
             'vhs_model': vhs_model,
+            'vs_model': vs_model,
         }
     )

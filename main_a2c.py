@@ -37,7 +37,7 @@ def parse_args():
 
     # algorithm and environment
     parser.add_argument('env')
-    parser.add_argument('algo', choices=['sym-a2c', 'asym-a2c'])
+    parser.add_argument('algo', choices=['a2c', 'asym-a2c', 'asym-a2c-state'])
 
     # reproducibility
     parser.add_argument('--seed', type=int, default=None)
