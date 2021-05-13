@@ -9,7 +9,7 @@ import torch.nn as nn
 import wandb
 from gym_gridverse.rng import reset_gv_rng
 
-from asym_rlpo.algorithms import make_algorithm
+from asym_rlpo.algorithms import make_a2c_algorithm
 from asym_rlpo.env import make_env
 from asym_rlpo.evaluation import evaluate_returns
 from asym_rlpo.sampling import sample_episodes
@@ -141,8 +141,9 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
 
     # instantiate models and policies
     print('creating models and policies')
-    algo = make_algorithm(config.algo, env)
+    algo = make_a2c_algorithm(config.algo, env)
     algo.to(device)
+
     behavior_policy = algo.behavior_policy()
     evaluation_policy = algo.evaluation_policy()
     evaluation_policy.epsilon = 0.1

@@ -13,7 +13,17 @@ from .dqn.fob_dqn import FOB_DQN
 from .dqn.foe_dqn import FOE_DQN
 
 
-def make_algorithm(name, env: gym.Env) -> Union[DQN_Base, A2C_Base]:
+def make_a2c_algorithm(name, env: gym.Env) -> A2C_Base:
+    if name == 'sym-a2c':
+        return SymA2C(env)
+
+    if name == 'asym-a2c':
+        return AsymA2C(env)
+
+    raise ValueError(f'invalid algorithm name {name}')
+
+
+def make_dqn_algorithm(name, env: gym.Env) -> DQN_Base:
     if name == 'fob-dqn':
         return FOB_DQN(env)
 
@@ -34,11 +44,5 @@ def make_algorithm(name, env: gym.Env) -> Union[DQN_Base, A2C_Base]:
 
     if name == 'adqn-state-bootstrap':
         return ADQN_State_Bootstrap(env)
-
-    if name == 'sym-a2c':
-        return SymA2C(env)
-
-    if name == 'asym-a2c':
-        return AsymA2C(env)
 
     raise ValueError(f'invalid algorithm name {name}')

@@ -8,7 +8,7 @@ import torch.nn as nn
 import wandb
 from gym_gridverse.rng import reset_gv_rng
 
-from asym_rlpo.algorithms import make_algorithm
+from asym_rlpo.algorithms import make_dqn_algorithm
 from asym_rlpo.data import EpisodeBuffer
 from asym_rlpo.env import make_env
 from asym_rlpo.evaluation import evaluate_returns
@@ -149,7 +149,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
 
     # instantiate models and policies
     print('creating models and policies')
-    algo = make_algorithm(config.algo, env)
+    algo = make_dqn_algorithm(config.algo, env)
     algo.to(device)
 
     random_policy = RandomPolicy(env.action_space)
