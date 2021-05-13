@@ -53,7 +53,7 @@ def parse_args():
     # evaluation
     parser.add_argument('--evaluation-period', type=int, default=10)
     parser.add_argument('--evaluation-num-episodes', type=int, default=1)
-    parser.add_argument('--evaluation-greedy', action='store_true')
+    parser.add_argument('--evaluation-epsilon', type=float, default=1.0)
 
     # discounts
     parser.add_argument('--evaluation-discount', type=float, default=1.0)
@@ -143,10 +143,9 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
     print('creating models and policies')
     algo = make_algorithm(config.algo, env)
     algo.to(device)
-    behavior_policy = algo.actor_policy()
-    evaluation_policy = (
-        algo.greedy_policy() if config.evaluation_greedy else behavior_policy
-    )
+    behavior_policy = algo.behavior_policy()
+    evaluation_policy = algo.evaluation_policy()
+    evaluation_policy.epsilon = 0.1
 
     # instantiate optimizer
     optimizer = torch.optim.Adam(

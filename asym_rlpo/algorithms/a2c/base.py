@@ -1,4 +1,5 @@
 import abc
+import random
 from typing import List, Optional, TypedDict
 
 import gym
@@ -32,11 +33,11 @@ class A2C_Base(metaclass=abc.ABCMeta):
     def model_keys(self) -> List[str]:
         assert False
 
-    def actor_policy(self) -> PartiallyObservablePolicy:
-        return ActorPolicy(self.models, device=self.device)
+    def behavior_policy(self) -> PartiallyObservablePolicy:
+        return BehaviorPolicy(self.models, device=self.device)
 
-    def greedy_policy(self) -> PartiallyObservablePolicy:
-        return GreedyPolicy(self.models, device=self.device)
+    def evaluation_policy(self) -> PartiallyObservablePolicy:
+        return EvaluationPolicy(self.models, device=self.device)
 
     @abc.abstractmethod
     def losses(
@@ -49,7 +50,7 @@ class A2C_Base(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
 
-class ActorPolicy(PartiallyObservablePolicy):
+class BehaviorPolicy(PartiallyObservablePolicy):
     def __init__(self, models: nn.ModuleDict, *, device: torch.device):
         super().__init__()
         self.models = models
@@ -85,48 +86,34 @@ class ActorPolicy(PartiallyObservablePolicy):
         )
         self.history_features = self.history_features.squeeze(0).squeeze(0)
 
+    def action_logits(self):
+        return self.models.policy_model(self.history_features)
+
     def po_sample_action(self):
-        action_logits = self.models.policy_model(self.history_features)
-        action_dist = torch.distributions.Categorical(logits=action_logits)
+        action_dist = torch.distributions.Categorical(
+            logits=self.action_logits()
+        )
         return action_dist.sample().item()
 
 
-class GreedyPolicy(PartiallyObservablePolicy):
+class EvaluationPolicy(PartiallyObservablePolicy):
     def __init__(self, models: nn.ModuleDict, *, device: torch.device):
         super().__init__()
+        self.behavior_policy = BehaviorPolicy(models, device=device)
         self.models = models
         self.device = device
-
-        self.history_features = None
-        self.hidden = None
+        self.epsilon: float
 
     def reset(self, observation):
-        action_features = torch.zeros(
-            1, self.models.action_model.dim, device=self.device
-        )
-        observation_features = self.models.observation_model(
-            gtorch.to(gtorch.unsqueeze(observation, 0), self.device)
-        )
-        self._update(action_features, observation_features)
+        self.behavior_policy.reset(observation)
 
     def step(self, action, observation):
-        action_features = self.models.action_model(
-            action.unsqueeze(0).to(self.device)
-        )
-        observation_features = self.models.observation_model(
-            gtorch.to(gtorch.unsqueeze(observation, 0), self.device)
-        )
-        self._update(action_features, observation_features)
-
-    def _update(self, action_features, observation_features):
-        input_features = torch.cat(
-            [action_features, observation_features], dim=-1
-        ).unsqueeze(1)
-        self.history_features, self.hidden = self.models.history_model(
-            input_features, hidden=self.hidden
-        )
-        self.history_features = self.history_features.squeeze(0).squeeze(0)
+        self.behavior_policy.step(action, observation)
 
     def po_sample_action(self):
-        action_logits = self.models.policy_model(self.history_features)
-        return action_logits.argmax().item()
+        action_logits = self.behavior_policy.action_logits()
+        return (
+            torch.distributions.Categorical(logits=action_logits).sample()
+            if random.random() < self.epsilon
+            else action_logits.argmax()
+        ).item()
