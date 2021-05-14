@@ -31,6 +31,7 @@ def parse_args():
     parser.add_argument('--wandb-project', default='asym-rlpo')
     parser.add_argument('--wandb-entity', default='abaisero')
     parser.add_argument('--wandb-group', default=None)
+    parser.add_argument('--wandb-tag', action='append', dest='wandb_tags')
 
     # wandb related
     parser.add_argument('--wandb-log-period', type=int, default=10)
@@ -296,6 +297,7 @@ if __name__ == '__main__':
         project=args.wandb_project,
         entity=args.wandb_entity,
         group=args.wandb_group,
+        tags=args.wandb_tags,
         config=args,
     ) as run:
         main()
