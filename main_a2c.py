@@ -76,7 +76,7 @@ def parse_args():
     parser.add_argument(
         '--negentropy-value-to-factor', type=float, default=None
     )
-    parser.add_argument('--negentropy-nsteps', type=int, default=500_000)
+    parser.add_argument('--negentropy-nsteps', type=int, default=2_000_000)
 
     # optimization
     parser.add_argument('--optim-lr', type=float, default=1e-4)
