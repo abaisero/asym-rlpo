@@ -6,7 +6,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from asym_rlpo.representations.embedding import EmbeddingRepresentation
 from asym_rlpo.utils.convert import numpy2torch
 from asym_rlpo.utils.debugging import checkraise
 
@@ -37,22 +36,18 @@ class GV_ObservationRepresentation(Representation, nn.Module):
                 f'space does not contain `{k}` key',
             )
 
-        num_embeddings = 0
-        for k in self._keys():
-            s = observation_space[k]
-            num_embeddings = max(num_embeddings, s.high.max() - s.low.min() + 1)
-        embedding_size = 1
-        self.embedding = EmbeddingRepresentation(num_embeddings, embedding_size)
-
-        in_channels = 3 * embedding_size
-        self.cnn = gv_cnn(in_channels)
+        num_embeddings = (
+            max(observation_space[k].high.max() for k in ['grid', 'item']) + 1
+        )
+        self.embedding = nn.Embedding(num_embeddings, 4)
+        self.cnn = gv_cnn(3 * self.embedding.embedding_dim)
 
         test_obs = batchify(numpy2torch(observation_space.sample()))
         y = self(test_obs)
         self.__out_dim = y.shape[1]
 
     def _keys(self):
-        return ('grid', 'item')
+        return 'grid', 'item'
 
     @property
     def dim(self):
@@ -97,22 +92,18 @@ class GV_StateRepresentation(Representation, nn.Module):
                 f'space does not contain `{k}` key',
             )
 
-        num_embeddings = 0
-        for k in ['grid', 'item']:
-            s = state_space[k]
-            num_embeddings = max(num_embeddings, s.high.max() - s.low.min() + 1)
-        embedding_size = 1
-        self.embedding = EmbeddingRepresentation(num_embeddings, embedding_size)
-
-        in_channels = 3 * embedding_size + 1
-        self.cnn = gv_cnn(in_channels)
+        num_embeddings = (
+            max(state_space[k].high.max() for k in ['grid', 'item']) + 1
+        )
+        self.embedding = nn.Embedding(num_embeddings, 4)
+        self.cnn = gv_cnn(3 * self.embedding.embedding_dim + 1)  # +1 for agent
 
         test_state = batchify(numpy2torch(state_space.sample()))
         y = self(test_state)
         self.__out_dim = y.shape[1]
 
     def _keys(self):
-        return ('agent', 'agent_id_grid', 'grid', 'item')
+        return 'agent', 'agent_id_grid', 'grid', 'item'
 
     @property
     def dim(self):
@@ -140,11 +131,9 @@ class GV_StateRepresentation(Representation, nn.Module):
 def gv_cnn(in_channels):
     """Gridverse convolutional network shared by the observation/state representations."""
     return nn.Sequential(
-        nn.Conv2d(in_channels, 32, kernel_size=3, padding=1),
+        nn.Conv2d(in_channels, 8, kernel_size=3, padding=1),
         nn.ReLU(),
-        nn.Conv2d(32, 64, kernel_size=3, padding=1),
-        nn.ReLU(),
-        nn.Conv2d(64, 64, kernel_size=3, padding=1),
+        nn.Conv2d(8, 16, kernel_size=3, padding=1),
         nn.ReLU(),
     )
 

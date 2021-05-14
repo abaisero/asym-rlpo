@@ -201,12 +201,12 @@ def make_models_openai(env: gym.Env) -> nn.ModuleDict:
 def make_models_gv(env: gym.Env) -> nn.ModuleDict:
     # gen purpose models
     state_model = GV_StateRepresentation(env.state_space)
-    action_model = EmbeddingRepresentation(env.action_space.n, 1)
+    action_model = EmbeddingRepresentation(env.action_space.n, 128)
     observation_model = GV_ObservationRepresentation(env.observation_space)
     history_model = GRUHistoryRepresentation(
         action_model,
         observation_model,
-        hidden_size=64,
+        hidden_size=256,
     )
 
     def make_q_model(in_size):
