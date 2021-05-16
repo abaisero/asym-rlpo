@@ -41,9 +41,6 @@ class A2C(A2C_Base):
 
         action_logits = self.models.policy_model(history_features)
         vh_values = self.models.vh_model(history_features).squeeze(-1)
-        vh_values_bootstrap = torch.tensor(0.0, device=self.device).where(
-            episode.dones, vh_values.detach().roll(-1)
-        )
         vh_targets = target_f(
             episode.rewards, vh_values.detach(), discount=discount
         )

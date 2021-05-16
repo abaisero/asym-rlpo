@@ -47,15 +47,11 @@ class Interaction(Generic[S, O]):
         observation: O,
         action: int,
         reward: float,
-        start: bool,
-        done: bool,
     ):
         self.state: S = state
         self.observation: O = observation
         self.action = action
         self.reward = reward
-        self.start = start
-        self.done = done
 
 
 class Batch(Generic[S, O]):
@@ -68,7 +64,6 @@ class Batch(Generic[S, O]):
         rewards,
         next_states,
         next_observations,
-        starts,
         dones,
     ):
         self.states = states
@@ -77,7 +72,6 @@ class Batch(Generic[S, O]):
         self.rewards = rewards
         self.next_states = next_states
         self.next_observations = next_observations
-        self.starts = starts
         self.dones = dones
 
     def __len__(self):
@@ -89,7 +83,6 @@ class Batch(Generic[S, O]):
             and isinstance(self.observations, np.ndarray)
             and isinstance(self.actions, np.ndarray)
             and isinstance(self.rewards, np.ndarray)
-            and isinstance(self.starts, np.ndarray)
             and isinstance(self.dones, np.ndarray),
             TypeError,
             'Batch is not numpy to begin with??',
@@ -101,7 +94,6 @@ class Batch(Generic[S, O]):
             rewards=numpy2torch(self.rewards),
             next_states=numpy2torch(self.next_states),
             next_observations=numpy2torch(self.next_observations),
-            starts=numpy2torch(self.starts),
             dones=numpy2torch(self.dones),
         )
 
@@ -113,7 +105,6 @@ class Batch(Generic[S, O]):
             rewards=gtorch.to(self.rewards, device),
             next_states=gtorch.to(self.next_states, device),
             next_observations=gtorch.to(self.next_observations, device),
-            starts=gtorch.to(self.starts, device),
             dones=gtorch.to(self.dones, device),
         )
 
@@ -121,18 +112,14 @@ class Batch(Generic[S, O]):
 class Episode(Generic[S, O]):
     """Storage for collated episode data."""
 
-    def __init__(
-        self, *, states: S, observations: O, actions, rewards, starts, dones
-    ):
+    def __init__(self, *, states: S, observations: O, actions, rewards):
         self.states: S = states
         self.observations: O = observations
         self.actions = actions
         self.rewards = rewards
-        self.starts = starts
-        self.dones = dones
 
     def __len__(self):
-        return len(self.dones)
+        return len(self.actions)
 
     def __getitem__(self, index) -> Interaction[S, O]:
         return Interaction(
@@ -148,8 +135,6 @@ class Episode(Generic[S, O]):
             ),
             action=self.actions[index],
             reward=self.rewards[index],
-            start=self.starts[index],
-            done=self.dones[index],
         )
 
     @staticmethod
@@ -166,19 +151,11 @@ class Episode(Generic[S, O]):
         rewards = collate_numpy(
             [interaction.reward for interaction in interactions]
         )
-        starts = collate_numpy(
-            [interaction.start for interaction in interactions]
-        )
-        dones = collate_numpy(
-            [interaction.done for interaction in interactions]
-        )
         return Episode(
             states=states,
             observations=observations,
             actions=actions,
             rewards=rewards,
-            starts=starts,
-            dones=dones,
         )
 
     def torch(self) -> Episode:
@@ -197,9 +174,7 @@ class Episode(Generic[S, O]):
                 )
             )
             and isinstance(self.actions, np.ndarray)
-            and isinstance(self.rewards, np.ndarray)
-            and isinstance(self.starts, np.ndarray)
-            and isinstance(self.dones, np.ndarray),
+            and isinstance(self.rewards, np.ndarray),
             TypeError,
             'Episode is not numpy to begin with??',
         )
@@ -208,8 +183,6 @@ class Episode(Generic[S, O]):
             observations=numpy2torch(self.observations),
             actions=numpy2torch(self.actions),
             rewards=numpy2torch(self.rewards),
-            starts=numpy2torch(self.starts),
-            dones=numpy2torch(self.dones),
         )
 
     def to(self, device: torch.device) -> Episode:
@@ -218,8 +191,6 @@ class Episode(Generic[S, O]):
             observations=gtorch.to(self.observations, device),
             actions=gtorch.to(self.actions, device),
             rewards=gtorch.to(self.rewards, device),
-            starts=gtorch.to(self.starts, device),
-            dones=gtorch.to(self.dones, device),
         )
 
 
@@ -273,7 +244,6 @@ class EpisodeBuffer(Generic[S, O]):
         rewards = []
         next_states = []
         next_observations = []
-        starts = []
         dones = []
 
         num_interactions = self.num_interactions()
@@ -289,10 +259,9 @@ class EpisodeBuffer(Generic[S, O]):
             episode = self.episodes[episode_id]
             in_episode_interaction_id = cumlen - len(episode) - interaction_id
             interaction = episode[in_episode_interaction_id]
+            done = in_episode_interaction_id + 1 == len(episode)
             next_interaction = (
-                episode[in_episode_interaction_id + 1]
-                if in_episode_interaction_id + 1 < len(episode)
-                else None
+                None if done else episode[in_episode_interaction_id + 1]
             )
 
             states.append(interaction.state)
@@ -301,16 +270,15 @@ class EpisodeBuffer(Generic[S, O]):
             rewards.append(interaction.reward)
             next_states.append(
                 gtorch.zeros_like(states[-1])
-                if next_interaction is None
+                if done
                 else next_interaction.state
             )
             next_observations.append(
                 gtorch.zeros_like(observations[-1])
-                if next_interaction is None
+                if done
                 else next_interaction.observation
             )
-            starts.append(interaction.start)
-            dones.append(interaction.done)
+            dones.append(done)
 
         return Batch(
             states=collate_torch(states),
@@ -319,6 +287,5 @@ class EpisodeBuffer(Generic[S, O]):
             rewards=collate_torch(rewards),
             next_states=collate_torch(next_states),
             next_observations=collate_torch(next_observations),
-            starts=collate_torch(starts),
             dones=collate_torch(dones),
         )

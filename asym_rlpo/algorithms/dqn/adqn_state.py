@@ -70,14 +70,14 @@ class ADQN_State(EpisodicDQN):
         qs_values = qs_values.gather(1, episode.actions.unsqueeze(-1)).squeeze(
             -1
         )
-        qs_values_bootstrap = torch.tensor(0.0, device=self.device).where(
-            episode.dones,
+        qs_values_bootstrap = (
             target_qs_values.gather(
                 1, target_qh_values.argmax(-1).unsqueeze(-1)
             )
             .squeeze(-1)
-            .roll(-1, 0),
+            .roll(-1, 0)
         )
+        qs_values_bootstrap[-1] = 0.0
 
         loss = F.mse_loss(
             qs_values,
@@ -159,14 +159,14 @@ class ADQN_State_Bootstrap(ADQN_State):
         qh_values = qh_values.gather(1, episode.actions.unsqueeze(-1)).squeeze(
             -1
         )
-        qs_values_bootstrap = torch.tensor(0.0, device=self.device).where(
-            episode.dones,
+        qs_values_bootstrap = (
             target_qs_values.gather(
                 1, target_qh_values.argmax(-1).unsqueeze(-1)
             )
             .squeeze(-1)
-            .roll(-1, 0),
+            .roll(-1, 0)
         )
+        qs_values_bootstrap[-1] = 0.0
 
         loss = F.mse_loss(
             qh_values,

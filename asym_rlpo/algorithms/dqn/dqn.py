@@ -65,9 +65,8 @@ class DQN(EpisodicDQN):
             q_values = q_values.gather(
                 1, episode.actions.unsqueeze(-1)
             ).squeeze(-1)
-            q_values_bootstrap = torch.tensor(0.0, device=self.device).where(
-                episode.dones, target_q_values.max(-1).values.roll(-1, 0)
-            )
+            q_values_bootstrap = target_q_values.max(-1).values.roll(-1, 0)
+            q_values_bootstrap[-1] = 0.0
             loss = F.mse_loss(
                 q_values,
                 episode.rewards + discount * q_values_bootstrap,

@@ -35,9 +35,8 @@ class FOB_DQN(BatchedDQN):
             )
 
         qs_values = qs_values.gather(1, batch.actions.unsqueeze(-1)).squeeze(-1)
-        qs_values_bootstrap = torch.tensor(0.0, device=self.device).where(
-            batch.dones, target_qs_values.max(-1).values
-        )
+        qs_values_bootstrap = target_qs_values.max(-1).values
+        qs_values_bootstrap[batch.dones] = 0.0
 
         loss = F.mse_loss(
             qs_values,

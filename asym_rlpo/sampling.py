@@ -1,7 +1,6 @@
-from typing import Dict, List
+from typing import List
 
 import gym
-import numpy as np
 import torch
 
 from asym_rlpo.policies.base import Policy
@@ -19,7 +18,7 @@ def sample_episode(
     with torch.no_grad():
         interactions: List[Interaction[S, O]] = []
 
-        start, done = True, False
+        done = False
         observation = env.reset()
         state = env.state
         policy.reset(numpy2torch(observation))
@@ -27,7 +26,7 @@ def sample_episode(
         if render:
             env.render()
 
-        while not done:
+        while True:
             action = policy.sample_action(numpy2torch(state))
             next_observation, reward, done, _ = env.step(action)
             next_state = env.state
@@ -42,14 +41,14 @@ def sample_episode(
                     observation=observation,
                     action=action,
                     reward=reward,
-                    start=start,
-                    done=done,
                 )
             )
 
+            if done:
+                break
+
             state = next_state
             observation = next_observation
-            start = False
 
     return Episode.from_interactions(interactions)
 

@@ -44,9 +44,6 @@ class AsymA2C(A2C_Base):
         state_features = self.models.state_model(episode.states)
         inputs = torch.cat([history_features, state_features], dim=-1)
         vhs_values = self.models.vhs_model(inputs).squeeze(-1)
-        vhs_values_bootstrap = torch.tensor(0.0, device=self.device).where(
-            episode.dones, vhs_values.detach().roll(-1)
-        )
         vhs_targets = target_f(
             episode.rewards, vhs_values.detach(), discount=discount
         )

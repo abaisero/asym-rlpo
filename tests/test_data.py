@@ -4,18 +4,11 @@ from asym_rlpo.data import Episode, EpisodeBuffer
 
 
 def make_episode(num_timesteps: int):
-    starts = np.zeros(num_timesteps, dtype=bool)
-    starts[0] = True
-    dones = np.zeros(num_timesteps, dtype=bool)
-    dones[-1] = True
-
     return Episode(
         states=np.zeros(num_timesteps),
         observations=np.zeros(num_timesteps),
         actions=np.zeros(num_timesteps, dtype=int),
         rewards=np.zeros(num_timesteps),
-        starts=starts,
-        dones=dones,
     )
 
 

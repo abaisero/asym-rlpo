@@ -43,9 +43,6 @@ class AsymA2C_State(A2C_Base):
         action_logits = self.models.policy_model(history_features)
         state_features = self.models.state_model(episode.states)
         vs_values = self.models.vs_model(state_features).squeeze(-1)
-        vs_values_bootstrap = torch.tensor(0.0, device=self.device).where(
-            episode.dones, vs_values.detach().roll(-1)
-        )
         vs_targets = target_f(
             episode.rewards, vs_values.detach(), discount=discount
         )
