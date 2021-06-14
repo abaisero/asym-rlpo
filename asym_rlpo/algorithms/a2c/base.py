@@ -10,7 +10,7 @@ import asym_rlpo.generalized_torch as gtorch
 from asym_rlpo.data import Episode
 from asym_rlpo.models import make_models
 from asym_rlpo.policies.base import PartiallyObservablePolicy
-from asym_rlpo.targets import TargetFunction
+from asym_rlpo.q_estimators import Q_Estimator
 
 
 class LossesDict(TypedDict):
@@ -45,7 +45,7 @@ class A2C_Base(metaclass=abc.ABCMeta):
         episode: Episode,
         *,
         discount: float,
-        target_f: Optional[TargetFunction] = None
+        q_estimator: Optional[Q_Estimator] = None
     ) -> LossesDict:
         raise NotImplementedError
 

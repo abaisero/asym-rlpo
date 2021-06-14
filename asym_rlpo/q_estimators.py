@@ -6,35 +6,35 @@ import torch
 from asym_rlpo.utils.debugging import checkraise
 
 
-class TargetFunction(Protocol):
+class Q_Estimator(Protocol):
     def __call__(
         self, rewards: torch.Tensor, values: torch.Tensor, *, discount: float
     ) -> torch.Tensor:
         ...
 
 
-def target_function_factory(
+def q_estimator_factory(
     name: str,
     *,
     n: Optional[int] = None,
     lambda_: Optional[float] = None,
-) -> TargetFunction:
+) -> Q_Estimator:
     if name == 'mc':
-        return mc_target
+        return mc_q_estimator
 
     if name == 'td0':
-        return partial(td0_target)
+        return partial(td0_q_estimator)
 
     if name == 'td-n':
-        return partial(td_n_target, n=n)
+        return partial(tdn_q_estimator, n=n)
 
     if name == 'td-lambda':
-        return partial(td_lambda_target, lambda_=lambda_)
+        return partial(tdlambda_q_estimator, lambda_=lambda_)
 
-    raise ValueError('invalid target name `{name}`')
+    raise ValueError('invalid estimator name `{name}`')
 
 
-def mc_target(
+def mc_q_estimator(
     rewards: torch.Tensor,
     values: torch.Tensor,  # pylint: disable=unused-argument
     *,
@@ -49,7 +49,7 @@ def mc_target(
     return discounts @ rewards
 
 
-def td0_target(
+def td0_q_estimator(
     rewards: torch.Tensor,
     values: torch.Tensor,
     *,
@@ -68,7 +68,7 @@ def td0_target(
     return rewards + discount * values
 
 
-def td_n_target(
+def tdn_q_estimator(
     rewards: torch.Tensor,
     values: torch.Tensor,
     *,
@@ -92,7 +92,7 @@ def td_n_target(
     return discounts @ rewards + (discount ** n) * values
 
 
-def td_lambda_target(
+def tdlambda_q_estimator(
     rewards: torch.Tensor,
     values: torch.Tensor,
     *,

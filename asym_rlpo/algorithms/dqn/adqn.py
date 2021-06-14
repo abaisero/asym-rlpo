@@ -10,6 +10,7 @@ import torch.nn.functional as F
 
 import asym_rlpo.generalized_torch as gtorch
 from asym_rlpo.data import Episode, Torch_O, Torch_S
+from asym_rlpo.features import compute_history_features
 from asym_rlpo.policies.base import PartiallyObservablePolicy
 
 from .base import EpisodicDQN
@@ -41,14 +42,9 @@ class ADQN(EpisodicDQN):
         states: Torch_S,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
 
-        action_features = models.action_model(actions)
-        action_features = action_features.roll(1, 0)
-        action_features[0, :] = 0.0
-        observation_features = models.observation_model(observations)
-
-        inputs = torch.cat([action_features, observation_features], dim=-1)
-        history_features, _ = models.history_model(inputs.unsqueeze(0))
-        history_features = history_features.squeeze(0)
+        history_features = compute_history_features(
+            models, actions, observations
+        )
         qh_values = models.qh_model(history_features)
 
         state_features = models.state_model(states)
@@ -57,10 +53,10 @@ class ADQN(EpisodicDQN):
 
         return qh_values, qhs_values
 
-    def qhs_loss(
+    def qhs_loss(  # pylint: disable=no-self-use
         self,
         episode: Episode,
-        qh_values: torch.Tensor,
+        qh_values: torch.Tensor,  # pylint: disable=unused-argument
         qhs_values: torch.Tensor,
         target_qh_values: torch.Tensor,
         target_qhs_values: torch.Tensor,
@@ -86,15 +82,15 @@ class ADQN(EpisodicDQN):
         )
         return loss
 
-    def qh_loss(
+    def qh_loss(  # pylint: disable=no-self-use
         self,
-        episode: Episode,
+        episode: Episode,  # pylint: disable=unused-argument
         qh_values: torch.Tensor,
-        qhs_values: torch.Tensor,
-        target_qh_values: torch.Tensor,
+        qhs_values: torch.Tensor,  # pylint: disable=unused-argument
+        target_qh_values: torch.Tensor,  # pylint: disable=unused-argument
         target_qhs_values: torch.Tensor,
         *,
-        discount: float,
+        discount: float,  # pylint: disable=unused-argument
     ) -> torch.Tensor:
 
         loss = F.mse_loss(

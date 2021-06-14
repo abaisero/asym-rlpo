@@ -12,8 +12,8 @@ from gym_gridverse.rng import reset_gv_rng
 from asym_rlpo.algorithms import make_a2c_algorithm
 from asym_rlpo.env import make_env
 from asym_rlpo.evaluation import evaluate_returns
+from asym_rlpo.q_estimators import q_estimator_factory
 from asym_rlpo.sampling import sample_episodes
-from asym_rlpo.targets import target_function_factory
 from asym_rlpo.utils.aggregate import average
 from asym_rlpo.utils.device import get_device
 from asym_rlpo.utils.running_average import (
@@ -60,14 +60,14 @@ def parse_args():
     parser.add_argument('--evaluation-discount', type=float, default=1.0)
     parser.add_argument('--training-discount', type=float, default=0.99)
 
-    # targets
+    # q-estimator
     parser.add_argument(
-        '--target',
+        '--q-estimator',
         choices=['mc', 'td0', 'td-n', 'td-lambda'],
         default='td0',
     )
-    parser.add_argument('--target-n', type=int, default=None)
-    parser.add_argument('--target-lambda', type=float, default=None)
+    parser.add_argument('--q-estimator-n', type=int, default=None)
+    parser.add_argument('--q-estimator-lambda', type=float, default=None)
 
     # negentropy schedule
     parser.add_argument('--negentropy-schedule', default='linear')
@@ -134,10 +134,10 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         torch.use_deterministic_algorithms(True)
 
     # initialize return type
-    target_f = target_function_factory(
-        config.target,
-        n=config.target_n,
-        lambda_=config.target_lambda,
+    q_estimator = q_estimator_factory(
+        config.q_estimator,
+        n=config.q_estimator_n,
+        lambda_=config.q_estimator_lambda,
     )
 
     # instantiate models and policies
@@ -246,7 +246,9 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         optimizer.zero_grad()
         losses = [
             algo.losses(
-                episode, discount=config.training_discount, target_f=target_f
+                episode,
+                discount=config.training_discount,
+                q_estimator=q_estimator,
             )
             for episode in episodes
         ]

@@ -10,6 +10,7 @@ import torch.nn.functional as F
 
 import asym_rlpo.generalized_torch as gtorch
 from asym_rlpo.data import Episode, Torch_O, Torch_S
+from asym_rlpo.features import compute_history_features
 from asym_rlpo.policies.base import PartiallyObservablePolicy
 
 from .base import EpisodicDQN
@@ -41,14 +42,9 @@ class ADQN_State(EpisodicDQN):
         states: Torch_S,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
 
-        action_features = models.action_model(actions)
-        action_features = action_features.roll(1, 0)
-        action_features[0, :] = 0.0
-        observation_features = models.observation_model(observations)
-
-        inputs = torch.cat([action_features, observation_features], dim=-1)
-        history_features, _ = models.history_model(inputs.unsqueeze(0))
-        history_features = history_features.squeeze(0)
+        history_features = compute_history_features(
+            models, actions, observations
+        )
         qh_values = models.qh_model(history_features)
 
         state_features = models.state_model(states)
