@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import argparse
 import random
-from collections import deque
 
 import numpy as np
 import torch
@@ -59,6 +58,9 @@ def parse_args():
     # discounts
     parser.add_argument('--evaluation-discount', type=float, default=1.0)
     parser.add_argument('--training-discount', type=float, default=0.99)
+
+    # target
+    parser.add_argument('--target-update-period', type=int, default=10_000)
 
     # q-estimator
     parser.add_argument(
@@ -169,6 +171,10 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
     )
     weight_negentropy = negentropy_schedule(xstats['simulation_timesteps'])
 
+    # Tracks when we last updated the target network
+    algo.target_models.load_state_dict(algo.models.state_dict())
+    last_target_update_timestep = 0
+
     # main learning loop
     wandb.watch(algo.models)
     while xstats['simulation_timesteps'] < config.max_simulation_timesteps:
@@ -241,6 +247,15 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
             len(episode) for episode in episodes
         )
         weight_negentropy = negentropy_schedule(xstats['simulation_timesteps'])
+
+        # target model update
+        if (
+            xstats['simulation_timesteps'] - last_target_update_timestep
+        ) >= config.target_update_period:
+            # Update the target network
+            algo.target_models.load_state_dict(algo.models.state_dict())
+            # Record the current timestep
+            last_target_update_timestep = xstats['simulation_timesteps']
 
         algo.models.train()
         optimizer.zero_grad()

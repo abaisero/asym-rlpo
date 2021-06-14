@@ -22,10 +22,12 @@ class LossesDict(TypedDict):
 class A2C_Base(metaclass=abc.ABCMeta):
     def __init__(self, env: gym.Env):
         self.models = make_models(env, keys=self.model_keys)
+        self.target_models = make_models(env, keys=self.model_keys)
         self.device = next(self.models.parameters()).device
 
     def to(self, device: torch.device):
         self.models.to(device)
+        self.target_models.to(device)
         self.device = device
 
     @property

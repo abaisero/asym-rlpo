@@ -192,6 +192,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
     )
 
     # Tracks when we last updated the target network
+    algo.target_models.load_state_dict(algo.models.state_dict())
     last_target_update_timestep = 0
 
     # main learning loop
@@ -273,7 +274,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
             len(episode) for episode in episodes
         )
 
-        # train based on episode buffer
+        # target model update
         if (
             xstats['simulation_timesteps'] - last_target_update_timestep
         ) >= config.target_update_period:
@@ -282,6 +283,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
             # Record the current timestep
             last_target_update_timestep = xstats['simulation_timesteps']
 
+        # train based on episode buffer
         algo.models.train()
         while (
             xstats['training_timesteps']
