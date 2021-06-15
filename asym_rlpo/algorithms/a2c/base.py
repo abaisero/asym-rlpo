@@ -1,6 +1,6 @@
 import abc
 import random
-from typing import List, Optional, TypedDict
+from typing import List, Optional, Tuple, TypedDict
 
 import gym
 import torch
@@ -103,6 +103,58 @@ class A2C_Base(metaclass=abc.ABCMeta):
             'critic': critic_loss,
             'negentropy': negentropy_loss,
         }
+
+    def actor_losses(  # pylint: disable=too-many-locals
+        self,
+        episode: Episode,
+        *,
+        discount: float,
+        q_estimator: Optional[Q_Estimator] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+
+        if q_estimator is None:
+            q_estimator = td0_q_estimator
+
+        action_logits = self.compute_action_logits(self.models, episode)
+
+        with torch.no_grad():
+            v_values = self.compute_v_values(self.models, episode)
+            q_values = q_estimator(episode.rewards, v_values, discount=discount)
+
+        discounts = discount ** torch.arange(len(episode), device=self.device)
+        action_nlls = -action_logits.gather(
+            1, episode.actions.unsqueeze(-1)
+        ).squeeze(-1)
+        advantages = q_values.detach() - v_values.detach()
+        actor_loss = (discounts * advantages * action_nlls).sum()
+
+        action_dists = torch.distributions.Categorical(logits=action_logits)
+        negentropy_loss = -action_dists.entropy().sum()
+
+        return actor_loss, negentropy_loss
+
+    def critic_loss(  # pylint: disable=too-many-locals
+        self,
+        episode: Episode,
+        *,
+        discount: float,
+        q_estimator: Optional[Q_Estimator] = None,
+    ) -> torch.Tensor:
+
+        if q_estimator is None:
+            q_estimator = td0_q_estimator
+
+        v_values = self.compute_v_values(self.models, episode)
+
+        with torch.no_grad():
+            target_v_values = self.compute_v_values(self.models, episode)
+            target_q_values = q_estimator(
+                episode.rewards, target_v_values, discount=discount
+            )
+
+        critic_loss = F.mse_loss(v_values, target_q_values, reduction='sum')
+
+        return critic_loss
 
 
 class BehaviorPolicy(PartiallyObservablePolicy):

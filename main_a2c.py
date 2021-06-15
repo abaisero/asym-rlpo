@@ -81,8 +81,10 @@ def parse_args():
     parser.add_argument('--negentropy-nsteps', type=int, default=2_000_000)
 
     # optimization
-    parser.add_argument('--optim-lr', type=float, default=1e-4)
-    parser.add_argument('--optim-eps', type=float, default=1e-4)
+    parser.add_argument('--optim-lr-actor', type=float, default=1e-4)
+    parser.add_argument('--optim-eps-actor', type=float, default=1e-4)
+    parser.add_argument('--optim-lr-critic', type=float, default=1e-4)
+    parser.add_argument('--optim-eps-critic', type=float, default=1e-4)
     parser.add_argument('--optim-max-norm', type=float, default=float('inf'))
 
     # device
@@ -152,15 +154,20 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
     evaluation_policy.epsilon = 0.1
 
     # instantiate optimizer
-    optimizer = torch.optim.Adam(
-        algo.models.parameters(), lr=config.optim_lr, eps=config.optim_eps
+    optimizer_actor = torch.optim.Adam(
+        algo.models.parameters(),
+        lr=config.optim_lr_actor,
+        eps=config.optim_eps_actor,
+    )
+    optimizer_critic = torch.optim.Adam(
+        algo.models.parameters(),
+        lr=config.optim_lr_critic,
+        eps=config.optim_eps_critic,
     )
 
     # instantiate timer
     timer = Timer()
 
-    weight_actor = 1.0
-    weight_critic = 1.0
     negentropy_schedule = make_schedule(
         config.negentropy_schedule,
         value_from=config.negentropy_value_from,
@@ -258,47 +265,59 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
             last_target_update_timestep = xstats['simulation_timesteps']
 
         algo.models.train()
-        optimizer.zero_grad()
+
+        # critic
+        optimizer_critic.zero_grad()
         losses = [
-            algo.losses(
+            algo.critic_loss(
                 episode,
                 discount=config.training_discount,
                 q_estimator=q_estimator,
             )
             for episode in episodes
         ]
-        loss_actor = average([l['actor'] for l in losses])
-        loss_critic = average([l['critic'] for l in losses])
-        loss_negentropy = average([l['negentropy'] for l in losses])
-
-        loss = (
-            weight_actor * loss_actor
-            + weight_critic * loss_critic
-            + weight_negentropy * loss_negentropy
-        )
-
-        loss.backward()
-        gradient_norm = nn.utils.clip_grad_norm_(
+        critic_loss = average(losses)
+        critic_loss.backward()
+        critic_gradient_norm = nn.utils.clip_grad_norm_(
             algo.models.parameters(), max_norm=config.optim_max_norm
         )
+        optimizer_critic.step()
+
+        # actor
+        optimizer_actor.zero_grad()
+        losses = [
+            algo.actor_losses(
+                episode,
+                discount=config.training_discount,
+                q_estimator=q_estimator,
+            )
+            for episode in episodes
+        ]
+
+        actor_losses, negentropy_losses = zip(*losses)
+        actor_loss = average(actor_losses)
+        negentropy_loss = average(negentropy_losses)
+
+        loss = actor_loss + weight_negentropy * negentropy_loss
+        loss.backward()
+        actor_gradient_norm = nn.utils.clip_grad_norm_(
+            algo.models.parameters(), max_norm=config.optim_max_norm
+        )
+        optimizer_actor.step()
 
         if xstats['epoch'] % config.wandb_log_period == 0:
             wandb.log(
                 {
                     **xstats,
                     'hours': timer.hours,
-                    'training/loss': loss,
-                    'training/weights/actor': weight_actor,
-                    'training/weights/critic': weight_critic,
+                    'training/losses/actor': actor_loss,
+                    'training/losses/critic': critic_loss,
+                    'training/losses/negentropy': negentropy_loss,
                     'training/weights/negentropy': weight_negentropy,
-                    'training/losses/actor': loss_actor,
-                    'training/losses/critic': loss_critic,
-                    'training/losses/negentropy': loss_negentropy,
-                    'training/gradient_norm': gradient_norm,
+                    'training/gradient_norms/actor': actor_gradient_norm,
+                    'training/gradient_norms/critic': critic_gradient_norm,
                 }
             )
-
-        optimizer.step()
 
         xstats['epoch'] += 1
         xstats['optimizer_steps'] += 1
