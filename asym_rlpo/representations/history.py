@@ -6,19 +6,17 @@ from .base import Representation
 class RNNHistoryRepresentation(Representation, nn.Module):
     def __init__(
         self,
-        action_representation: Representation,
-        observation_representation: Representation,
+        action_model: Representation,
+        observation_model: Representation,
         *,
         hidden_size: int,
         num_layers: int = 1,
         nonlinearity: str = 'relu',
     ):
         super().__init__()
-        self.action_representation = action_representation
-        self.observation_representation = observation_representation
-        input_size = (
-            self.action_representation.dim + self.observation_representation.dim
-        )
+        self.action_model = action_model
+        self.observation_model = observation_model
+        input_size = self.action_model.dim + self.observation_model.dim
         self.rnn = nn.RNN(
             input_size=input_size,
             hidden_size=hidden_size,
@@ -38,18 +36,16 @@ class RNNHistoryRepresentation(Representation, nn.Module):
 class GRUHistoryRepresentation(Representation, nn.Module):
     def __init__(
         self,
-        action_representation: Representation,
-        observation_representation: Representation,
+        action_model: Representation,
+        observation_model: Representation,
         *,
         hidden_size: int,
         num_layers: int = 1,
     ):
         super().__init__()
-        self.action_representation = action_representation
-        self.observation_representation = observation_representation
-        input_size = (
-            self.action_representation.dim + self.observation_representation.dim
-        )
+        self.action_model = action_model
+        self.observation_model = observation_model
+        input_size = self.action_model.dim + self.observation_model.dim
         self.rnn = nn.GRU(
             input_size=input_size,
             hidden_size=hidden_size,

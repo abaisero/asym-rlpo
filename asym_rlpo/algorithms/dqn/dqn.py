@@ -38,8 +38,13 @@ class DQN(EpisodicDQN):
         actions: torch.Tensor,
         observations: Torch_O,
     ) -> torch.Tensor:
+
         history_features = compute_history_features(
-            models, actions, observations
+            models.action_model,
+            models.observation_model,
+            models.history_model,
+            actions,
+            observations,
         )
         qh_values = models.qh_model(history_features)
         return qh_values

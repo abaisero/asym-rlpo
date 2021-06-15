@@ -43,7 +43,11 @@ class ADQN_State(EpisodicDQN):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
 
         history_features = compute_history_features(
-            models, actions, observations
+            models.action_model,
+            models.observation_model,
+            models.history_model,
+            actions,
+            observations,
         )
         qh_values = models.qh_model(history_features)
 
