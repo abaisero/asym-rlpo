@@ -9,10 +9,15 @@ from .base import A2C_Base
 
 class A2C(A2C_Base):
     model_keys = [
+        # actor
         'action_model',
         'observation_model',
         'history_model',
         'policy_model',
+        # critic
+        'critic_action_model',
+        'critic_observation_model',
+        'critic_history_model',
         'vh_model',
     ]
 
@@ -22,9 +27,9 @@ class A2C(A2C_Base):
     ) -> torch.Tensor:
 
         history_features = compute_history_features(
-            models.action_model,
-            models.observation_model,
-            models.history_model,
+            models.critic_action_model,
+            models.critic_observation_model,
+            models.critic_history_model,
             episode.actions,
             episode.observations,
         )

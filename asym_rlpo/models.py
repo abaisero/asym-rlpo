@@ -57,7 +57,7 @@ def make_models(
 
 
 def make_models_flat(env: gym.Env) -> nn.ModuleDict:
-    # gen purpose models
+    # agent
     state_model = EmbeddingRepresentation(env.state_space.n, 64)
     action_model = EmbeddingRepresentation(env.action_space.n, 64)
     observation_model = EmbeddingRepresentation(
@@ -66,6 +66,18 @@ def make_models_flat(env: gym.Env) -> nn.ModuleDict:
     history_model = GRUHistoryRepresentation(
         action_model,
         observation_model,
+        hidden_size=128,
+    )
+
+    # critic
+    critic_state_model = EmbeddingRepresentation(env.state_space.n, 64)
+    critic_action_model = EmbeddingRepresentation(env.action_space.n, 64)
+    critic_observation_model = EmbeddingRepresentation(
+        env.observation_space.n, 64, padding_idx=-1
+    )
+    critic_history_model = GRUHistoryRepresentation(
+        critic_action_model,
+        critic_observation_model,
         hidden_size=128,
     )
 
@@ -104,17 +116,22 @@ def make_models_flat(env: gym.Env) -> nn.ModuleDict:
 
     # A2C models
     policy_model = make_policy_model(history_model.dim)
-    vh_model = make_v_model(history_model.dim)
-    vhs_model = make_v_model(history_model.dim + state_model.dim)
-    vs_model = make_v_model(state_model.dim)
+    vh_model = make_v_model(critic_history_model.dim)
+    vhs_model = make_v_model(critic_history_model.dim + critic_state_model.dim)
+    vs_model = make_v_model(critic_state_model.dim)
 
     return nn.ModuleDict(
         {
-            # GENERIC
+            # AGENT
             'state_model': state_model,
             'action_model': action_model,
             'observation_model': observation_model,
             'history_model': history_model,
+            # CRITIC
+            'critic_state_model': critic_state_model,
+            'critic_action_model': critic_action_model,
+            'critic_observation_model': critic_observation_model,
+            'critic_history_model': critic_history_model,
             # DQN
             'qs_model': qs_model,
             'qh_model': qh_model,
@@ -129,13 +146,23 @@ def make_models_flat(env: gym.Env) -> nn.ModuleDict:
 
 
 def make_models_openai(env: gym.Env) -> nn.ModuleDict:
-    # gen purpose models
+    # agent
     state_model = IdentityRepresentation(env.state_space)
     action_model = OneHotRepresentation(env.action_space)
     observation_model = IdentityRepresentation(env.observation_space)
     history_model = GRUHistoryRepresentation(
         action_model,
         observation_model,
+        hidden_size=128,
+    )
+
+    # critic
+    critic_state_model = IdentityRepresentation(env.state_space)
+    critic_action_model = OneHotRepresentation(env.action_space)
+    critic_observation_model = IdentityRepresentation(env.observation_space)
+    critic_history_model = GRUHistoryRepresentation(
+        critic_action_model,
+        critic_observation_model,
         hidden_size=128,
     )
 
@@ -174,17 +201,22 @@ def make_models_openai(env: gym.Env) -> nn.ModuleDict:
 
     # A2C models
     policy_model = make_policy_model(history_model.dim)
-    vh_model = make_v_model(history_model.dim)
-    vhs_model = make_v_model(history_model.dim + state_model.dim)
-    vs_model = make_v_model(state_model.dim)
+    vh_model = make_v_model(critic_history_model.dim)
+    vhs_model = make_v_model(critic_history_model.dim + critic_state_model.dim)
+    vs_model = make_v_model(critic_state_model.dim)
 
     return nn.ModuleDict(
         {
-            # GENERIC
+            # AGENT
             'state_model': state_model,
             'action_model': action_model,
             'observation_model': observation_model,
             'history_model': history_model,
+            # CRITIC
+            'critic_state_model': critic_state_model,
+            'critic_action_model': critic_action_model,
+            'critic_observation_model': critic_observation_model,
+            'critic_history_model': critic_history_model,
             # DQN
             'qs_model': qs_model,
             'qh_model': qh_model,
@@ -199,13 +231,25 @@ def make_models_openai(env: gym.Env) -> nn.ModuleDict:
 
 
 def make_models_gv(env: gym.Env) -> nn.ModuleDict:
-    # gen purpose models
+    # agent
     state_model = GV_StateRepresentation(env.state_space)
     action_model = EmbeddingRepresentation(env.action_space.n, 1)
     observation_model = GV_ObservationRepresentation(env.observation_space)
     history_model = GRUHistoryRepresentation(
         action_model,
         observation_model,
+        hidden_size=64,
+    )
+
+    # critic
+    critic_state_model = GV_StateRepresentation(env.state_space)
+    critic_action_model = EmbeddingRepresentation(env.action_space.n, 1)
+    critic_observation_model = GV_ObservationRepresentation(
+        env.observation_space
+    )
+    critic_history_model = GRUHistoryRepresentation(
+        critic_action_model,
+        critic_observation_model,
         hidden_size=64,
     )
 
@@ -238,17 +282,22 @@ def make_models_gv(env: gym.Env) -> nn.ModuleDict:
 
     # A2C models
     policy_model = make_policy_model(history_model.dim)
-    vh_model = make_v_model(history_model.dim)
-    vhs_model = make_v_model(history_model.dim + state_model.dim)
-    vs_model = make_v_model(state_model.dim)
+    vh_model = make_v_model(critic_history_model.dim)
+    vhs_model = make_v_model(critic_history_model.dim + critic_state_model.dim)
+    vs_model = make_v_model(critic_state_model.dim)
 
     return nn.ModuleDict(
         {
-            # GENERIC
+            # AGENT
             'state_model': state_model,
             'action_model': action_model,
             'observation_model': observation_model,
             'history_model': history_model,
+            # CRITIC
+            'critic_state_model': critic_state_model,
+            'critic_action_model': critic_action_model,
+            'critic_observation_model': critic_observation_model,
+            'critic_history_model': critic_history_model,
             # DQN
             'qs_model': qs_model,
             'qh_model': qh_model,

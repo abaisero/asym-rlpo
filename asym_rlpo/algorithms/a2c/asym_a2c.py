@@ -9,11 +9,16 @@ from .base import A2C_Base
 
 class AsymA2C(A2C_Base):
     model_keys = [
-        'state_model',
+        # actor
         'action_model',
         'observation_model',
         'history_model',
         'policy_model',
+        # critic
+        'critic_state_model',
+        'critic_action_model',
+        'critic_observation_model',
+        'critic_history_model',
         'vhs_model',
     ]
 
@@ -23,13 +28,13 @@ class AsymA2C(A2C_Base):
     ) -> torch.Tensor:
 
         history_features = compute_history_features(
-            models.action_model,
-            models.observation_model,
-            models.history_model,
+            models.critic_action_model,
+            models.critic_observation_model,
+            models.critic_history_model,
             episode.actions,
             episode.observations,
         )
-        state_features = models.state_model(episode.states)
+        state_features = models.critic_state_model(episode.states)
         inputs = torch.cat([history_features, state_features], dim=-1)
         vhs_values = models.vhs_model(inputs).squeeze(-1)
         return vhs_values

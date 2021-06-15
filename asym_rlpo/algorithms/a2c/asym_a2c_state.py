@@ -8,11 +8,13 @@ from .base import A2C_Base
 
 class AsymA2C_State(A2C_Base):
     model_keys = [
-        'state_model',
+        # actor
         'action_model',
         'observation_model',
         'history_model',
         'policy_model',
+        # critic
+        'critic_state_model',
         'vs_model',
     ]
 
@@ -21,6 +23,6 @@ class AsymA2C_State(A2C_Base):
         models: nn.ModuleDict, episode: Episode
     ) -> torch.Tensor:
 
-        state_features = models.state_model(episode.states)
+        state_features = models.critic_state_model(episode.states)
         vs_values = models.vs_model(state_features).squeeze(-1)
         return vs_values
