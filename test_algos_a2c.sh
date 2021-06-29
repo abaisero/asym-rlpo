@@ -11,13 +11,24 @@ args=(
   --max-simulation-timesteps 500
   --max-episode-timesteps 100
   --simulation-num-episodes 2
+  # --truncated-histories
+  # --truncated-histories-n 10
 )
+
+[[ "$#" -eq 0 ]] && echo "running without standard output" || echo "running with standard output"
+echo
 
 for env in ${envs[@]}; do
   for algo in ${algos[@]}; do
     echo ./main_a2c.py $env $algo ${args[@]}
-    python -W ignore ./main_a2c.py $env $algo ${args[@]} > /dev/null
-    [ $? -eq 0 ] && echo "SUCCESS" || echo "FAIL"
+
+    if [[ "$#" -eq 0 ]]; then
+      python -W ignore ./main_a2c.py $env $algo ${args[@]} > /dev/null
+    else
+      python -W ignore ./main_a2c.py $env $algo ${args[@]}
+    fi
+
+    [[ $? -eq 0 ]] && echo "SUCCESS" || echo "FAIL"
   done
 done
 

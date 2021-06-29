@@ -39,6 +39,10 @@ def parse_args():
     parser.add_argument('env')
     parser.add_argument('algo', choices=['a2c', 'asym-a2c', 'asym-a2c-state'])
 
+    # truncated histories
+    parser.add_argument('--truncated-histories', action='store_true')
+    parser.add_argument('--truncated-histories-n', type=int, default=4)
+
     # reproducibility
     parser.add_argument('--seed', type=int, default=None)
     parser.add_argument('--deterministic', action='store_true')
@@ -146,7 +150,12 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
 
     # instantiate models and policies
     print('creating models and policies')
-    algo = make_a2c_algorithm(config.algo, env)
+    algo = make_a2c_algorithm(
+        config.algo,
+        env,
+        truncated_histories=config.truncated_histories,
+        truncated_histories_n=config.truncated_histories_n,
+    )
     algo.to(device)
 
     behavior_policy = algo.behavior_policy()

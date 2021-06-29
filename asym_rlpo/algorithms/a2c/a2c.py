@@ -2,12 +2,11 @@ import torch
 import torch.nn as nn
 
 from asym_rlpo.data import Episode
-from asym_rlpo.features import compute_history_features
 
-from .base import A2C_Base
+from .base import PO_A2C_ABC
 
 
-class A2C(A2C_Base):
+class A2C(PO_A2C_ABC):
     model_keys = [
         # actor
         'action_model',
@@ -21,12 +20,11 @@ class A2C(A2C_Base):
         'vh_model',
     ]
 
-    @staticmethod
     def compute_v_values(
-        models: nn.ModuleDict, episode: Episode
+        self, models: nn.ModuleDict, episode: Episode
     ) -> torch.Tensor:
 
-        history_features = compute_history_features(
+        history_features = self.compute_history_features(
             models.critic_action_model,
             models.critic_observation_model,
             models.critic_history_model,

@@ -50,6 +50,10 @@ def parse_args():
         ],
     )
 
+    # truncated histories
+    parser.add_argument('--truncated-histories', action='store_true')
+    parser.add_argument('--truncated-histories-n', type=int, default=3)
+
     # reproducibility
     parser.add_argument('--seed', type=int, default=None)
     parser.add_argument('--deterministic', action='store_true')
@@ -150,7 +154,12 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
 
     # instantiate models and policies
     print('creating models and policies')
-    algo = make_dqn_algorithm(config.algo, env)
+    algo = make_dqn_algorithm(
+        config.algo,
+        env,
+        truncated_histories=config.truncated_histories,
+        truncated_histories_n=config.truncated_histories_n,
+    )
     algo.to(device)
 
     random_policy = RandomPolicy(env.action_space)

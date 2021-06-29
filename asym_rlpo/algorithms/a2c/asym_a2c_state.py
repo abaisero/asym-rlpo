@@ -3,10 +3,10 @@ import torch.nn as nn
 
 from asym_rlpo.data import Episode
 
-from .base import A2C_Base
+from .base import PO_A2C_ABC
 
 
-class AsymA2C_State(A2C_Base):
+class AsymA2C_State(PO_A2C_ABC):
     model_keys = [
         # actor
         'action_model',
@@ -18,9 +18,8 @@ class AsymA2C_State(A2C_Base):
         'vs_model',
     ]
 
-    @staticmethod
     def compute_v_values(
-        models: nn.ModuleDict, episode: Episode
+        self, models: nn.ModuleDict, episode: Episode
     ) -> torch.Tensor:
 
         state_features = models.critic_state_model(episode.states)
