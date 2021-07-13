@@ -31,6 +31,9 @@ def parse_args():
     parser.add_argument('--wandb-entity', default='abaisero')
     parser.add_argument('--wandb-group', default=None)
     parser.add_argument('--wandb-tag', action='append', dest='wandb_tags')
+    parser.add_argument(
+        '--wandb-mode', choices=['run', 'offline'], default='run'
+    )
 
     # wandb related
     parser.add_argument('--wandb-log-period', type=int, default=10)
@@ -362,6 +365,7 @@ if __name__ == '__main__':
         entity=args.wandb_entity,
         group=args.wandb_group,
         tags=args.wandb_tags,
+        mode=args.wandb_mode,
         config=args,
     ) as run:
         main()
