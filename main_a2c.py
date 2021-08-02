@@ -352,7 +352,7 @@ def main():
         tags=args.wandb_tags,
         mode='offline' if args.wandb_offline else None,
         config=args,
-    ) as run:
+    ) as wandb_run:  # pylint: disable=unused-variable
         run()
 
 

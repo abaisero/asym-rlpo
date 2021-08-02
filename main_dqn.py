@@ -111,7 +111,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():  # pylint: disable=too-many-locals,too-many-statements
+def run():  # pylint: disable=too-many-locals,too-many-statements
     config = wandb.config
     # pylint: disable=no-member
 
@@ -356,7 +356,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         xstats['epoch'] += 1
 
 
-if __name__ == '__main__':
+def main():
     args = parse_args()
     with wandb.init(
         project=args.wandb_project,
@@ -365,5 +365,9 @@ if __name__ == '__main__':
         tags=args.wandb_tags,
         mode='offline' if args.wandb_offline else None,
         config=args,
-    ) as run:
-        main()
+    ) as wandb_run:  # pylint: disable=unused-variable
+        run()
+
+
+if __name__ == '__main__':
+    main()
