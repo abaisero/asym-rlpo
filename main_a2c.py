@@ -40,6 +40,9 @@ def parse_args():
     parser.add_argument('env')
     parser.add_argument('algo', choices=['a2c', 'asym-a2c', 'asym-a2c-state'])
 
+    parser.add_argument('--env-label', default=None)
+    parser.add_argument('--algo-label', default=None)
+
     # truncated histories
     parser.add_argument('--truncated-histories', action='store_true')
     parser.add_argument('--truncated-histories-n', type=int, default=4)
@@ -97,10 +100,13 @@ def parse_args():
 
     parser.add_argument('--render', action='store_true')
 
-    return parser.parse_args()
+    args = parser.parse_args()
+    args.env_label = args.env if args.env_label is None else args.env_label
+    args.algo_label = args.algo if args.algo_label is None else args.algo_label
+    return args
 
 
-def main():  # pylint: disable=too-many-locals,too-many-statements
+def run():  # pylint: disable=too-many-locals,too-many-statements
     config = wandb.config
     # pylint: disable=no-member
 
@@ -337,7 +343,7 @@ def main():  # pylint: disable=too-many-locals,too-many-statements
         )
 
 
-if __name__ == '__main__':
+def main():
     args = parse_args()
     with wandb.init(
         project=args.wandb_project,
@@ -347,4 +353,8 @@ if __name__ == '__main__':
         mode='offline' if args.wandb_offline else None,
         config=args,
     ) as run:
-        main()
+        run()
+
+
+if __name__ == '__main__':
+    main()
