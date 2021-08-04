@@ -110,6 +110,8 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
     config = wandb.config
     # pylint: disable=no-member
 
+    print(f'run {config.env_label} {config.algo_label}')
+
     device = get_device(config.device)
 
     # counts and stats useful as x-axis
