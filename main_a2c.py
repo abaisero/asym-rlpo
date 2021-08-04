@@ -45,7 +45,7 @@ def parse_args():
 
     # truncated histories
     parser.add_argument('--truncated-histories', action='store_true')
-    parser.add_argument('--truncated-histories-n', type=int, default=4)
+    parser.add_argument('--truncated-histories-n', type=int, default=-1)
 
     # reproducibility
     parser.add_argument('--seed', type=int, default=None)
