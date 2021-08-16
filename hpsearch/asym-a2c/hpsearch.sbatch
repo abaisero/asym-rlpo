@@ -29,7 +29,7 @@ args=(
   --simulation-num-episodes 2
   --negentropy-value-to-factor 0.1
   --q-estimator td-lambda
-  --q-estimator-lambda 0.9
+  --q-estimator-lambda 0.7
   --wandb-offline
   --wandb-tag "hpsearch"
   --wandb-tag "discovery"
@@ -37,7 +37,7 @@ args=(
 )
 params_optim_lr_actor=(0.0001 0.0003 0.001)
 params_optim_lr_critic=(0.0001 0.0003 0.001)
-params_negentropy_value_from=(0.1 1.0 10.0)
+params_negentropy_value_from=(0.1 0.3 1.0)
 
 for seed in $(seq $nseeds); do
   i=0

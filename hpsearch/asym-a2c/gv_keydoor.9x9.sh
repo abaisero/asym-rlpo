@@ -1,7 +1,7 @@
 #!/bin/bash
 
 env=$HOME/scratch/asym-rlpo-gv-yaml/gv_keydoor.9x9.yaml
-./hpsearch.sh $env
+./hpsearch.sh $env --wandb-tag gv
 
 # MILDLY better with the following
 # --negentropy-value-from 0.1 (better than 1.0 and 10.0)

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 env=$HOME/scratch/asym-rlpo-gv-yaml/gv_crossing.9x9.yaml
-./hpsearch.sh $env
+./hpsearch.sh $env --wandb-tag gv
 
 # --negentropy-value-from 0.1 (better than 1.0 and 10.0)
 # --optim-lr-actor 0.001 (better than 0.0001 and 0.0003)
