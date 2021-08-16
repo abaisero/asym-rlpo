@@ -93,7 +93,7 @@ class PO_A2C_ABC(PO_Algorithm_ABC):
         v_values = self.compute_v_values(self.models, episode)
 
         with torch.no_grad():
-            target_v_values = self.compute_v_values(self.models, episode)
+            target_v_values = self.compute_v_values(self.target_models, episode)
             target_q_values = q_estimator(
                 episode.rewards, target_v_values, discount=discount
             )
