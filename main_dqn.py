@@ -51,6 +51,9 @@ def parse_args():
         ],
     )
 
+    parser.add_argument('--env-label', default=None)
+    parser.add_argument('--algo-label', default=None)
+
     # truncated histories
     parser.add_argument('--truncated-histories', action='store_true')
     parser.add_argument('--truncated-histories-n', type=int, default=3)
@@ -108,7 +111,10 @@ def parse_args():
 
     parser.add_argument('--render', action='store_true')
 
-    return parser.parse_args()
+    args = parser.parse_args()
+    args.env_label = args.env if args.env_label is None else args.env_label
+    args.algo_label = args.algo if args.algo_label is None else args.algo_label
+    return args
 
 
 def run():  # pylint: disable=too-many-locals,too-many-statements
