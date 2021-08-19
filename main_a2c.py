@@ -59,6 +59,7 @@ def parse_args():
     parser.add_argument('--simulation-num-episodes', type=int, default=1)
 
     # evaluation
+    parser.add_argument('--evaluation', action='store_true')
     parser.add_argument('--evaluation-period', type=int, default=10)
     parser.add_argument('--evaluation-num-episodes', type=int, default=1)
     parser.add_argument('--evaluation-epsilon', type=float, default=1.0)
@@ -206,7 +207,10 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
         algo.models.eval()
 
         # evaluate policy
-        if xstats['epoch'] % config.evaluation_period == 0:
+        if (
+            config.evaluation
+            and xstats['epoch'] % config.evaluation_period == 0
+        ):
             if config.render:
                 sample_episodes(
                     env,
