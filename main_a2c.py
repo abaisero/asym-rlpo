@@ -20,7 +20,7 @@ from asym_rlpo.utils.running_average import (
     WindowRunningAverage,
 )
 from asym_rlpo.utils.scheduling import make_schedule
-from asym_rlpo.utils.timer import Timer
+from asym_rlpo.utils.timer import Dispenser, Timer
 
 
 def parse_args():
@@ -34,7 +34,7 @@ def parse_args():
     parser.add_argument('--wandb-offline', action='store_true')
 
     # wandb related
-    parser.add_argument('--wandb-log-period', type=int, default=10)
+    parser.add_argument('--num-wandb-logs', type=int, default=200)
 
     # algorithm and environment
     parser.add_argument('env')
@@ -199,7 +199,11 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
 
     # Tracks when we last updated the target network
     algo.target_models.load_state_dict(algo.models.state_dict())
-    last_target_update_timestep = 0
+    target_update_dispenser = Dispenser(config.target_update_period)
+
+    # wandb log dispenser
+    wandb_log_period = config.max_simulation_timesteps // config.num_wandb_logs
+    wandb_log_dispenser = Dispenser(wandb_log_period)
 
     # main learning loop
     wandb.watch(algo.models)
@@ -257,7 +261,9 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
         avg_behavior_returns.extend(returns.tolist())
         avg100_behavior_returns.extend(returns.tolist())
 
-        if xstats['epoch'] % config.wandb_log_period == 0:
+        wandb_log = wandb_log_dispenser.dispense(xstats['simulation_timesteps'])
+
+        if wandb_log:
             wandb.log(
                 {
                     **xstats,
@@ -278,13 +284,9 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
         weight_negentropy = negentropy_schedule(xstats['simulation_timesteps'])
 
         # target model update
-        if (
-            xstats['simulation_timesteps'] - last_target_update_timestep
-        ) >= config.target_update_period:
+        if target_update_dispenser.dispense(xstats['simulation_timesteps']):
             # Update the target network
             algo.target_models.load_state_dict(algo.models.state_dict())
-            # Record the current timestep
-            last_target_update_timestep = xstats['simulation_timesteps']
 
         algo.models.train()
 
@@ -327,7 +329,7 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
         )
         optimizer_actor.step()
 
-        if xstats['epoch'] % config.wandb_log_period == 0:
+        if wandb_log:
             wandb.log(
                 {
                     **xstats,
