@@ -21,11 +21,9 @@ def linear_schedule(
 
 
 def exponential_schedule(
-    step: int, *, value_from: float, value_to: float, nsteps: int
+    step: int, *, value_from: float, halflife: int
 ) -> float:
-    # normalize step between 0.0 and 1.0
-    t = min(max(0.0, step / (nsteps - 1)), 1.0)
-    return value_from ** (1.0 - t) * value_to ** t
+    return value_from * 0.5 ** (step / halflife)
 
 
 def make_schedule(
@@ -35,6 +33,7 @@ def make_schedule(
     value_from: Optional[float] = None,
     value_to: Optional[float] = None,
     nsteps: Optional[int] = None,
+    halflife: Optional[int] = None,
 ) -> Schedule:
 
     if name == 'constant':
@@ -60,15 +59,14 @@ def make_schedule(
 
     if name == 'exponential':
         checkraise(
-            None not in [value_from, value_to, nsteps],
+            None not in [value_from, halflife],
             ValueError,
-            f'invalid arguments {value_from} {value_to} {nsteps}',
+            f'invalid arguments {value_from} {halflife}',
         )
         return functools.partial(
             exponential_schedule,
             value_from=value_from,
-            value_to=value_to,
-            nsteps=nsteps,
+            halflife=halflife,
         )
 
     raise ValueError(f'invalid schedule name {name}')
