@@ -1,4 +1,5 @@
 import abc
+import copy
 from typing import List
 
 import gym
@@ -14,7 +15,7 @@ class Algorithm_ABC(metaclass=abc.ABCMeta):
     def __init__(self, env: gym.Env):
         super().__init__()
         self.models = make_models(env, keys=self.model_keys)
-        self.target_models = make_models(env, keys=self.model_keys)
+        self.target_models = copy.deepcopy(self.models)
         self.device = next(self.models.parameters()).device
 
     @property
