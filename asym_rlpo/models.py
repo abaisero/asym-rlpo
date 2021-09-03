@@ -7,6 +7,7 @@ import gym_pomdps
 import torch.nn as nn
 
 from asym_rlpo.modules import make_module
+from asym_rlpo.representations.base import Representation
 from asym_rlpo.representations.embedding import EmbeddingRepresentation
 from asym_rlpo.representations.gv import (
     GV_ObservationRepresentation,
@@ -15,26 +16,44 @@ from asym_rlpo.representations.gv import (
 from asym_rlpo.representations.history import GRUHistoryRepresentation
 from asym_rlpo.representations.identity import IdentityRepresentation
 from asym_rlpo.representations.mlp import MLPRepresentation
+from asym_rlpo.representations.normalization import NormalizationRepresentation
 from asym_rlpo.representations.onehot import OneHotRepresentation
+from asym_rlpo.representations.resize import ResizeRepresentation
 from asym_rlpo.utils.debugging import checkraise
 
 
 def make_models(
-    env: gym.Env, *, keys: Optional[Iterable[str]] = None
+    env: gym.Env,
+    *,
+    hs_features_dim: int,
+    normalize_hs_features: bool,
+    keys: Optional[Iterable[str]] = None,
 ) -> nn.ModuleDict:
 
     if isinstance(env.unwrapped, gv.gym.GymEnvironment):
-        models = make_models_gv(env)
+        models = make_models_gv(
+            env,
+            hs_features_dim=hs_features_dim,
+            normalize_hs_features=normalize_hs_features,
+        )
 
     elif (
         re.fullmatch(r'CartPole-v\d+', env.spec.id)
         or re.fullmatch(r'Acrobot-v\d+', env.spec.id)
         or re.fullmatch(r'LunarLander-v\d+', env.spec.id)
     ):
-        models = make_models_openai(env)
+        models = make_models_openai(
+            env,
+            hs_features_dim=hs_features_dim,
+            normalize_hs_features=normalize_hs_features,
+        )
 
     elif isinstance(env.unwrapped, gym_pomdps.POMDP):
-        models = make_models_flat(env)
+        models = make_models_flat(
+            env,
+            hs_features_dim=hs_features_dim,
+            normalize_hs_features=normalize_hs_features,
+        )
 
     else:
         raise NotImplementedError
@@ -56,7 +75,12 @@ def make_models(
     )
 
 
-def make_models_flat(env: gym.Env) -> nn.ModuleDict:
+def make_models_flat(
+    env: gym.Env,
+    *,
+    hs_features_dim: int,
+    normalize_hs_features: bool,
+) -> nn.ModuleDict:
     # agent
     state_model = EmbeddingRepresentation(env.state_space.n, 64)
     action_model = EmbeddingRepresentation(env.action_space.n, 64)
@@ -69,17 +93,45 @@ def make_models_flat(env: gym.Env) -> nn.ModuleDict:
         hidden_size=128,
     )
 
+    # resize history and state models
+    if hs_features_dim:
+        history_model = ResizeRepresentation(history_model, hs_features_dim)
+        state_model = ResizeRepresentation(state_model, hs_features_dim)
+
+    # normalize history and state models
+    if normalize_hs_features:
+        history_model = NormalizationRepresentation(history_model)
+        state_model = NormalizationRepresentation(state_model)
+
     # critic
-    critic_state_model = EmbeddingRepresentation(env.state_space.n, 64)
+    critic_state_model = NormalizationRepresentation(
+        EmbeddingRepresentation(env.state_space.n, 64)
+    )
     critic_action_model = EmbeddingRepresentation(env.action_space.n, 64)
     critic_observation_model = EmbeddingRepresentation(
         env.observation_space.n, 64, padding_idx=-1
     )
-    critic_history_model = GRUHistoryRepresentation(
-        critic_action_model,
-        critic_observation_model,
-        hidden_size=128,
+    critic_history_model = NormalizationRepresentation(
+        GRUHistoryRepresentation(
+            critic_action_model,
+            critic_observation_model,
+            hidden_size=128,
+        )
     )
+
+    # resize history and state models
+    if hs_features_dim:
+        critic_history_model = ResizeRepresentation(
+            critic_history_model, hs_features_dim
+        )
+        critic_state_model = ResizeRepresentation(
+            critic_state_model, hs_features_dim
+        )
+
+    # normalize history and state models
+    if normalize_hs_features:
+        critic_history_model = NormalizationRepresentation(critic_history_model)
+        critic_state_model = NormalizationRepresentation(critic_state_model)
 
     def make_q_model(in_size):
         return nn.Sequential(
@@ -145,7 +197,12 @@ def make_models_flat(env: gym.Env) -> nn.ModuleDict:
     )
 
 
-def make_models_openai(env: gym.Env) -> nn.ModuleDict:
+def make_models_openai(
+    env: gym.Env,
+    *,
+    hs_features_dim: int,
+    normalize_hs_features: bool,
+) -> nn.ModuleDict:
     # agent
     state_model = IdentityRepresentation(env.state_space)
     action_model = OneHotRepresentation(env.action_space)
@@ -155,6 +212,16 @@ def make_models_openai(env: gym.Env) -> nn.ModuleDict:
         observation_model,
         hidden_size=128,
     )
+
+    # resize history and state models
+    if hs_features_dim:
+        history_model = ResizeRepresentation(history_model, hs_features_dim)
+        state_model = ResizeRepresentation(state_model, hs_features_dim)
+
+    # normalize history and state models
+    if normalize_hs_features:
+        history_model = NormalizationRepresentation(history_model)
+        state_model = NormalizationRepresentation(state_model)
 
     # critic
     critic_state_model = IdentityRepresentation(env.state_space)
@@ -166,6 +233,20 @@ def make_models_openai(env: gym.Env) -> nn.ModuleDict:
         hidden_size=128,
     )
 
+    # resize history and state models
+    if hs_features_dim:
+        critic_history_model = ResizeRepresentation(
+            critic_history_model, hs_features_dim
+        )
+        critic_state_model = ResizeRepresentation(
+            critic_state_model, hs_features_dim
+        )
+
+    # normalize history and state models
+    if normalize_hs_features:
+        critic_history_model = NormalizationRepresentation(critic_history_model)
+        critic_state_model = NormalizationRepresentation(critic_state_model)
+
     def make_q_model(in_size):
         return nn.Sequential(
             make_module('linear', 'relu', in_size, 512),
@@ -230,7 +311,12 @@ def make_models_openai(env: gym.Env) -> nn.ModuleDict:
     )
 
 
-def make_models_gv(env: gym.Env) -> nn.ModuleDict:
+def make_models_gv(
+    env: gym.Env,
+    *,
+    hs_features_dim: int,
+    normalize_hs_features: bool,
+) -> nn.ModuleDict:
     # agent
     state_model = GV_StateRepresentation(env.state_space)
     action_model = EmbeddingRepresentation(env.action_space.n, 1)
@@ -240,6 +326,16 @@ def make_models_gv(env: gym.Env) -> nn.ModuleDict:
         observation_model,
         hidden_size=64,
     )
+
+    # resize history and state models
+    if hs_features_dim:
+        history_model = ResizeRepresentation(history_model, hs_features_dim)
+        state_model = ResizeRepresentation(state_model, hs_features_dim)
+
+    # normalize history and state models
+    if normalize_hs_features:
+        history_model = NormalizationRepresentation(history_model)
+        state_model = NormalizationRepresentation(state_model)
 
     # critic
     critic_state_model = GV_StateRepresentation(env.state_space)
@@ -252,6 +348,20 @@ def make_models_gv(env: gym.Env) -> nn.ModuleDict:
         critic_observation_model,
         hidden_size=64,
     )
+
+    # resize history and state models
+    if hs_features_dim:
+        critic_history_model = ResizeRepresentation(
+            critic_history_model, hs_features_dim
+        )
+        critic_state_model = ResizeRepresentation(
+            critic_state_model, hs_features_dim
+        )
+
+    # normalize history and state models
+    if normalize_hs_features:
+        critic_history_model = NormalizationRepresentation(critic_history_model)
+        critic_state_model = NormalizationRepresentation(critic_state_model)
 
     def make_q_model(in_size):
         return nn.Sequential(

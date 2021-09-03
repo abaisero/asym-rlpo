@@ -1,5 +1,6 @@
 import abc
 import copy
+import os
 from typing import List
 
 import gym
@@ -14,7 +15,17 @@ from asym_rlpo.models import make_models
 class Algorithm_ABC(metaclass=abc.ABCMeta):
     def __init__(self, env: gym.Env):
         super().__init__()
-        self.models = make_models(env, keys=self.model_keys)
+
+        hs_features_dim = int(os.environ.get('RLPO_HS_FEATURES_DIM', 0))
+        normalize_hs_features = bool(
+            int(os.environ.get('RLPO_NORMALIZE_HS', 0))
+        )
+        self.models = make_models(
+            env,
+            hs_features_dim=hs_features_dim,
+            normalize_hs_features=normalize_hs_features,
+            keys=self.model_keys,
+        )
         self.target_models = copy.deepcopy(self.models)
         self.device = next(self.models.parameters()).device
 
