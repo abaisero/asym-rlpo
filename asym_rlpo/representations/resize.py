@@ -7,7 +7,10 @@ class ResizeRepresentation(Representation, nn.Module):
     def __init__(self, representation: Representation, dim: int):
         super().__init__()
         self.representation = representation
-        self.resize_model = nn.Linear(representation.dim, dim, bias=False)
+        self.resize_model = nn.Sequential(
+            nn.Linear(representation.dim, dim),
+            nn.ReLU(),
+        )
         self._dim = dim
 
     @property

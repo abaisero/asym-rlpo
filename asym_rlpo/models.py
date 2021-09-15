@@ -19,41 +19,26 @@ from asym_rlpo.representations.mlp import MLPRepresentation
 from asym_rlpo.representations.normalization import NormalizationRepresentation
 from asym_rlpo.representations.onehot import OneHotRepresentation
 from asym_rlpo.representations.resize import ResizeRepresentation
+from asym_rlpo.utils.config import get_config
 from asym_rlpo.utils.debugging import checkraise
 
 
 def make_models(
-    env: gym.Env,
-    *,
-    hs_features_dim: int,
-    normalize_hs_features: bool,
-    keys: Optional[Iterable[str]] = None,
+    env: gym.Env, *, keys: Optional[Iterable[str]] = None
 ) -> nn.ModuleDict:
 
     if isinstance(env.unwrapped, gv.gym.GymEnvironment):
-        models = make_models_gv(
-            env,
-            hs_features_dim=hs_features_dim,
-            normalize_hs_features=normalize_hs_features,
-        )
+        models = make_models_gv(env)
 
     elif (
         re.fullmatch(r'CartPole-v\d+', env.spec.id)
         or re.fullmatch(r'Acrobot-v\d+', env.spec.id)
         or re.fullmatch(r'LunarLander-v\d+', env.spec.id)
     ):
-        models = make_models_openai(
-            env,
-            hs_features_dim=hs_features_dim,
-            normalize_hs_features=normalize_hs_features,
-        )
+        models = make_models_openai(env)
 
     elif isinstance(env.unwrapped, gym_pomdps.POMDP):
-        models = make_models_flat(
-            env,
-            hs_features_dim=hs_features_dim,
-            normalize_hs_features=normalize_hs_features,
-        )
+        models = make_models_flat(env)
 
     else:
         raise NotImplementedError
@@ -75,12 +60,11 @@ def make_models(
     )
 
 
-def make_models_flat(
-    env: gym.Env,
-    *,
-    hs_features_dim: int,
-    normalize_hs_features: bool,
-) -> nn.ModuleDict:
+def make_models_flat(env: gym.Env) -> nn.ModuleDict:
+    config = get_config()
+    hs_features_dim: int = config.hs_features_dim
+    normalize_hs_features: bool = config.normalize_hs_features
+
     # agent
     state_model = EmbeddingRepresentation(env.state_space.n, 64)
     action_model = EmbeddingRepresentation(env.action_space.n, 64)
@@ -104,19 +88,15 @@ def make_models_flat(
         state_model = NormalizationRepresentation(state_model)
 
     # critic
-    critic_state_model = NormalizationRepresentation(
-        EmbeddingRepresentation(env.state_space.n, 64)
-    )
+    critic_state_model = EmbeddingRepresentation(env.state_space.n, 64)
     critic_action_model = EmbeddingRepresentation(env.action_space.n, 64)
     critic_observation_model = EmbeddingRepresentation(
         env.observation_space.n, 64, padding_idx=-1
     )
-    critic_history_model = NormalizationRepresentation(
-        GRUHistoryRepresentation(
-            critic_action_model,
-            critic_observation_model,
-            hidden_size=128,
-        )
+    critic_history_model = GRUHistoryRepresentation(
+        critic_action_model,
+        critic_observation_model,
+        hidden_size=128,
     )
 
     # resize history and state models
@@ -197,12 +177,11 @@ def make_models_flat(
     )
 
 
-def make_models_openai(
-    env: gym.Env,
-    *,
-    hs_features_dim: int,
-    normalize_hs_features: bool,
-) -> nn.ModuleDict:
+def make_models_openai(env: gym.Env) -> nn.ModuleDict:
+    config = get_config()
+    hs_features_dim: int = config.hs_features_dim
+    normalize_hs_features: bool = config.normalize_hs_features
+
     # agent
     state_model = IdentityRepresentation(env.state_space)
     action_model = OneHotRepresentation(env.action_space)
@@ -311,12 +290,11 @@ def make_models_openai(
     )
 
 
-def make_models_gv(
-    env: gym.Env,
-    *,
-    hs_features_dim: int,
-    normalize_hs_features: bool,
-) -> nn.ModuleDict:
+def make_models_gv(env: gym.Env) -> nn.ModuleDict:
+    config = get_config()
+    hs_features_dim: int = config.hs_features_dim
+    normalize_hs_features: bool = config.normalize_hs_features
+
     # agent
     state_model = GV_StateRepresentation(env.state_space)
     action_model = EmbeddingRepresentation(env.action_space.n, 1)

@@ -14,6 +14,8 @@ from asym_rlpo.evaluation import evaluate_returns
 from asym_rlpo.q_estimators import q_estimator_factory
 from asym_rlpo.sampling import sample_episodes
 from asym_rlpo.utils.aggregate import average
+from asym_rlpo.utils.checkpointing import save_data
+from asym_rlpo.utils.config import Config, get_config
 from asym_rlpo.utils.device import get_device
 from asym_rlpo.utils.running_average import (
     InfiniteRunningAverage,
@@ -99,7 +101,16 @@ def parse_args():
     # device
     parser.add_argument('--device', default='auto')
 
+    # misc
     parser.add_argument('--render', action='store_true')
+
+    # temporary / development
+    parser.add_argument('--hs-features-dim', type=int, default=0)
+    parser.add_argument('--normalize-hs-features', action='store_true')
+
+    # checkpointing
+    parser.add_argument('--save-model', action='store_true')
+    parser.add_argument('--model-filename', default=None)
 
     args = parser.parse_args()
     args.env_label = args.env if args.env_label is None else args.env_label
@@ -108,8 +119,7 @@ def parse_args():
 
 
 def run():  # pylint: disable=too-many-locals,too-many-statements
-    config = wandb.config
-    # pylint: disable=no-member
+    config = get_config()
 
     print(f'run {config.env_label} {config.algo_label}')
 
@@ -349,6 +359,17 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
             len(episode) for episode in episodes
         )
 
+    if config.save_model and config.model_filename is not None:
+        data = {
+            'metadata': {
+                'config': config._as_dict(),
+            },
+            'data': {
+                'models.state_dict': models.state_dict(),
+            },
+        }
+        save_data(config.model_filename, data)
+
 
 def main():
     args = parse_args()
@@ -360,6 +381,11 @@ def main():
         mode='offline' if args.wandb_offline else None,
         config=args,
     ) as wandb_run:  # pylint: disable=unused-variable
+
+        # setup config
+        config = get_config()
+        config._update(dict(wandb.config))
+
         run()
 
 
