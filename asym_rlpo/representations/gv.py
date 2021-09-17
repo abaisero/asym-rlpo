@@ -1,11 +1,10 @@
-from operator import itemgetter
-from typing import Dict
+from typing import Dict, Union
 
 import gym
-import numpy as np
 import torch
 import torch.nn as nn
 
+import asym_rlpo.generalized_torch as gtorch
 from asym_rlpo.representations.embedding import EmbeddingRepresentation
 from asym_rlpo.utils.convert import numpy2torch
 from asym_rlpo.utils.debugging import checkraise
@@ -13,54 +12,54 @@ from asym_rlpo.utils.debugging import checkraise
 from .base import Representation
 
 # gridverse types
-GV_State = Dict[str, np.ndarray]
-GV_Observation = Dict[str, np.ndarray]
+GV_State = Dict[str, torch.Tensor]
+GV_Observation = Dict[str, torch.Tensor]
 
 
 class GV_ObservationRepresentation(Representation, nn.Module):
     def __init__(self, observation_space: gym.Space):
         super().__init__()
         self.observation_space = observation_space
-        # the GV observation is a dictionary with fields:
-        # * grid
-        # * item
+        # the GV observation is a dictionary with fields;  we use the fields
+        # `grid` and `item`, and ignore the rest.
 
         checkraise(
             isinstance(observation_space, gym.spaces.Dict),
             TypeError,
             f'space type ({type(observation_space)}) is not gym.spaces.Dict',
         )
-        for k in self._keys():
-            checkraise(
-                k in observation_space.spaces.keys(),
-                KeyError,
-                f'space does not contain `{k}` key',
-            )
+        checkraise(
+            'grid' in observation_space.spaces,
+            KeyError,
+            'space does not contain `grid` key',
+        )
+        checkraise(
+            'item' in observation_space.spaces,
+            KeyError,
+            'space does not contain `item` key',
+        )
 
-        num_embeddings = 0
-        for k in self._keys():
-            s = observation_space[k]
-            num_embeddings = max(num_embeddings, s.high.max() - s.low.min() + 1)
+        num_embeddings = max(
+            observation_space['grid'].high.max() + 1,
+            observation_space['item'].high.max() + 1,
+        )
         embedding_size = 1
         self.embedding = EmbeddingRepresentation(num_embeddings, embedding_size)
 
         in_channels = 3 * embedding_size
         self.cnn = gv_cnn(in_channels)
 
-        test_obs = batchify(numpy2torch(observation_space.sample()))
-        y = self(test_obs)
-        self.__out_dim = y.shape[1]
-
-    def _keys(self):
-        return ('grid', 'item')
+        # get empirical out_dim
+        test_observation = batchify(numpy2torch(observation_space.sample()))
+        self.__dim = self.forward(test_observation).shape[1]
 
     @property
     def dim(self):
-        return self.__out_dim
+        return self.__dim
 
-    def forward(self, observations: GV_Observation):
-        unpack = itemgetter(*self._keys())
-        grid, item = unpack(observations)
+    def forward(self, inputs: GV_Observation):
+        grid = inputs['grid']
+        item = inputs['item']
 
         # Categorical components require embeddings
         grid = self.embedding(grid).flatten(start_dim=-2)
@@ -75,52 +74,114 @@ class GV_ObservationRepresentation(Representation, nn.Module):
         return torch.cat([item, cnn_output], dim=-1)
 
 
+class FullyConnected_GV_ObservationRepresentation(Representation, nn.Module):
+    def __init__(self, observation_space: gym.Space):
+        super().__init__()
+        self.observation_space = observation_space
+        # the GV observation is a dictionary with fields;  we use the fields
+        # `grid` and `item`, and ignore the rest.
+
+        checkraise(
+            isinstance(observation_space, gym.spaces.Dict),
+            TypeError,
+            f'space type ({type(observation_space)}) is not gym.spaces.Dict',
+        )
+        checkraise(
+            'grid' in observation_space.spaces,
+            KeyError,
+            'space does not contain `grid` key',
+        )
+        checkraise(
+            'item' in observation_space.spaces,
+            KeyError,
+            'space does not contain `item` key',
+        )
+
+        num_embeddings = max(
+            observation_space['grid'].high.max() + 1,
+            observation_space['item'].high.max() + 1,
+        )
+        embedding_size = 8
+        self.embedding = EmbeddingRepresentation(num_embeddings, embedding_size)
+
+        self.__dim = embedding_size * (
+            observation_space['grid'].sample().size
+            + observation_space['item'].sample().size
+        )
+
+    @property
+    def dim(self):
+        return self.__dim
+
+    def forward(self, inputs: GV_Observation):
+        grid = inputs['grid']
+        item = inputs['item']
+
+        # Categorical components require embeddings
+        grid = self.embedding(grid).flatten(start_dim=1)
+        item = self.embedding(item).flatten(start_dim=1)
+
+        # just concatenate embeddings
+        return torch.cat([grid, item], dim=-1)
+
+
 class GV_StateRepresentation(Representation, nn.Module):
     def __init__(self, state_space: gym.Space):
         super().__init__()
         self.state_space = state_space
-        # the GV state is a dictionary with fields:
-        # * grid
-        # * agent_ids
-        # * item
-        # * agent
+        # the GV state is a dictionary with fields;  we use the fields `grid`,
+        # `agent_id_grid`, `item`, and `agent`, and ignore the rest.
 
         checkraise(
             isinstance(state_space, gym.spaces.Dict),
             TypeError,
             f'space type ({type(state_space)}) is not gym.spaces.Dict',
         )
-        for k in self._keys():
-            checkraise(
-                k in state_space.spaces.keys(),
-                KeyError,
-                f'space does not contain `{k}` key',
-            )
+        checkraise(
+            'grid' in state_space.spaces,
+            KeyError,
+            'space does not contain `grid` key',
+        )
+        checkraise(
+            'agent_id_grid' in state_space.spaces,
+            KeyError,
+            'space does not contain `agent_id_grid` key',
+        )
+        checkraise(
+            'item' in state_space.spaces,
+            KeyError,
+            'space does not contain `item` key',
+        )
+        checkraise(
+            'agent' in state_space.spaces,
+            KeyError,
+            'space does not contain `agent` key',
+        )
 
-        num_embeddings = 0
-        for k in ['grid', 'item']:
-            s = state_space[k]
-            num_embeddings = max(num_embeddings, s.high.max() - s.low.min() + 1)
+        # `grid` and `item` are the only categorical fields
+        num_embeddings = max(
+            state_space['grid'].high.max() + 1,
+            state_space['item'].high.max() + 1,
+        )
         embedding_size = 1
         self.embedding = EmbeddingRepresentation(num_embeddings, embedding_size)
 
-        in_channels = 3 * embedding_size + 1
+        in_channels = 3 * embedding_size + 1  # adding one for agent_id_grid
         self.cnn = gv_cnn(in_channels)
 
+        # get empirical out_dim
         test_state = batchify(numpy2torch(state_space.sample()))
-        y = self(test_state)
-        self.__out_dim = y.shape[1]
-
-    def _keys(self):
-        return ('agent', 'agent_id_grid', 'grid', 'item')
+        self.__dim = self.forward(test_state).shape[1]
 
     @property
     def dim(self):
-        return self.__out_dim
+        return self.__dim
 
-    def forward(self, states: GV_State):
-        unpack = itemgetter(*self._keys())
-        agent, agent_id_grid, grid, item = unpack(states)
+    def forward(self, inputs: GV_State):
+        agent = inputs['agent']
+        agent_id_grid = inputs['agent_id_grid']
+        grid = inputs['grid']
+        item = inputs['item']
 
         # Categorical components require embeddings
         grid = self.embedding(grid).flatten(start_dim=-2)
@@ -149,6 +210,6 @@ def gv_cnn(in_channels):
     )
 
 
-def batchify(gv_dict):
+def batchify(gv_type: Union[GV_Observation, GV_State]):
     """Adds a batch axis to every subcomponent of a gridverse state or observation."""
-    return {k: v.unsqueeze(0) for k, v in gv_dict.items()}
+    return gtorch.unsqueeze(gv_type, 0)

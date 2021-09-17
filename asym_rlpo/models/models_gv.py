@@ -4,6 +4,7 @@ import torch.nn as nn
 from asym_rlpo.modules import make_module
 from asym_rlpo.representations.embedding import EmbeddingRepresentation
 from asym_rlpo.representations.gv import (
+    FullyConnected_GV_ObservationRepresentation,
     GV_ObservationRepresentation,
     GV_StateRepresentation,
 )
@@ -49,7 +50,11 @@ def make_models(  # pylint: disable=too-many-locals
     # agent
     state_model = GV_StateRepresentation(env.state_space)
     action_model = EmbeddingRepresentation(env.action_space.n, 1)
-    observation_model = GV_ObservationRepresentation(env.observation_space)
+    observation_model = (
+        FullyConnected_GV_ObservationRepresentation(env.observation_space)
+        if env.observation_space['grid'].shape[:2] == (2, 3)
+        else GV_ObservationRepresentation(env.observation_space)
+    )
     history_model = GRUHistoryRepresentation(
         action_model,
         observation_model,
