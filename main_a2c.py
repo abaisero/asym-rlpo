@@ -365,7 +365,7 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
                 'config': config._as_dict(),
             },
             'data': {
-                'models.state_dict': models.state_dict(),
+                'models.state_dict': algo.models.state_dict(),
             },
         }
         save_data(config.model_filename, data)
