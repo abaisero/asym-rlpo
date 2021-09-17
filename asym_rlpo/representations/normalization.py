@@ -10,14 +10,19 @@ class SaneBatchNorm1d(nn.Module):
         self.batchnorm = nn.BatchNorm1d(*args, **kwargs)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        # batchnorm does not support arbitrary batch dimensions
+        shape = inputs.shape
+        inputs = inputs.reshape(-1, inputs.size(-1))
+
         try:
-            return self.batchnorm(inputs)
+            outputs = self.batchnorm(inputs)
         except ValueError:
             training = self.batchnorm.training
             self.batchnorm.eval()
             outputs = self.batchnorm(inputs)
             self.batchnorm.train(training)
-            return outputs
+
+        return outputs.reshape(shape)
 
 
 class NormalizationRepresentation(Representation, nn.Module):
@@ -33,13 +38,11 @@ class NormalizationRepresentation(Representation, nn.Module):
     def forward(self, *args, **kwargs):
         features = self.representation(*args, **kwargs)
 
-        try:
-            # handles HistoryRepresentation
-            features, hidden = features
-        except ValueError:
-            # normal usecase
+        if not isinstance(features, tuple):
             features = self.sanebatchnorm(features)
         else:
+            # HistoryRepresentation case
+            features, hidden = features
             features = self.sanebatchnorm(features)
             features = features, hidden
 
