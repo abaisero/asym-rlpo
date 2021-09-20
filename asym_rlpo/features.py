@@ -3,15 +3,15 @@ from collections import deque
 from typing import Deque, Optional
 
 import torch
-import torch.nn as nn
 
 import asym_rlpo.generalized_torch as gtorch
 from asym_rlpo.data import Torch_O
+from asym_rlpo.representations.base import Representation
 
 
 def compute_input_features(
-    action_model: nn.Module,
-    observation_model: nn.Module,
+    action_model: Representation,
+    observation_model: Representation,
     action: Optional[torch.Tensor],
     observation: Torch_O,
     *,
@@ -31,9 +31,9 @@ def compute_input_features(
 
 
 def compute_full_history_features(
-    action_model: nn.Module,
-    observation_model: nn.Module,
-    history_model: nn.Module,
+    action_model: Representation,
+    observation_model: Representation,
+    history_model: Representation,
     actions: torch.Tensor,
     observations: Torch_O,
 ) -> torch.Tensor:
@@ -51,9 +51,9 @@ def compute_full_history_features(
 
 
 def compute_truncated_history_features(
-    action_model: nn.Module,
-    observation_model: nn.Module,
-    history_model: nn.Module,
+    action_model: Representation,
+    observation_model: Representation,
+    history_model: Representation,
     actions: torch.Tensor,
     observations: Torch_O,
     *,
@@ -76,9 +76,9 @@ def compute_truncated_history_features(
 
 
 def compute_history_features(
-    action_model: nn.Module,
-    observation_model: nn.Module,
-    history_model: nn.Module,
+    action_model: Representation,
+    observation_model: Representation,
+    history_model: Representation,
     actions: torch.Tensor,
     observations: Torch_O,
     *,
@@ -109,9 +109,9 @@ def compute_history_features(
 class HistoryIntegrator(metaclass=abc.ABCMeta):
     def __init__(
         self,
-        action_model: nn.Module,
-        observation_model: nn.Module,
-        history_model: nn.Module,
+        action_model: Representation,
+        observation_model: Representation,
+        history_model: Representation,
     ):
         self.action_model = action_model
         self.observation_model = observation_model
@@ -148,9 +148,9 @@ class HistoryIntegrator(metaclass=abc.ABCMeta):
 class FullHistoryIntegrator(HistoryIntegrator):
     def __init__(
         self,
-        action_model: nn.Module,
-        observation_model: nn.Module,
-        history_model: nn.Module,
+        action_model: Representation,
+        observation_model: Representation,
+        history_model: Representation,
     ):
         super().__init__(
             action_model,
@@ -190,9 +190,9 @@ class FullHistoryIntegrator(HistoryIntegrator):
 class TruncatedHistoryIntegrator(HistoryIntegrator):
     def __init__(
         self,
-        action_model: nn.Module,
-        observation_model: nn.Module,
-        history_model: nn.Module,
+        action_model: Representation,
+        observation_model: Representation,
+        history_model: Representation,
         *,
         n: int,
     ):
@@ -239,9 +239,9 @@ class TruncatedHistoryIntegrator(HistoryIntegrator):
 
 
 def make_history_integrator(
-    action_model: nn.Module,
-    observation_model: nn.Module,
-    history_model: nn.Module,
+    action_model: Representation,
+    observation_model: Representation,
+    history_model: Representation,
     *,
     truncated_histories: bool,
     truncated_histories_n: int,

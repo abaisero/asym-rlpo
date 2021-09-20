@@ -25,7 +25,7 @@ class SaneBatchNorm1d(nn.Module):
         return outputs.reshape(shape)
 
 
-class NormalizationRepresentation(Representation, nn.Module):
+class NormalizationRepresentation(Representation):
     def __init__(self, representation: Representation):
         super().__init__()
         self.representation = representation

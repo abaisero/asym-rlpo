@@ -3,7 +3,7 @@ import torch.nn as nn
 from .base import Representation
 
 
-class ResizeRepresentation(Representation, nn.Module):
+class ResizeRepresentation(Representation):
     def __init__(self, representation: Representation, dim: int):
         super().__init__()
         self.representation = representation

@@ -6,7 +6,7 @@ import torch.nn as nn
 from .base import Representation
 
 
-class EmbeddingRepresentation(Representation, nn.Module):
+class EmbeddingRepresentation(Representation):
     def __init__(
         self,
         num_embeddings: int,

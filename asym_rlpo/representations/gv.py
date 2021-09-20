@@ -16,7 +16,7 @@ GV_State = Dict[str, torch.Tensor]
 GV_Observation = Dict[str, torch.Tensor]
 
 
-class GV_ObservationRepresentation(Representation, nn.Module):
+class GV_ObservationRepresentation(Representation):
     def __init__(self, observation_space: gym.Space):
         super().__init__()
         self.observation_space = observation_space
@@ -74,7 +74,7 @@ class GV_ObservationRepresentation(Representation, nn.Module):
         return torch.cat([item, cnn_output], dim=-1)
 
 
-class FullyConnected_GV_ObservationRepresentation(Representation, nn.Module):
+class FullyConnected_GV_ObservationRepresentation(Representation):
     def __init__(self, observation_space: gym.Space):
         super().__init__()
         self.observation_space = observation_space
@@ -125,7 +125,7 @@ class FullyConnected_GV_ObservationRepresentation(Representation, nn.Module):
         return torch.cat([grid, item], dim=-1)
 
 
-class GV_StateRepresentation(Representation, nn.Module):
+class GV_StateRepresentation(Representation):
     def __init__(self, state_space: gym.Space):
         super().__init__()
         self.state_space = state_space

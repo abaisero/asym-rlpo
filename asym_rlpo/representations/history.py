@@ -3,7 +3,7 @@ import torch.nn as nn
 from .base import Representation
 
 
-class RNNHistoryRepresentation(Representation, nn.Module):
+class RNNHistoryRepresentation(Representation):
     def __init__(
         self,
         action_model: Representation,
@@ -33,7 +33,7 @@ class RNNHistoryRepresentation(Representation, nn.Module):
         return self.rnn(inputs, hidden)
 
 
-class GRUHistoryRepresentation(Representation, nn.Module):
+class GRUHistoryRepresentation(Representation):
     def __init__(
         self,
         action_model: Representation,

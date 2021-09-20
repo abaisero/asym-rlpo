@@ -1,6 +1,5 @@
 import gym
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
 from asym_rlpo.utils.debugging import checkraise
@@ -8,7 +7,7 @@ from asym_rlpo.utils.debugging import checkraise
 from .base import Representation
 
 
-class OneHotRepresentation(Representation, nn.Module):
+class OneHotRepresentation(Representation):
     def __init__(self, input_space: gym.spaces.Discrete):
         super().__init__()
 

@@ -7,7 +7,7 @@ from asym_rlpo.utils.debugging import checkraise
 from .base import Representation
 
 
-class MLPRepresentation(Representation, nn.Module):
+class MLPRepresentation(Representation):
     def __init__(self, input_space: gym.spaces.Box, dim: int):
         super().__init__()
 

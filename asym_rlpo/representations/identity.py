@@ -1,13 +1,12 @@
 import gym
 import torch
-import torch.nn as nn
 
 from asym_rlpo.utils.debugging import checkraise
 
 from .base import Representation
 
 
-class IdentityRepresentation(Representation, nn.Module):
+class IdentityRepresentation(Representation):
     def __init__(self, input_space: gym.spaces.Box):
         super().__init__()
 
