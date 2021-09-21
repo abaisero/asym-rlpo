@@ -31,7 +31,3 @@ class ResizeRepresentation(Representation):
             features = self._resize_model(features)
 
         return features
-
-    def __getattr__(self, name):
-        # has to be done via super bc of how torch modules are `registered`
-        return super().__getattr__(name)

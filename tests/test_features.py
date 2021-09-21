@@ -42,9 +42,9 @@ def test_history_integrators():
 
     history_integrators = {
         k: make_history_integrator(
-            models.action_model,
-            models.observation_model,
-            models.history_model,
+            models.agent.action_model,
+            models.agent.observation_model,
+            models.agent.history_model,
             truncated_histories=v.truncated_histories,
             truncated_histories_n=v.truncated_histories_n,
         )

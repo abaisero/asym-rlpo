@@ -32,16 +32,30 @@ def make_models(
     else:
         raise NotImplementedError
 
-    if keys is None:
-        return models
+    return models if keys is None else filter_models(models, keys)
 
-    keys = set(keys)
-    missing_keys = keys - models.keys()
-    checkraise(
-        len(missing_keys) == 0,
-        ValueError,
-        'models dictionary does not contains keys {}',
-        missing_keys,
-    )
 
-    return nn.ModuleDict({key: models[key] for key in keys})
+def filter_models(models: nn.ModuleDict, keys) -> nn.ModuleDict:
+    if isinstance(keys, list):
+        missing_keys = set(keys) - models.keys()
+        checkraise(
+            len(missing_keys) == 0,
+            ValueError,
+            'models dictionary does not contains keys {}',
+            missing_keys,
+        )
+        return nn.ModuleDict({k: models[k] for k in keys})
+
+    if isinstance(keys, dict):
+        missing_keys = set(keys.keys()) - models.keys()
+        checkraise(
+            len(missing_keys) == 0,
+            ValueError,
+            'models dictionary does not contains keys {}',
+            missing_keys,
+        )
+        return nn.ModuleDict(
+            {k: filter_models(models[k], v) for k, v in keys.items()}
+        )
+
+    raise NotImplementedError

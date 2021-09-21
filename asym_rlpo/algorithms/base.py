@@ -1,6 +1,6 @@
 import abc
 import copy
-from typing import List
+from typing import Dict, List, Union
 
 import gym
 import torch
@@ -9,6 +9,10 @@ import torch.nn as nn
 from asym_rlpo.data import Torch_O
 from asym_rlpo.features import compute_history_features
 from asym_rlpo.models import make_models
+
+ModelKeysList = List[str]
+ModelKeysDict = Dict[str, ModelKeysList]
+ModelKeysDict = Dict[str, Union[ModelKeysDict, ModelKeysList]]
 
 
 class Algorithm_ABC(metaclass=abc.ABCMeta):
@@ -21,7 +25,7 @@ class Algorithm_ABC(metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def model_keys(self) -> List[str]:
+    def model_keys(self) -> ModelKeysDict:
         assert False
 
     def to(self, device: torch.device):

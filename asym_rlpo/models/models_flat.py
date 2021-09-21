@@ -40,10 +40,7 @@ def _make_policy_model(in_size, out_size):
     )
 
 
-def make_models(  # pylint: disable=too-many-locals
-    env: gym.Env,
-) -> nn.ModuleDict:
-
+def _make_representation_models(env: gym.Env) -> nn.ModuleDict:
     config = get_config()
     hs_features_dim: int = config.hs_features_dim
     normalize_hs_features: bool = config.normalize_hs_features
@@ -70,65 +67,59 @@ def make_models(  # pylint: disable=too-many-locals
         history_model = NormalizationRepresentation(history_model)
         state_model = NormalizationRepresentation(state_model)
 
-    # critic
-    critic_state_model = EmbeddingRepresentation(env.state_space.n, 64)
-    critic_action_model = EmbeddingRepresentation(env.action_space.n, 64)
-    critic_observation_model = EmbeddingRepresentation(
-        env.observation_space.n, 64, padding_idx=-1
-    )
-    critic_history_model = GRUHistoryRepresentation(
-        critic_action_model,
-        critic_observation_model,
-        hidden_size=128,
-    )
-
-    # resize history and state models
-    if hs_features_dim:
-        critic_history_model = ResizeRepresentation(
-            critic_history_model, hs_features_dim
-        )
-        critic_state_model = ResizeRepresentation(
-            critic_state_model, hs_features_dim
-        )
-
-    # normalize history and state models
-    if normalize_hs_features:
-        critic_history_model = NormalizationRepresentation(critic_history_model)
-        critic_state_model = NormalizationRepresentation(critic_state_model)
-
-    # DQN models
-    qh_model = _make_q_model(history_model.dim, env.action_space.n)
-    qhs_model = _make_q_model(
-        history_model.dim + state_model.dim, env.action_space.n
-    )
-    qs_model = _make_q_model(state_model.dim, env.action_space.n)
-
-    # A2C models
-    policy_model = _make_policy_model(history_model.dim, env.action_space.n)
-    vh_model = _make_v_model(critic_history_model.dim)
-    vhs_model = _make_v_model(critic_history_model.dim + critic_state_model.dim)
-    vs_model = _make_v_model(critic_state_model.dim)
-
     return nn.ModuleDict(
         {
-            # AGENT
             'state_model': state_model,
             'action_model': action_model,
             'observation_model': observation_model,
             'history_model': history_model,
-            # CRITIC
-            'critic_state_model': critic_state_model,
-            'critic_action_model': critic_action_model,
-            'critic_observation_model': critic_observation_model,
-            'critic_history_model': critic_history_model,
-            # DQN
-            'qs_model': qs_model,
-            'qh_model': qh_model,
-            'qhs_model': qhs_model,
-            # A2C
-            'policy_model': policy_model,
-            'vh_model': vh_model,
-            'vhs_model': vhs_model,
-            'vs_model': vs_model,
         }
     )
+
+
+def make_models(  # pylint: disable=too-many-locals
+    env: gym.Env,
+) -> nn.ModuleDict:
+
+    models = nn.ModuleDict(
+        {
+            'agent': _make_representation_models(env),
+            'critic': _make_representation_models(env),
+        }
+    )
+
+    # DQN models
+    models.agent.update(
+        {
+            'qh_model': _make_q_model(
+                models.agent.history_model.dim, env.action_space.n
+            ),
+            'qhs_model': _make_q_model(
+                models.agent.history_model.dim + models.agent.state_model.dim,
+                env.action_space.n,
+            ),
+            'qs_model': _make_q_model(
+                models.agent.state_model.dim, env.action_space.n
+            ),
+        }
+    )
+
+    # A2C models
+    models.agent.update(
+        {
+            'policy_model': _make_policy_model(
+                models.agent.history_model.dim, env.action_space.n
+            )
+        }
+    )
+    models.critic.update(
+        {
+            'vh_model': _make_v_model(models.critic.history_model.dim),
+            'vhs_model': _make_v_model(
+                models.critic.history_model.dim + models.critic.state_model.dim
+            ),
+            'vs_model': _make_v_model(models.critic.state_model.dim),
+        }
+    )
+
+    return models

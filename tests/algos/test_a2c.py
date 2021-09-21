@@ -45,9 +45,9 @@ def test_compute_history_features():
     with torch.no_grad():
         history_features = {
             k: v.compute_history_features(
-                models.action_model,
-                models.observation_model,
-                models.history_model,
+                models.agent.action_model,
+                models.agent.observation_model,
+                models.agent.history_model,
                 episode.actions,
                 episode.observations,
             )

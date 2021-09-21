@@ -34,13 +34,13 @@ class PO_A2C_ABC(PO_Algorithm_ABC):
     ) -> torch.Tensor:
 
         history_features = self.compute_history_features(
-            models.action_model,
-            models.observation_model,
-            models.history_model,
+            models.agent.action_model,
+            models.agent.observation_model,
+            models.agent.history_model,
             episode.actions,
             episode.observations,
         )
-        action_logits = models.policy_model(history_features)
+        action_logits = models.agent.policy_model(history_features)
         return action_logits
 
     @abc.abstractmethod
@@ -114,9 +114,9 @@ class BehaviorPolicy(PartiallyObservablePolicy):
         super().__init__()
         self.models = models
         self.history_integrator = make_history_integrator(
-            models.action_model,
-            models.observation_model,
-            models.history_model,
+            models.agent.action_model,
+            models.agent.observation_model,
+            models.agent.history_model,
             truncated_histories=truncated_histories,
             truncated_histories_n=truncated_histories_n,
         )
@@ -128,7 +128,7 @@ class BehaviorPolicy(PartiallyObservablePolicy):
         self.history_integrator.step(action, observation)
 
     def action_logits(self):
-        return self.models.policy_model(self.history_integrator.features)
+        return self.models.agent.policy_model(self.history_integrator.features)
 
     def po_sample_action(self):
         action_dist = torch.distributions.Categorical(

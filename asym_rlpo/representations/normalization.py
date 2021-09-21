@@ -47,7 +47,3 @@ class NormalizationRepresentation(Representation):
             features = features, hidden
 
         return features
-
-    def __getattr__(self, name):
-        # has to be done via super bc of how torch modules are `registered`
-        return super().__getattr__(name)
