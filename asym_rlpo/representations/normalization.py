@@ -28,22 +28,26 @@ class SaneBatchNorm1d(nn.Module):
 class NormalizationRepresentation(Representation):
     def __init__(self, representation: Representation):
         super().__init__()
-        self.representation = representation
-        self.sanebatchnorm = SaneBatchNorm1d(representation.dim, affine=False)
+        self._representation = representation
+        self._sanebatchnorm = SaneBatchNorm1d(representation.dim, affine=False)
 
     @property
     def dim(self):
-        return self.representation.dim
+        return self._representation.dim
 
     def forward(self, *args, **kwargs):
-        features = self.representation(*args, **kwargs)
+        features = self._representation(*args, **kwargs)
 
         if not isinstance(features, tuple):
-            features = self.sanebatchnorm(features)
+            features = self._sanebatchnorm(features)
         else:
             # HistoryRepresentation case
             features, hidden = features
-            features = self.sanebatchnorm(features)
+            features = self._sanebatchnorm(features)
             features = features, hidden
 
         return features
+
+    def __getattr__(self, name):
+        # has to be done via super bc of how torch modules are `registered`
+        return super().__getattr__(name)
