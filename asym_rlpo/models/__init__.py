@@ -44,6 +44,4 @@ def make_models(
         missing_keys,
     )
 
-    return nn.ModuleDict(
-        {key: model for key, model in models.items() if key in keys}
-    )
+    return nn.ModuleDict({key: models[key] for key in keys})
