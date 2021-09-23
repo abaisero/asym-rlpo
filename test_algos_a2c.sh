@@ -35,13 +35,20 @@ warnings="-W ignore"
 debug="-m ipdb"
 debug=""
 
-[[ "$#" -eq 0 ]] && silent=1 || silent=0
-[[ "$#" -eq 0 ]] && echo "running without standard output" || echo "running with standard output"
-echo
+if [[ "$1" -eq "-v" ]]; then
+  shift
+  echo "running without standard output"
+  echo
+  silent=0
+else
+  echo "running with standard output"
+  echo
+  silent=1
+fi
 
 for env in ${envs[@]}; do
   for algo in ${algos[@]}; do
-    cmd="python $warnings $debug ./main_a2c.py $env $algo ${args[@]}"
+    cmd="python $warnings $debug ./main_a2c.py $env $algo ${args[@]} $@"
     echo $cmd
     [[ "$silent" -eq 1 ]] && $cmd > /dev/null || $cmd
     [[ "$?" -eq 0 ]] && echo "SUCCESS" || echo "FAIL"
