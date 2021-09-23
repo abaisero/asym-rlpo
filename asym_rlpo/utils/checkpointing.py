@@ -5,7 +5,7 @@ from typing import Any
 
 
 def save_data(filename: str, data: Any):
-    os.mkdir(os.path.dirname(filename))
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, 'wb') as f:
         pickle.dump(data, f)
 
