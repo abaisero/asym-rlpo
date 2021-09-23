@@ -18,6 +18,8 @@ from gym_gridverse.representations.state_representations import (
 from asym_rlpo.utils.debugging import checkraise
 from asym_rlpo.wrapper import FlatPaddingWrapper, IndexWrapper
 
+from . import extra_hai, extra_lyu
+
 
 def make_env(
     id_or_path: str, *, max_episode_timesteps: Optional[int] = None

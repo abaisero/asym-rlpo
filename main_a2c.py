@@ -9,7 +9,7 @@ import wandb
 from gym_gridverse.rng import reset_gv_rng
 
 from asym_rlpo.algorithms import make_a2c_algorithm
-from asym_rlpo.env import make_env
+from asym_rlpo.envs import make_env
 from asym_rlpo.evaluation import evaluate_returns
 from asym_rlpo.q_estimators import q_estimator_factory
 from asym_rlpo.sampling import sample_episodes

@@ -6,6 +6,15 @@ import gym_gridverse as gv
 import gym_pomdps
 import torch.nn as nn
 
+from asym_rlpo.models.models_extra_carflag import (
+    make_models as make_models_extra_carflag,
+)
+from asym_rlpo.models.models_extra_cleaner import (
+    make_models as make_models_extra_cleaner,
+)
+from asym_rlpo.models.models_extra_dectiger import (
+    make_models as make_models_extra_dectiger,
+)
 from asym_rlpo.models.models_flat import make_models as make_models_flat
 from asym_rlpo.models.models_gv import make_models as make_models_gv
 from asym_rlpo.models.models_openai import make_models as make_models_openai
@@ -25,6 +34,15 @@ def make_models(
         or re.fullmatch(r'LunarLander-v\d+', env.spec.id)
     ):
         models = make_models_openai(env)
+
+    elif re.fullmatch(r'extra-dectiger-v\d+', env.spec.id):
+        models = make_models_extra_dectiger(env)
+
+    elif re.fullmatch(r'extra-cleaner-v\d+', env.spec.id):
+        models = make_models_extra_cleaner(env)
+
+    elif re.fullmatch(r'extra-car-flag-v\d+', env.spec.id):
+        models = make_models_extra_carflag(env)
 
     elif isinstance(env.unwrapped, gym_pomdps.POMDP):
         models = make_models_flat(env)

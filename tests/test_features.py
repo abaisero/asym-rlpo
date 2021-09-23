@@ -3,7 +3,7 @@ import itertools as itt
 import torch
 
 from asym_rlpo.algorithms import make_a2c_algorithm
-from asym_rlpo.env import make_env
+from asym_rlpo.envs import make_env
 from asym_rlpo.features import (
     FullHistoryIntegrator,
     TruncatedHistoryIntegrator,
