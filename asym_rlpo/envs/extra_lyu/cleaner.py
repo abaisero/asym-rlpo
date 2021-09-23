@@ -10,7 +10,7 @@ from .maze import Maze
 from .single_agent_wrapper import SingleAgentWrapper
 
 
-class EnvCleaner(gym.Env):
+class EnvCleaner(object):
     def __init__(self, N_agent=2, map_size=13, seed=5):
         self.map_size = map_size
         self.seed = seed
@@ -219,14 +219,15 @@ class EnvCleaner(gym.Env):
         cv2.waitKey(10)
 
 
-class EnvCleaner_Fix(gym.Wrapper):
+class EnvCleaner_Fix(gym.Env):
     def __init__(self, env: gym.Env):
-        super().__init__(env)
+        super().__init__()
 
-        self.num_agents = self.N_agent
+        self.env = env
+        self.num_agents = self.env.N_agent
         self.state_space = gym.spaces.Box(
-            np.zeros((self.map_size ** 2 * 5), np.float32),
-            np.ones((self.map_size ** 2 * 5), np.float32),
+            np.zeros((self.env.map_size ** 2 * 5), np.float32),
+            np.ones((self.env.map_size ** 2 * 5), np.float32),
         )
         self.action_space = gym.spaces.Tuple(
             [
@@ -246,7 +247,7 @@ class EnvCleaner_Fix(gym.Wrapper):
 
     @property
     def state(self):
-        state = np.zeros((self.map_size, self.map_size, 5), np.float32)
+        state = np.zeros((self.env.map_size, self.env.map_size, 5), np.float32)
         state[:, :, 0] = self.env.occupancy == 0
         state[:, :, 1] = self.env.occupancy == 1
         state[:, :, 2] = self.env.occupancy == 2
