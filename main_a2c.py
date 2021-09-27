@@ -13,8 +13,8 @@ from asym_rlpo.envs import make_env
 from asym_rlpo.evaluation import evaluate_returns
 from asym_rlpo.q_estimators import q_estimator_factory
 from asym_rlpo.sampling import sample_episodes
+from asym_rlpo.utils import checkpointing
 from asym_rlpo.utils.aggregate import average
-from asym_rlpo.utils.checkpointing import save_data
 from asym_rlpo.utils.config import Config, get_config
 from asym_rlpo.utils.device import get_device
 from asym_rlpo.utils.running_average import (
@@ -111,6 +111,9 @@ def parse_args():
     # checkpointing
     parser.add_argument('--save-model', action='store_true')
     parser.add_argument('--model-filename', default=None)
+
+    parser.add_argument('--save-modelseq', action='store_true')
+    parser.add_argument('--modelseq-filename', default=None)
 
     args = parser.parse_args()
     args.env_label = args.env if args.env_label is None else args.env_label
@@ -213,6 +216,9 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
     # wandb log dispenser
     wandb_log_period = config.max_simulation_timesteps // config.num_wandb_logs
     wandb_log_dispenser = Dispenser(wandb_log_period)
+
+    # sequence of (simulation_timesteps, state_dict) obtained during training
+    modelseq = []
 
     # main learning loop
     wandb.watch(algo.models)
@@ -352,6 +358,20 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
                 }
             )
 
+            if config.save_modelseq and config.modelseq_filename is not None:
+                modelseq.append(
+                    (
+                        xstats['simulation_timesteps'],
+                        algo.models.state_dict().copy(),
+                    )
+                )
+
+                data = {
+                    'metadata': {'config': config._as_dict()},
+                    'data': {'modelseq': modelseq},
+                }
+                checkpointing.save_data(config.modelseq_filename, data)
+
         xstats['epoch'] += 1
         xstats['optimizer_steps'] += 1
         xstats['training_episodes'] += len(episodes)
@@ -361,14 +381,10 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
 
     if config.save_model and config.model_filename is not None:
         data = {
-            'metadata': {
-                'config': config._as_dict(),
-            },
-            'data': {
-                'models.state_dict': algo.models.state_dict(),
-            },
+            'metadata': {'config': config._as_dict()},
+            'data': {'models.state_dict': algo.models.state_dict().copy()},
         }
-        save_data(config.model_filename, data)
+        checkpointing.save_data(config.model_filename, data)
 
 
 def main():
