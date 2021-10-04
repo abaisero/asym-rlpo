@@ -363,7 +363,7 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
                         'model.state_dict': algo.models.state_dict(),
                     },
                 }
-                filename = config.modelseq_filename(
+                filename = config.modelseq_filename.format(
                     xstats['simulation_timesteps']
                 )
                 checkpointing.save_data(filename, data)
