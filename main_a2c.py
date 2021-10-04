@@ -217,9 +217,6 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
     wandb_log_period = config.max_simulation_timesteps // config.num_wandb_logs
     wandb_log_dispenser = Dispenser(wandb_log_period)
 
-    # sequence of (simulation_timesteps, state_dict) obtained during training
-    modelseq = []
-
     # main learning loop
     wandb.watch(algo.models)
     while xstats['simulation_timesteps'] < config.max_simulation_timesteps:
@@ -359,18 +356,17 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
             )
 
             if config.save_modelseq and config.modelseq_filename is not None:
-                modelseq.append(
-                    (
-                        xstats['simulation_timesteps'],
-                        algo.models.state_dict().copy(),
-                    )
-                )
-
                 data = {
                     'metadata': {'config': config._as_dict()},
-                    'data': {'modelseq': modelseq},
+                    'data': {
+                        'timestep': xstats['simulation_timesteps'],
+                        'model.state_dict': algo.models.state_dict(),
+                    },
                 }
-                checkpointing.save_data(config.modelseq_filename, data)
+                filename = config.modelseq_filename(
+                    xstats['simulation_timesteps']
+                )
+                checkpointing.save_data(filename, data)
 
         xstats['epoch'] += 1
         xstats['optimizer_steps'] += 1
@@ -382,7 +378,7 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
     if config.save_model and config.model_filename is not None:
         data = {
             'metadata': {'config': config._as_dict()},
-            'data': {'models.state_dict': algo.models.state_dict().copy()},
+            'data': {'models.state_dict': algo.models.state_dict()},
         }
         checkpointing.save_data(config.model_filename, data)
 
