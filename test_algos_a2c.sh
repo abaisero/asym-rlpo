@@ -6,6 +6,7 @@ export WANDB_SILENT=true
 
 envs=(
   POMDP-heavenhell-episodic-v0
+  POMDP-shopping_5-episodic-v1
   PO-pos-CartPole-v1
   gv_yaml/gv_four_rooms.7x7.yaml
   gv_yaml/gv_memory.5x5.yaml
@@ -35,13 +36,13 @@ warnings="-W ignore"
 debug="-m ipdb"
 debug=""
 
-if [[ "$1" -eq "-v" ]]; then
+if [[ "$1" == "-v" ]]; then
   shift
-  echo "running without standard output"
+  echo "running with standard output"
   echo
   silent=0
 else
-  echo "running with standard output"
+  echo "running without standard output"
   echo
   silent=1
 fi
