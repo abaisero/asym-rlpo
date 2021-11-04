@@ -134,9 +134,13 @@ def make_gv_env(path: str) -> GymEnvironment:
 
     print('Loading using YAML')
     inner_env = factory_env_from_yaml(path)
-    obs_rep = DefaultObservationRepresentation(inner_env.observation_space)
-    state_rep = DefaultStateRepresentation(inner_env.state_space)
+    observation_representation = DefaultObservationRepresentation(
+        inner_env.observation_space
+    )
+    state_representation = DefaultStateRepresentation(inner_env.state_space)
     outer_env = OuterEnv(
-        inner_env, observation_rep=obs_rep, state_rep=state_rep
+        inner_env,
+        observation_representation=observation_representation,
+        state_representation=state_representation,
     )
     return GymEnvironment.from_environment(outer_env)

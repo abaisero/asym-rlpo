@@ -12,12 +12,14 @@ from .base import PO_EpisodicDQN_ABC
 
 
 class DQN(PO_EpisodicDQN_ABC):
-    model_keys = [
-        'action_model',
-        'observation_model',
-        'history_model',
-        'qh_model',
-    ]
+    model_keys = {
+        'agent': [
+            'action_model',
+            'observation_model',
+            'history_model',
+            'qh_model',
+        ]
+    }
 
     def compute_q_values(
         self,
@@ -27,13 +29,13 @@ class DQN(PO_EpisodicDQN_ABC):
     ) -> torch.Tensor:
 
         history_features = self.compute_history_features(
-            models.action_model,
-            models.observation_model,
-            models.history_model,
+            models.agent.action_model,
+            models.agent.observation_model,
+            models.agent.history_model,
             actions,
             observations,
         )
-        qh_values = models.qh_model(history_features)
+        qh_values = models.agent.qh_model(history_features)
         return qh_values
 
     def episodic_loss(

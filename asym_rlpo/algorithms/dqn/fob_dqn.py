@@ -9,14 +9,21 @@ from .base import FO_BatchedDQN_ABC
 
 
 class FOB_DQN(FO_BatchedDQN_ABC):
-    model_keys = ['state_model', 'qs_model']
+    model_keys = {
+        'agent': [
+            'state_model',
+            'qs_model',
+        ]
+    }
 
     def batched_loss(self, batch: Batch, *, discount: float) -> torch.Tensor:
 
-        qs_values = self.models.qs_model(self.models.state_model(batch.states))
+        qs_values = self.models.agent.qs_model(
+            self.models.agent.state_model(batch.states)
+        )
         with torch.no_grad():
-            target_qs_values = self.target_models.qs_model(
-                self.models.state_model(batch.next_states)
+            target_qs_values = self.target_models.agent.qs_model(
+                self.models.agent.state_model(batch.next_states)
             )
 
         qs_values = qs_values.gather(1, batch.actions.unsqueeze(-1)).squeeze(-1)

@@ -15,7 +15,7 @@ from asym_rlpo.q_estimators import q_estimator_factory
 from asym_rlpo.sampling import sample_episodes
 from asym_rlpo.utils import checkpointing
 from asym_rlpo.utils.aggregate import average
-from asym_rlpo.utils.config import Config, get_config
+from asym_rlpo.utils.config import get_config
 from asym_rlpo.utils.device import get_device
 from asym_rlpo.utils.running_average import (
     InfiniteRunningAverage,
@@ -29,7 +29,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     # wandb arguments
-    parser.add_argument('--wandb-project', default='asym-rlpo')
+    parser.add_argument('--wandb-project', required=True)
     parser.add_argument('--wandb-entity', default='abaisero')
     parser.add_argument('--wandb-group', default=None)
     parser.add_argument('--wandb-tag', action='append', dest='wandb_tags')
@@ -392,7 +392,7 @@ def main():
         tags=args.wandb_tags,
         mode='offline' if args.wandb_offline else None,
         config=args,
-    ) as wandb_run:  # pylint: disable=unused-variable
+    ):
 
         # setup config
         config = get_config()

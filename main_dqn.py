@@ -10,10 +10,12 @@ from gym_gridverse.rng import reset_gv_rng
 
 from asym_rlpo.algorithms import make_dqn_algorithm
 from asym_rlpo.data import EpisodeBuffer
-from asym_rlpo.env import make_env
+from asym_rlpo.envs import make_env
 from asym_rlpo.evaluation import evaluate_returns
 from asym_rlpo.policies.random import RandomPolicy
 from asym_rlpo.sampling import sample_episodes
+from asym_rlpo.utils import checkpointing
+from asym_rlpo.utils.config import get_config
 from asym_rlpo.utils.device import get_device
 from asym_rlpo.utils.running_average import (
     InfiniteRunningAverage,
@@ -27,8 +29,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     # wandb arguments
-    parser.add_argument('--wandb-project', default='asym-rlpo')
     parser.add_argument('--wandb-entity', default='abaisero')
+    parser.add_argument('--wandb-project', default=None)
     parser.add_argument('--wandb-group', default=None)
     parser.add_argument('--wandb-tag', action='append', dest='wandb_tags')
     parser.add_argument('--wandb-offline', action='store_true')
@@ -56,7 +58,7 @@ def parse_args():
 
     # truncated histories
     parser.add_argument('--truncated-histories', action='store_true')
-    parser.add_argument('--truncated-histories-n', type=int, default=3)
+    parser.add_argument('--truncated-histories-n', type=int, default=-1)
 
     # reproducibility
     parser.add_argument('--seed', type=int, default=None)
@@ -70,6 +72,7 @@ def parse_args():
     parser.add_argument('--simulation-num-episodes', type=int, default=1)
 
     # evaluation
+    parser.add_argument('--evaluation', action='store_true')
     parser.add_argument('--evaluation-period', type=int, default=10)
     parser.add_argument('--evaluation-num-episodes', type=int, default=1)
 
@@ -110,6 +113,17 @@ def parse_args():
     parser.add_argument('--device', default='auto')
 
     parser.add_argument('--render', action='store_true')
+
+    # temporary / development
+    parser.add_argument('--hs-features-dim', type=int, default=0)
+    parser.add_argument('--normalize-hs-features', action='store_true')
+
+    # checkpointing
+    parser.add_argument('--save-model', action='store_true')
+    parser.add_argument('--model-filename', default=None)
+
+    parser.add_argument('--save-modelseq', action='store_true')
+    parser.add_argument('--modelseq-filename', default=None)
 
     args = parser.parse_args()
     args.env_label = args.env if args.env_label is None else args.env_label
@@ -214,7 +228,7 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
     target_update_dispenser = Dispenser(config.target_update_period)
 
     # wandb log dispenser
-    wandb_log_period = config.max_simulation_timesteps // config.nuim_wandb_logs
+    wandb_log_period = config.max_simulation_timesteps // config.num_wandb_logs
     wandb_log_dispenser = Dispenser(wandb_log_period)
 
     # main learning loop
@@ -223,7 +237,10 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
         algo.models.eval()
 
         # evaluate target policy
-        if xstats['epoch'] % config.evaluation_period == 0:
+        if (
+            config.evaluation
+            and xstats['epoch'] % config.evaluation_period == 0
+        ):
             if config.render:
                 sample_episodes(
                     env,
@@ -338,6 +355,7 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
             gradient_norm = nn.utils.clip_grad_norm_(
                 algo.models.parameters(), max_norm=config.optim_max_norm
             )
+            optimizer.step()
 
             if wandb_log:
                 wandb.log(
@@ -349,7 +367,18 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
                     }
                 )
 
-            optimizer.step()
+            if config.save_modelseq and config.modelseq_filename is not None:
+                data = {
+                    'metadata': {'config': config._as_dict()},
+                    'data': {
+                        'timestep': xstats['simulation_timesteps'],
+                        'model.state_dict': algo.models.state_dict(),
+                    },
+                }
+                filename = config.modelseq_filename.format(
+                    xstats['simulation_timesteps']
+                )
+                checkpointing.save_data(filename, data)
 
             xstats['optimizer_steps'] += 1
             xstats['training_episodes'] = (
@@ -365,6 +394,13 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
 
         xstats['epoch'] += 1
 
+    if config.save_model and config.model_filename is not None:
+        data = {
+            'metadata': {'config': config._as_dict()},
+            'data': {'models.state_dict': algo.models.state_dict()},
+        }
+        checkpointing.save_data(config.model_filename, data)
+
 
 def main():
     args = parse_args()
@@ -375,7 +411,12 @@ def main():
         tags=args.wandb_tags,
         mode='offline' if args.wandb_offline else None,
         config=args,
-    ) as wandb_run:  # pylint: disable=unused-variable
+    ):
+
+        # setup config
+        config = get_config()
+        config._update(dict(wandb.config))
+
         run()
 
 

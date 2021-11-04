@@ -11,7 +11,12 @@ from .base import FO_EpisodicDQN_ABC
 
 
 class FOE_DQN(FO_EpisodicDQN_ABC):
-    model_keys = ['state_model', 'qs_model']
+    model_keys = {
+        'agent': [
+            'state_model',
+            'qs_model',
+        ]
+    }
 
     def episodic_loss(
         self, episodes: Sequence[Episode], *, discount: float
@@ -20,12 +25,12 @@ class FOE_DQN(FO_EpisodicDQN_ABC):
         losses = []
         for episode in episodes:
 
-            qs_values = self.models.qs_model(
-                self.models.state_model(episode.states)
+            qs_values = self.models.agent.qs_model(
+                self.models.agent.state_model(episode.states)
             )
             with torch.no_grad():
-                target_qs_values = self.target_models.qs_model(
-                    self.models.state_model(episode.states)
+                target_qs_values = self.target_models.agent.qs_model(
+                    self.models.agent.state_model(episode.states)
                 )
 
             qs_values = qs_values.gather(

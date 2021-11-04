@@ -125,9 +125,9 @@ class PO_TargetPolicy(PartiallyObservablePolicy):
         self.models = models
 
         self.history_integrator = make_history_integrator(
-            models.action_model,
-            models.observation_model,
-            models.history_model,
+            models.agent.action_model,
+            models.agent.observation_model,
+            models.agent.history_model,
             truncated_histories=truncated_histories,
             truncated_histories_n=truncated_histories_n,
         )
@@ -139,7 +139,7 @@ class PO_TargetPolicy(PartiallyObservablePolicy):
         self.history_integrator.step(action, observation)
 
     def po_sample_action(self):
-        qh_values = self.models.qh_model(self.history_integrator.features)
+        qh_values = self.models.agent.qh_model(self.history_integrator.features)
         return qh_values.argmax().item()
 
 
@@ -184,9 +184,11 @@ class FO_TargetPolicy(FullyObservablePolicy):
         self.models = models
 
     def fo_sample_action(self, state):
-        device = next(self.models.qs_model.parameters()).device
+        device = next(self.models.agent.qs_model.parameters()).device
         state_batch = gtorch.to(collate_torch([state]), device)
-        qs_values = self.models.qs_model(self.models.state_model(state_batch))
+        qs_values = self.models.agent.qs_model(
+            self.models.agent.state_model(state_batch)
+        )
         return qs_values.squeeze(0).argmax().item()
 
 

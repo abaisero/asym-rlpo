@@ -5,15 +5,16 @@ export WANDB_CONSOLE=off
 export WANDB_SILENT=true
 
 envs=(
-  POMDP-heavenhell-episodic-v0
-  POMDP-shopping_5-episodic-v1
-  PO-pos-CartPole-v1
+  # POMDP-heavenhell-episodic-v0
+  # POMDP-shopping_5-episodic-v1
+  # PO-pos-CartPole-v1
   gv_yaml/gv_four_rooms.7x7.yaml
   gv_yaml/gv_memory.5x5.yaml
-  extra-dectiger-v0
-  extra-cleaner-v0
-  extra-car-flag-v0
+  # extra-dectiger-v0
+  # extra-cleaner-v0
+  # extra-car-flag-v0
 )
+
 algos=(
   a2c
   asym-a2c
@@ -26,8 +27,8 @@ args=(
   --simulation-num-episodes 2
   # --truncated-histories
   # --truncated-histories-n 10
-  --normalize-hs-features
-  --hs-features-dim 64
+  # --normalize-hs-features
+  # --hs-features-dim 64
 )
 
 warnings="-W ignore"

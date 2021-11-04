@@ -12,14 +12,16 @@ from .base import PO_EpisodicDQN_ABC
 
 
 class ADQN(PO_EpisodicDQN_ABC):
-    model_keys = [
-        'action_model',
-        'observation_model',
-        'history_model',
-        'qh_model',
-        'state_model',
-        'qhs_model',
-    ]
+    model_keys = {
+        'agent': [
+            'action_model',
+            'observation_model',
+            'history_model',
+            'qh_model',
+            'state_model',
+            'qhs_model',
+        ]
+    }
 
     def compute_q_values(
         self,
@@ -30,17 +32,17 @@ class ADQN(PO_EpisodicDQN_ABC):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
 
         history_features = self.compute_history_features(
-            models.action_model,
-            models.observation_model,
-            models.history_model,
+            models.agent.action_model,
+            models.agent.observation_model,
+            models.agent.history_model,
             actions,
             observations,
         )
-        qh_values = models.qh_model(history_features)
+        qh_values = models.agent.qh_model(history_features)
 
-        state_features = models.state_model(states)
+        state_features = models.agent.state_model(states)
         inputs = torch.cat([history_features, state_features], dim=-1)
-        qhs_values = models.qhs_model(inputs)
+        qhs_values = models.agent.qhs_model(inputs)
 
         return qh_values, qhs_values
 
