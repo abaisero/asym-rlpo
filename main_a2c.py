@@ -29,8 +29,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     # wandb arguments
-    parser.add_argument('--wandb-project', required=True)
     parser.add_argument('--wandb-entity', default='abaisero')
+    parser.add_argument('--wandb-project', default=None)
     parser.add_argument('--wandb-group', default=None)
     parser.add_argument('--wandb-tag', action='append', dest='wandb_tags')
     parser.add_argument('--wandb-offline', action='store_true')
