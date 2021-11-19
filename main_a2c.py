@@ -1,24 +1,31 @@
 #!/usr/bin/env python
 import argparse
+import os
 import random
+import signal
+import sys
+from dataclasses import asdict, dataclass
+from typing import Dict, NamedTuple
 
+import gym
 import numpy as np
 import torch
 import torch.nn as nn
 import wandb
 from gym_gridverse.rng import reset_gv_rng
 
-from asym_rlpo.algorithms import make_a2c_algorithm
+from asym_rlpo.algorithms import PO_A2C_ABC, make_a2c_algorithm
 from asym_rlpo.envs import make_env
 from asym_rlpo.evaluation import evaluate_returns
 from asym_rlpo.q_estimators import q_estimator_factory
 from asym_rlpo.sampling import sample_episodes
-from asym_rlpo.utils import checkpointing
 from asym_rlpo.utils.aggregate import average
+from asym_rlpo.utils.checkpointing import Serializable, load_data, save_data
 from asym_rlpo.utils.config import get_config
 from asym_rlpo.utils.device import get_device
 from asym_rlpo.utils.running_average import (
     InfiniteRunningAverage,
+    RunningAverage,
     WindowRunningAverage,
 )
 from asym_rlpo.utils.scheduling import make_schedule
@@ -108,7 +115,9 @@ def parse_args():
     parser.add_argument('--hs-features-dim', type=int, default=0)
     parser.add_argument('--normalize-hs-features', action='store_true')
 
-    # checkpointing
+    # checkpoint
+    parser.add_argument('--checkpoint', default=None)
+
     parser.add_argument('--save-model', action='store_true')
     parser.add_argument('--model-filename', default=None)
 
@@ -121,34 +130,158 @@ def parse_args():
     return args
 
 
-def run():  # pylint: disable=too-many-locals,too-many-statements
+@dataclass
+class XStats(Serializable):
+    epoch: int = 0
+    simulation_episodes: int = 0
+    simulation_timesteps: int = 0
+    optimizer_steps: int = 0
+    training_episodes: int = 0
+    training_timesteps: int = 0
+
+    def asdict(self):
+        return asdict(self)
+
+    def state_dict(self):
+        return self.asdict()
+
+    def load_state_dict(self, data):
+        self.epoch = data['epoch']
+        self.simulation_episodes = data['simulation_episodes']
+        self.simulation_timesteps = data['simulation_timesteps']
+        self.optimizer_steps = data['optimizer_steps']
+        self.training_episodes = data['training_episodes']
+        self.training_timesteps = data['training_timesteps']
+
+
+# NOTE:  namedtuple does not allow multiple inheritance.. luckily Serializable
+# is only an interface...
+# class RunState(NamedTuple, Serializable):
+class RunState(NamedTuple):
+    env: gym.Env
+    algo: PO_A2C_ABC
+    optimizer_actor: torch.optim.Optimizer
+    optimizer_critic: torch.optim.Optimizer
+    xstats: XStats
+    timer: Timer
+    running_averages: Dict[str, RunningAverage]
+    dispensers: Dict[str, Dispenser]
+
+    def state_dict(self):
+        return {
+            'models': self.algo.models.state_dict(),
+            'target_models': self.algo.target_models.state_dict(),
+            'optimizer_actor': self.optimizer_actor.state_dict(),
+            'optimizer_critic': self.optimizer_critic.state_dict(),
+            'xstats': self.xstats.state_dict(),
+            'timer': self.timer.state_dict(),
+            'running_averages': {
+                k: v.state_dict() for k, v in self.running_averages.items()
+            },
+            'dispensers': {
+                k: v.state_dict() for k, v in self.dispensers.items()
+            },
+        }
+
+    def load_state_dict(self, data):
+        self.algo.models.load_state_dict(data['models'])
+        self.algo.target_models.load_state_dict(data['target_models'])
+        self.optimizer_actor.load_state_dict(data['optimizer_actor'])
+        self.optimizer_critic.load_state_dict(data['optimizer_critic'])
+        self.xstats.load_state_dict(data['xstats'])
+        self.timer.load_state_dict(data['timer'])
+
+        data_keys = data['running_averages'].keys()
+        self_keys = self.running_averages.keys()
+        if set(data_keys) != set(self_keys):
+            raise RuntimeError()
+        for k, running_average in self.running_averages.items():
+            running_average.load_state_dict(data['running_averages'][k])
+
+        data_keys = data['dispensers'].keys()
+        self_keys = self.dispensers.keys()
+        if set(data_keys) != set(self_keys):
+            raise RuntimeError()
+        for k, dispenser in self.dispensers.items():
+            dispenser.load_state_dict(data['dispensers'][k])
+
+
+def setup() -> RunState:
     config = get_config()
 
-    print(f'run {config.env_label} {config.algo_label}')
-
-    device = get_device(config.device)
-
-    # counts and stats useful as x-axis
-    xstats = {
-        'epoch': 0,
-        'simulation_episodes': 0,
-        'simulation_timesteps': 0,
-        'optimizer_steps': 0,
-        'training_episodes': 0,
-        'training_timesteps': 0,
-    }
-
-    # counts and stats useful as y-axis
-    avg_target_returns = InfiniteRunningAverage()
-    avg_behavior_returns = InfiniteRunningAverage()
-    avg100_behavior_returns = WindowRunningAverage(100)
-
-    # insiantiate environment
-    print('creating environment')
     env = make_env(
         config.env,
         max_episode_timesteps=config.max_episode_timesteps,
     )
+
+    algo = make_a2c_algorithm(
+        config.algo,
+        env,
+        truncated_histories=config.truncated_histories,
+        truncated_histories_n=config.truncated_histories_n,
+    )
+
+    optimizer_actor = torch.optim.Adam(
+        algo.models.parameters(),
+        lr=config.optim_lr_actor,
+        eps=config.optim_eps_actor,
+    )
+    optimizer_critic = torch.optim.Adam(
+        algo.models.parameters(),
+        lr=config.optim_lr_critic,
+        eps=config.optim_eps_critic,
+    )
+
+    xstats = XStats()
+    timer = Timer()
+
+    running_averages = {
+        'avg_target_returns': InfiniteRunningAverage(),
+        'avg_behavior_returns': InfiniteRunningAverage(),
+        'avg100_behavior_returns': WindowRunningAverage(100),
+    }
+
+    wandb_log_period = config.max_simulation_timesteps // config.num_wandb_logs
+    dispensers = {
+        'target_update_dispenser': Dispenser(config.target_update_period),
+        'wandb_log_dispenser': Dispenser(wandb_log_period),
+    }
+
+    return RunState(
+        env,
+        algo,
+        optimizer_actor,
+        optimizer_critic,
+        xstats,
+        timer,
+        running_averages,
+        dispensers,
+    )
+
+
+def run(runstate: RunState):
+    config = get_config()
+    print(f'run {config.env_label} {config.algo_label}')
+
+    (
+        env,
+        algo,
+        optimizer_actor,
+        optimizer_critic,
+        xstats,
+        timer,
+        running_averages,
+        dispensers,
+    ) = runstate
+
+    avg_target_returns = running_averages['avg_target_returns']
+    avg_behavior_returns = running_averages['avg_behavior_returns']
+    avg100_behavior_returns = running_averages['avg100_behavior_returns']
+    target_update_dispenser = dispensers['target_update_dispenser']
+    wandb_log_dispenser = dispensers['wandb_log_dispenser']
+
+    device = get_device(config.device)
+    algo.to(device)
 
     # reproducibility
     if config.seed is not None:
@@ -171,34 +304,9 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
         lambda_=config.q_estimator_lambda,
     )
 
-    # instantiate models and policies
-    print('creating models and policies')
-    algo = make_a2c_algorithm(
-        config.algo,
-        env,
-        truncated_histories=config.truncated_histories,
-        truncated_histories_n=config.truncated_histories_n,
-    )
-    algo.to(device)
-
     behavior_policy = algo.behavior_policy()
     evaluation_policy = algo.evaluation_policy()
     evaluation_policy.epsilon = 0.1
-
-    # instantiate optimizer
-    optimizer_actor = torch.optim.Adam(
-        algo.models.parameters(),
-        lr=config.optim_lr_actor,
-        eps=config.optim_eps_actor,
-    )
-    optimizer_critic = torch.optim.Adam(
-        algo.models.parameters(),
-        lr=config.optim_lr_critic,
-        eps=config.optim_eps_critic,
-    )
-
-    # instantiate timer
-    timer = Timer()
 
     negentropy_schedule = make_schedule(
         config.negentropy_schedule,
@@ -207,26 +315,37 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
         nsteps=config.negentropy_nsteps,
         halflife=config.negentropy_halflife,
     )
-    weight_negentropy = negentropy_schedule(xstats['simulation_timesteps'])
+    weight_negentropy = negentropy_schedule(xstats.simulation_timesteps)
 
-    # Tracks when we last updated the target network
-    algo.target_models.load_state_dict(algo.models.state_dict())
-    target_update_dispenser = Dispenser(config.target_update_period)
+    # setup checkpoint load/save
+    checkpoint_flag = False
+    if config.checkpoint is not None:
 
-    # wandb log dispenser
-    wandb_log_period = config.max_simulation_timesteps // config.num_wandb_logs
-    wandb_log_dispenser = Dispenser(wandb_log_period)
+        def set_checkpoint_flag(signal, frame):
+            nonlocal checkpoint_flag
+            checkpoint_flag = True
+
+        signal.signal(signal.SIGTERM, set_checkpoint_flag)
 
     # main learning loop
     wandb.watch(algo.models)
-    while xstats['simulation_timesteps'] < config.max_simulation_timesteps:
-        algo.models.eval()
+    while xstats.simulation_timesteps < config.max_simulation_timesteps:
+
+        if checkpoint_flag:
+            checkpoint = {
+                'metadata': {
+                    'config': config._as_dict(),
+                    'wandb_id': wandb.run.id,
+                },
+                'data': runstate.state_dict(),
+            }
+            save_data(config.checkpoint, checkpoint)
+            sys.exit(0)
 
         # evaluate policy
-        if (
-            config.evaluation
-            and xstats['epoch'] % config.evaluation_period == 0
-        ):
+        algo.models.eval()
+
+        if config.evaluation and xstats.epoch % config.evaluation_period == 0:
             if config.render:
                 sample_episodes(
                     env,
@@ -246,13 +365,13 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
             )
             avg_target_returns.extend(returns.tolist())
             print(
-                f'EVALUATE epoch {xstats["epoch"]}'
-                f' simulation_timestep {xstats["simulation_timesteps"]}'
+                f'EVALUATE epoch {xstats.epoch}'
+                f' simulation_timestep {xstats.simulation_timesteps}'
                 f' return {returns.mean():.3f}'
             )
             wandb.log(
                 {
-                    **xstats,
+                    **xstats.asdict(),
                     'hours': timer.hours,
                     'diagnostics/target_mean_episode_length': mean_length,
                     'performance/target_mean_return': returns.mean(),
@@ -273,12 +392,12 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
         avg_behavior_returns.extend(returns.tolist())
         avg100_behavior_returns.extend(returns.tolist())
 
-        wandb_log = wandb_log_dispenser.dispense(xstats['simulation_timesteps'])
+        wandb_log = wandb_log_dispenser.dispense(xstats.simulation_timesteps)
 
         if wandb_log:
             wandb.log(
                 {
-                    **xstats,
+                    **xstats.asdict(),
                     'hours': timer.hours,
                     'diagnostics/behavior_mean_episode_length': mean_length,
                     'performance/behavior_mean_return': returns.mean(),
@@ -289,14 +408,12 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
 
         # storing torch data directly
         episodes = [episode.torch().to(device) for episode in episodes]
-        xstats['simulation_episodes'] += len(episodes)
-        xstats['simulation_timesteps'] += sum(
-            len(episode) for episode in episodes
-        )
-        weight_negentropy = negentropy_schedule(xstats['simulation_timesteps'])
+        xstats.simulation_episodes += len(episodes)
+        xstats.simulation_timesteps += sum(len(episode) for episode in episodes)
+        weight_negentropy = negentropy_schedule(xstats.simulation_timesteps)
 
         # target model update
-        if target_update_dispenser.dispense(xstats['simulation_timesteps']):
+        if target_update_dispenser.dispense(xstats.simulation_timesteps):
             # Update the target network
             algo.target_models.load_state_dict(algo.models.state_dict())
 
@@ -344,7 +461,7 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
         if wandb_log:
             wandb.log(
                 {
-                    **xstats,
+                    **xstats.asdict(),
                     'hours': timer.hours,
                     'training/losses/actor': actor_loss,
                     'training/losses/critic': critic_loss,
@@ -359,46 +476,72 @@ def run():  # pylint: disable=too-many-locals,too-many-statements
                 data = {
                     'metadata': {'config': config._as_dict()},
                     'data': {
-                        'timestep': xstats['simulation_timesteps'],
+                        'timestep': xstats.simulation_timesteps,
                         'model.state_dict': algo.models.state_dict(),
                     },
                 }
                 filename = config.modelseq_filename.format(
-                    xstats['simulation_timesteps']
+                    xstats.simulation_timesteps
                 )
-                checkpointing.save_data(filename, data)
+                save_data(filename, data)
 
-        xstats['epoch'] += 1
-        xstats['optimizer_steps'] += 1
-        xstats['training_episodes'] += len(episodes)
-        xstats['training_timesteps'] += sum(
-            len(episode) for episode in episodes
-        )
+        xstats.epoch += 1
+        xstats.optimizer_steps += 1
+        xstats.training_episodes += len(episodes)
+        xstats.training_timesteps += sum(len(episode) for episode in episodes)
 
     if config.save_model and config.model_filename is not None:
         data = {
             'metadata': {'config': config._as_dict()},
             'data': {'models.state_dict': algo.models.state_dict()},
         }
-        checkpointing.save_data(config.model_filename, data)
+        save_data(config.model_filename, data)
+
+    if config.checkpoint is not None:
+        try:
+            os.remove(config.checkpoint)
+        except FileNotFoundError:
+            pass
 
 
 def main():
     args = parse_args()
-    with wandb.init(
-        project=args.wandb_project,
-        entity=args.wandb_entity,
-        group=args.wandb_group,
-        tags=args.wandb_tags,
-        mode='offline' if args.wandb_offline else None,
-        config=args,
-    ):
+    wandb_kwargs = {
+        'project': args.wandb_project,
+        'entity': args.wandb_entity,
+        'group': args.wandb_group,
+        'tags': args.wandb_tags,
+        'mode': 'offline' if args.wandb_offline else None,
+        'config': args,
+    }
 
-        # setup config
+    try:
+        checkpoint = load_data(args.checkpoint)
+    except (TypeError, FileNotFoundError):
+        checkpoint = None
+    else:
+        wandb_kwargs.update(
+            {
+                'resume': 'must',
+                'id': checkpoint['metadata']['wandb_id'],
+            }
+        )
+
+    with wandb.init(**wandb_kwargs):
         config = get_config()
         config._update(dict(wandb.config))
 
-        run()
+        runstate = setup()
+
+        if checkpoint is not None:
+            if checkpoint['metadata']['config'] != config._as_dict():
+                raise RuntimeError(
+                    'checkpoint config inconsistent with program config'
+                )
+
+            runstate.load_state_dict(checkpoint['data'])
+
+        run(runstate)
 
 
 if __name__ == '__main__':

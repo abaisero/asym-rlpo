@@ -6,19 +6,19 @@ ConfigDict = Dict[str, BasicType]
 
 class Config:
     def __init__(self):
-        self._cfg = {}
+        self._config: ConfigDict = {}
+
+    def _clear(self):
+        self._config.clear()
 
     def _update(self, cd: ConfigDict):
-        self._cfg.update(cd)
+        self._config.update(cd)
 
     def _as_dict(self) -> ConfigDict:
-        return self._cfg.copy()
+        return self._config.copy()
 
     def __getattr__(self, name):
-        return self._cfg[name]
-
-    def __getitem__(self, key):
-        return self._cfg[key]
+        return self._config[name]
 
 
 _config = None

@@ -1,5 +1,3 @@
-from typing import Union
-
 import gym
 
 from .a2c.a2c import A2C
