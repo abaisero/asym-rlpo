@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 import argparse
+import logging
+import logging.config
 import os
 import random
 import signal
@@ -30,6 +32,8 @@ from asym_rlpo.utils.running_average import (
 )
 from asym_rlpo.utils.scheduling import make_schedule
 from asym_rlpo.utils.timer import Dispenser, Timer
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args():
@@ -261,7 +265,7 @@ def setup() -> RunState:
 
 def run(runstate: RunState):
     config = get_config()
-    print(f'run {config.env_label} {config.algo_label}')
+    logger.info('run %s %s', config.env_label, config.algo_label)
 
     (
         env,
@@ -324,6 +328,7 @@ def run(runstate: RunState):
         def set_checkpoint_flag(signal, frame):
             nonlocal checkpoint_flag
             checkpoint_flag = True
+            logger.debug('SIGTERM received, setting checkpoint_flag')
 
         signal.signal(signal.SIGTERM, set_checkpoint_flag)
 
@@ -332,6 +337,7 @@ def run(runstate: RunState):
     while xstats.simulation_timesteps < config.max_simulation_timesteps:
 
         if checkpoint_flag:
+            logger.info('checkpointing...')
             checkpoint = {
                 'metadata': {
                     'config': config._as_dict(),
@@ -340,6 +346,7 @@ def run(runstate: RunState):
                 'data': runstate.state_dict(),
             }
             save_data(config.checkpoint, checkpoint)
+            logger.info('checkpointing DONE')
             sys.exit(0)
 
         # evaluate policy
@@ -364,7 +371,7 @@ def run(runstate: RunState):
                 episodes, discount=config.evaluation_discount
             )
             avg_target_returns.extend(returns.tolist())
-            print(
+            logger.info(
                 f'EVALUATE epoch {xstats.epoch}'
                 f' simulation_timestep {xstats.simulation_timesteps}'
                 f' return {returns.mean():.3f}'
@@ -531,7 +538,9 @@ def main():
         config = get_config()
         config._update(dict(wandb.config))
 
+        logger.info('setup of runstate...')
         runstate = setup()
+        logger.info('setup DONE')
 
         if checkpoint is not None:
             if checkpoint['metadata']['config'] != config._as_dict():
@@ -539,10 +548,40 @@ def main():
                     'checkpoint config inconsistent with program config'
                 )
 
+            logger.debug('updating runstate from checkpoint')
             runstate.load_state_dict(checkpoint['data'])
 
+        logger.info('run...')
         run(runstate)
+        logger.info('run DONE')
 
 
 if __name__ == '__main__':
+    logging.config.dictConfig(
+        {
+            'version': 1,
+            'disable_existing_loggers': False,
+            'formatters': {
+                'standard': {
+                    'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+                },
+            },
+            'handlers': {
+                'default_handler': {
+                    'class': 'logging.StreamHandler',
+                    'level': 'DEBUG',
+                    'formatter': 'standard',
+                    'stream': 'ext://sys.stdout',
+                },
+            },
+            'loggers': {
+                '': {
+                    'handlers': ['default_handler'],
+                    'level': 'DEBUG',
+                    'propagate': False,
+                }
+            },
+        }
+    )
+
     main()
