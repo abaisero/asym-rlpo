@@ -5,7 +5,6 @@ import logging.config
 import os
 import random
 import signal
-import sys
 from dataclasses import asdict, dataclass
 from typing import Dict, NamedTuple
 
@@ -32,6 +31,7 @@ from asym_rlpo.utils.running_average import (
 )
 from asym_rlpo.utils.scheduling import make_schedule
 from asym_rlpo.utils.timer import Dispenser, Timer
+from asym_rlpo.utils.wandb_logger import WandbLogger
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +131,7 @@ def parse_args():
     args = parser.parse_args()
     args.env_label = args.env if args.env_label is None else args.env_label
     args.algo_label = args.algo if args.algo_label is None else args.algo_label
+    args.wandb_mode = 'offline' if args.wandb_offline else None
     return args
 
 
@@ -166,6 +167,7 @@ class RunState(NamedTuple):
     algo: PO_A2C_ABC
     optimizer_actor: torch.optim.Optimizer
     optimizer_critic: torch.optim.Optimizer
+    wandb_logger: WandbLogger
     xstats: XStats
     timer: Timer
     running_averages: Dict[str, RunningAverage]
@@ -177,6 +179,7 @@ class RunState(NamedTuple):
             'target_models': self.algo.target_models.state_dict(),
             'optimizer_actor': self.optimizer_actor.state_dict(),
             'optimizer_critic': self.optimizer_critic.state_dict(),
+            'wandb_logger': self.wandb_logger.state_dict(),
             'xstats': self.xstats.state_dict(),
             'timer': self.timer.state_dict(),
             'running_averages': {
@@ -192,6 +195,7 @@ class RunState(NamedTuple):
         self.algo.target_models.load_state_dict(data['target_models'])
         self.optimizer_actor.load_state_dict(data['optimizer_actor'])
         self.optimizer_critic.load_state_dict(data['optimizer_critic'])
+        self.wandb_logger.load_state_dict(data['wandb_logger'])
         self.xstats.load_state_dict(data['xstats'])
         self.timer.load_state_dict(data['timer'])
 
@@ -236,6 +240,8 @@ def setup() -> RunState:
         eps=config.optim_eps_critic,
     )
 
+    wandb_logger = WandbLogger()
+
     xstats = XStats()
     timer = Timer()
 
@@ -256,6 +262,7 @@ def setup() -> RunState:
         algo,
         optimizer_actor,
         optimizer_critic,
+        wandb_logger,
         xstats,
         timer,
         running_averages,
@@ -263,7 +270,7 @@ def setup() -> RunState:
     )
 
 
-def run(runstate: RunState):
+def run(runstate: RunState) -> bool:
     config = get_config()
     logger.info('run %s %s', config.env_label, config.algo_label)
 
@@ -272,6 +279,7 @@ def run(runstate: RunState):
         algo,
         optimizer_actor,
         optimizer_critic,
+        wandb_logger,
         xstats,
         timer,
         running_averages,
@@ -321,33 +329,21 @@ def run(runstate: RunState):
     )
     weight_negentropy = negentropy_schedule(xstats.simulation_timesteps)
 
-    # setup checkpoint load/save
-    checkpoint_flag = False
-    if config.checkpoint is not None:
+    # setup interrupt flag via signal
+    interrupt = False
 
-        def set_checkpoint_flag(signal, frame):
-            nonlocal checkpoint_flag
-            checkpoint_flag = True
-            logger.debug('SIGTERM received, setting checkpoint_flag')
+    def set_interrupt_flag():
+        nonlocal interrupt
+        interrupt = True
+        logger.debug('signal received, setting interrupt=True')
 
-        signal.signal(signal.SIGTERM, set_checkpoint_flag)
+    signal.signal(signal.SIGUSR1, lambda signal, frame: set_interrupt_flag())
 
     # main learning loop
     wandb.watch(algo.models)
     while xstats.simulation_timesteps < config.max_simulation_timesteps:
-
-        if checkpoint_flag:
-            logger.info('checkpointing...')
-            checkpoint = {
-                'metadata': {
-                    'config': config._as_dict(),
-                    'wandb_id': wandb.run.id,
-                },
-                'data': runstate.state_dict(),
-            }
-            save_data(config.checkpoint, checkpoint)
-            logger.info('checkpointing DONE')
-            sys.exit(0)
+        if interrupt:
+            break
 
         # evaluate policy
         algo.models.eval()
@@ -376,7 +372,7 @@ def run(runstate: RunState):
                 f' simulation_timestep {xstats.simulation_timesteps}'
                 f' return {returns.mean():.3f}'
             )
-            wandb.log(
+            wandb_logger.log(
                 {
                     **xstats.asdict(),
                     'hours': timer.hours,
@@ -402,7 +398,7 @@ def run(runstate: RunState):
         wandb_log = wandb_log_dispenser.dispense(xstats.simulation_timesteps)
 
         if wandb_log:
-            wandb.log(
+            wandb_logger.log(
                 {
                     **xstats.asdict(),
                     'hours': timer.hours,
@@ -466,7 +462,7 @@ def run(runstate: RunState):
         optimizer_actor.step()
 
         if wandb_log:
-            wandb.log(
+            wandb_logger.log(
                 {
                     **xstats.asdict(),
                     'hours': timer.hours,
@@ -497,18 +493,16 @@ def run(runstate: RunState):
         xstats.training_episodes += len(episodes)
         xstats.training_timesteps += sum(len(episode) for episode in episodes)
 
-    if config.save_model and config.model_filename is not None:
+    done = not interrupt
+
+    if done and config.save_model and config.model_filename is not None:
         data = {
             'metadata': {'config': config._as_dict()},
             'data': {'models.state_dict': algo.models.state_dict()},
         }
         save_data(config.model_filename, data)
 
-    if config.checkpoint is not None:
-        try:
-            os.remove(config.checkpoint)
-        except FileNotFoundError:
-            pass
+    return done
 
 
 def main():
@@ -518,7 +512,7 @@ def main():
         'entity': args.wandb_entity,
         'group': args.wandb_group,
         'tags': args.wandb_tags,
-        'mode': 'offline' if args.wandb_offline else None,
+        'mode': args.wandb_mode,
         'config': args,
     }
 
@@ -552,8 +546,29 @@ def main():
             runstate.load_state_dict(checkpoint['data'])
 
         logger.info('run...')
-        run(runstate)
+        done = run(runstate)
         logger.info('run DONE')
+
+        wandb_run_id = wandb.run.id
+
+    if config.checkpoint is not None:
+        if not done:
+            logger.info('checkpointing...')
+            checkpoint = {
+                'metadata': {
+                    'config': config._as_dict(),
+                    'wandb_id': wandb_run_id,
+                },
+                'data': runstate.state_dict(),
+            }
+            save_data(config.checkpoint, checkpoint)
+            logger.info('checkpointing DONE')
+
+        else:
+            try:
+                os.remove(config.checkpoint)
+            except FileNotFoundError:
+                pass
 
 
 if __name__ == '__main__':
