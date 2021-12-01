@@ -143,4 +143,4 @@ def make_gv_env(path: str) -> GymEnvironment:
         observation_representation=observation_representation,
         state_representation=state_representation,
     )
-    return GymEnvironment.from_environment(outer_env)
+    return GymEnvironment(outer_env)
