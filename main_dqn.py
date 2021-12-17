@@ -61,6 +61,7 @@ def parse_args():
             'dqn',
             'adqn',
             'adqn-bootstrap',
+            'adqn-short',
             'adqn-state',
             'adqn-state-bootstrap',
         ],

@@ -5,6 +5,7 @@ from .a2c.asym_a2c import AsymA2C
 from .a2c.asym_a2c_state import AsymA2C_State
 from .a2c.base import PO_A2C_ABC
 from .dqn.adqn import ADQN, ADQN_Bootstrap
+from .dqn.adqn_short import ADQN_Short
 from .dqn.adqn_state import ADQN_State, ADQN_State_Bootstrap
 from .dqn.base import DQN_ABC
 from .dqn.dqn import DQN
@@ -78,6 +79,13 @@ def make_dqn_algorithm(
 
     if name == 'adqn-state-bootstrap':
         return ADQN_State_Bootstrap(
+            env,
+            truncated_histories=truncated_histories,
+            truncated_histories_n=truncated_histories_n,
+        )
+
+    if name == 'adqn-short':
+        return ADQN_Short(
             env,
             truncated_histories=truncated_histories,
             truncated_histories_n=truncated_histories_n,
