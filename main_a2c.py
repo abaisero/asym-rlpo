@@ -398,6 +398,11 @@ def run(runstate: RunState) -> bool:
         wandb_log = wandb_log_dispenser.dispense(xstats.simulation_timesteps)
 
         if wandb_log:
+            logger.info(
+                'behavior log - simulation_step %d return %.3f',
+                xstats.simulation_timesteps,
+                returns.mean(),
+            )
             wandb_logger.log(
                 {
                     **xstats.asdict(),
@@ -462,6 +467,13 @@ def run(runstate: RunState) -> bool:
         optimizer_actor.step()
 
         if wandb_log:
+            logger.info(
+                'training log - simulation_step %d losses %.3f %.3f %.3f',
+                xstats.simulation_timesteps,
+                actor_loss,
+                critic_loss,
+                negentropy_loss,
+            )
             wandb_logger.log(
                 {
                     **xstats.asdict(),
