@@ -4,7 +4,6 @@ import torch.nn as nn
 from asym_rlpo.modules import make_module
 from asym_rlpo.representations.embedding import EmbeddingRepresentation
 from asym_rlpo.representations.gv import (
-    FullyConnected_GV_ObservationRepresentation,
     GV_ObservationRepresentation,
     GV_StateRepresentation,
 )
@@ -43,13 +42,17 @@ def _make_representation_models(env: gym.Env) -> nn.ModuleDict:
     config = get_config()
     hs_features_dim: int = config.hs_features_dim
     normalize_hs_features: bool = config.normalize_hs_features
+    gv_observation_model_type: str = config.gv_observation_model_type
+    gv_state_model_type: str = config.gv_state_model_type
 
-    state_model = GV_StateRepresentation(env.state_space)
+    state_model = GV_StateRepresentation(
+        env.state_space,
+        model_type=gv_state_model_type,
+    )
     action_model = EmbeddingRepresentation(env.action_space.n, 1)
-    observation_model = (
-        FullyConnected_GV_ObservationRepresentation(env.observation_space)
-        if env.observation_space['grid'].shape[:2] == (2, 3)
-        else GV_ObservationRepresentation(env.observation_space)
+    observation_model = GV_ObservationRepresentation(
+        env.observation_space,
+        model_type=gv_observation_model_type,
     )
     history_model = GRUHistoryRepresentation(
         action_model,

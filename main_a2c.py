@@ -119,6 +119,18 @@ def parse_args():
     parser.add_argument('--hs-features-dim', type=int, default=0)
     parser.add_argument('--normalize-hs-features', action='store_true')
 
+    # gv models
+    parser.add_argument(
+        '--gv-observation-model-type',
+        choices=['cnn', 'fc'],
+        default='fc',
+    )
+    parser.add_argument(
+        '--gv-state-model-type',
+        choices=['cnn', 'fc'],
+        default='fc',
+    )
+
     # checkpoint
     parser.add_argument('--checkpoint', default=None)
 
