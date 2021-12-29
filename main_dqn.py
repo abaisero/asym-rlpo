@@ -349,7 +349,10 @@ def run(runstate: RunState) -> bool:
         prepopulate_timesteps = xstats.simulation_timesteps
 
     # instantiate and prepopulate buffer
-    logger.info('prepopulating episode buffer...')
+    logger.info(
+        f'prepopulating episode buffer'
+        f' ({prepopulate_timesteps:_} timesteps)...'
+    )
     episode_buffer = EpisodeBuffer(config.episode_buffer_max_timesteps)
     while episode_buffer.num_interactions() < prepopulate_timesteps:
         (episode,) = sample_episodes(env, prepopulate_policy, num_episodes=1)
@@ -365,8 +368,8 @@ def run(runstate: RunState) -> bool:
 
     def set_interrupt_flag():
         nonlocal interrupt
-        interrupt = True
         logger.debug('signal received, setting interrupt=True')
+        interrupt = True
 
     signal.signal(signal.SIGUSR1, lambda signal, frame: set_interrupt_flag())
 
@@ -501,7 +504,7 @@ def run(runstate: RunState) -> bool:
             optimizer.step()
 
             if wandb_log:
-                logger.info(
+                logger.debug(
                     'training log - simulation_step %d loss %.3f',
                     xstats.simulation_timesteps,
                     loss,
