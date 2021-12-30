@@ -101,6 +101,11 @@ def parse_args():
     parser.add_argument(
         '--episode-buffer-prepopulate-timesteps', type=int, default=50_000
     )
+    parser.add_argument(
+        '--episode-buffer-prepopulate-policy',
+        choices=['random', 'behavior', 'target'],
+        default='behavior',
+    )
 
     # target
     parser.add_argument('--target-update-period', type=int, default=10_000)
@@ -334,14 +339,23 @@ def run(runstate: RunState) -> bool:
     behavior_policy = algo.behavior_policy(env.action_space)
     target_policy = algo.target_policy()
 
+    logger.info(
+        f'setting prepopulating policy:'
+        f' {config.episode_buffer_prepopulate_policy}'
+    )
     prepopulate_policy: Policy
-    if xstats.simulation_timesteps == 0:
-        # prepopulate with random policy
+    if config.episode_buffer_prepopulate_policy == 'random':
         prepopulate_policy = RandomPolicy(env.action_space)
+    elif config.episode_buffer_prepopulate_policy == 'behavior':
+        prepopulate_policy = behavior_policy
+    elif config.episode_buffer_prepopulate_policy == 'target':
+        prepopulate_policy = target_policy
+    else:
+        assert False
+
+    if xstats.simulation_timesteps == 0:
         prepopulate_timesteps = config.episode_buffer_prepopulate_timesteps
     else:
-        # prepopulate with current behavior policy
-        prepopulate_policy = algo.behavior_policy(env.action_space)
         prepopulate_policy.epsilon = epsilon_schedule(
             xstats.simulation_timesteps
             - config.episode_buffer_prepopulate_timesteps
