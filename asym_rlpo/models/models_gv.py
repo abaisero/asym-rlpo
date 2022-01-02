@@ -47,11 +47,13 @@ def _make_representation_models(env: gym.Env) -> nn.ModuleDict:
 
     state_model = GV_StateRepresentation(
         env.state_space,
+        embedding_size=1,
         model_type=gv_state_model_type,
     )
     action_model = EmbeddingRepresentation(env.action_space.n, 1)
     observation_model = GV_ObservationRepresentation(
         env.observation_space,
+        embedding_size=8,
         model_type=gv_observation_model_type,
     )
     history_model = GRUHistoryRepresentation(

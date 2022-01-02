@@ -57,7 +57,7 @@ class GV_ObservationRepresentation(Representation):
         self,
         observation_space: gym.Space,
         *,
-        embedding_size: int = 8,
+        embedding_size: int,
         model_type: str,
     ):
         super().__init__()
@@ -102,7 +102,7 @@ class GV_StateRepresentation(Representation):
         self,
         state_space: gym.Space,
         *,
-        embedding_size: int = 1,
+        embedding_size: int,
         model_type: str,
     ):
         super().__init__()
