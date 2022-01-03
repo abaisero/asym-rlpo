@@ -144,9 +144,20 @@ def parse_args():
         default='fc',
     )
     parser.add_argument(
+        '--gv-observation-model-fc-num-layers',
+        type=int,
+        default=1,
+    )
+
+    parser.add_argument(
         '--gv-state-model-type',
         choices=['cnn', 'fc'],
         default='fc',
+    )
+    parser.add_argument(
+        '--gv-state-model-fc-num-layers',
+        type=int,
+        default=1,
     )
 
     # checkpoint

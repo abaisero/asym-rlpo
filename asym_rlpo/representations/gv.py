@@ -3,10 +3,12 @@ from functools import cached_property
 from typing import Dict, Union
 
 import gym
+import more_itertools as mitt
 import torch
 import torch.nn as nn
 
 import asym_rlpo.generalized_torch as gtorch
+from asym_rlpo.modules import make_module
 from asym_rlpo.representations.cat import CatRepresentation
 from asym_rlpo.representations.embedding import EmbeddingRepresentation
 from asym_rlpo.utils.convert import numpy2torch
@@ -59,6 +61,7 @@ class GV_ObservationRepresentation(Representation):
         *,
         embedding_size: int,
         model_type: str,
+        num_layers: int,
     ):
         super().__init__()
 
@@ -74,24 +77,38 @@ class GV_ObservationRepresentation(Representation):
             observation_space['grid'].high.max() + 1,
             observation_space['item'].high.max() + 1,
         )
-        self.embedding = EmbeddingRepresentation(num_embeddings, embedding_size)
+        embedding = EmbeddingRepresentation(num_embeddings, embedding_size)
         self.cat_representation = CatRepresentation(
             [
-                GV_Grid_CNN_Representation(observation_space, self.embedding)
+                GV_Grid_CNN_Representation(observation_space, embedding)
                 if model_type == 'cnn'
-                else GV_Grid_FC_Representation(
-                    observation_space, self.embedding
-                ),
-                GV_Item_Representation(observation_space, self.embedding),
+                else GV_Grid_FC_Representation(observation_space, embedding),
+                GV_Item_Representation(observation_space, embedding),
             ]
         )
+        self.fc_model: nn.Module
+
+        if num_layers > 0:
+            dims = [self.cat_representation.dim] + [512] * num_layers
+            linear_modules = [
+                make_module('linear', 'relu', in_dim, out_dim)
+                for in_dim, out_dim in mitt.pairwise(dims)
+            ]
+            relu_modules = [nn.ReLU() for _ in linear_modules]
+            modules = mitt.interleave(linear_modules, relu_modules)
+            self.fc_model = nn.Sequential(*modules)
+            self._dim = dims[-1]
+
+        else:
+            self.fc_model = nn.Identity()
+            self._dim = self.cat_representation.dim
 
     @property
     def dim(self):
-        return self.cat_representation.dim
+        return self._dim
 
     def forward(self, inputs: GV_Observation):
-        return self.cat_representation(inputs)
+        return self.fc_model(self.cat_representation(inputs))
 
 
 class GV_StateRepresentation(Representation):
@@ -104,6 +121,7 @@ class GV_StateRepresentation(Representation):
         *,
         embedding_size: int,
         model_type: str,
+        num_layers: int,
     ):
         super().__init__()
 
@@ -130,13 +148,29 @@ class GV_StateRepresentation(Representation):
                 GV_Item_Representation(state_space, embedding),
             ]
         )
+        self.fc_model: nn.Module
+
+        if num_layers > 0:
+            dims = [self.cat_representation.dim] + [512] * num_layers
+            linear_modules = [
+                make_module('linear', 'relu', in_dim, out_dim)
+                for in_dim, out_dim in mitt.pairwise(dims)
+            ]
+            relu_modules = [nn.ReLU() for _ in linear_modules]
+            modules = mitt.interleave(linear_modules, relu_modules)
+            self.fc_model = nn.Sequential(*modules)
+            self._dim = dims[-1]
+
+        else:
+            self.fc_model = nn.Identity()
+            self._dim = self.cat_representation.dim
 
     @property
     def dim(self):
-        return self.cat_representation.dim
+        return self._dim
 
     def forward(self, inputs: GV_State):
-        return self.cat_representation(inputs)
+        return self.fc_model(self.cat_representation(inputs))
 
 
 def gv_cnn(in_channels):

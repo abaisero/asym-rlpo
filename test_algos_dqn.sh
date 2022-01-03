@@ -33,6 +33,11 @@ args=(
   # --truncated-histories-n 10
   # --normalize-hs-features
   # --hs-features-dim 64
+  # --gv-state-model-type cnn
+  --gv-state-model-type fc
+  --gv-state-model-fc-num-layers 2
+  --gv-observation-model-type fc
+  --gv-observation-model-fc-num-layers 2
 )
 
 warnings="-W ignore"

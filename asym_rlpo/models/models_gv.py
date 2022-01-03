@@ -40,21 +40,19 @@ def _make_policy_model(in_size, out_size):
 
 def _make_representation_models(env: gym.Env) -> nn.ModuleDict:
     config = get_config()
-    hs_features_dim: int = config.hs_features_dim
-    normalize_hs_features: bool = config.normalize_hs_features
-    gv_observation_model_type: str = config.gv_observation_model_type
-    gv_state_model_type: str = config.gv_state_model_type
 
     state_model = GV_StateRepresentation(
         env.state_space,
         embedding_size=1,
-        model_type=gv_state_model_type,
+        model_type=config.gv_state_model_type,
+        num_layers=config.gv_state_model_fc_num_layers,
     )
     action_model = EmbeddingRepresentation(env.action_space.n, 1)
     observation_model = GV_ObservationRepresentation(
         env.observation_space,
         embedding_size=8,
-        model_type=gv_observation_model_type,
+        model_type=config.gv_observation_model_type,
+        num_layers=config.gv_observation_model_fc_num_layers,
     )
     history_model = GRUHistoryRepresentation(
         action_model,
@@ -63,12 +61,13 @@ def _make_representation_models(env: gym.Env) -> nn.ModuleDict:
     )
 
     # resize history and state models
+    hs_features_dim: int = config.hs_features_dim
     if hs_features_dim:
         history_model = ResizeRepresentation(history_model, hs_features_dim)
         state_model = ResizeRepresentation(state_model, hs_features_dim)
 
     # normalize history and state models
-    if normalize_hs_features:
+    if config.normalize_hs_features:
         history_model = NormalizationRepresentation(history_model)
         state_model = NormalizationRepresentation(state_model)
 
