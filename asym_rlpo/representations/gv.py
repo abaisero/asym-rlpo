@@ -1,6 +1,6 @@
 import math
 from functools import cached_property
-from typing import Dict, Iterable, Union
+from typing import Dict, Iterable, List, Union
 
 import gym
 import more_itertools as mitt
@@ -58,7 +58,7 @@ class GV_Representation(Representation):
         names: Iterable[str],
         *,
         embedding_size: int,
-        num_layers: int,
+        layers: List[int],
     ):
         super().__init__()
         self.space = space
@@ -72,8 +72,8 @@ class GV_Representation(Representation):
         self.cat_representation = CatRepresentation(gv_models)
         self.fc_model: nn.Module
 
-        if num_layers > 0:
-            dims = [self.cat_representation.dim] + [512] * num_layers
+        if len(layers) > 0:
+            dims = [self.cat_representation.dim] + layers
             linear_modules = [
                 make_module('linear', 'relu', in_dim, out_dim)
                 for in_dim, out_dim in mitt.pairwise(dims)

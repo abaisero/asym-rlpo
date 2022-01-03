@@ -34,10 +34,10 @@ args=(
   # --normalize-hs-features
   # --hs-features-dim 64
   # --gv-state-model-type cnn
-  --gv-state-model-type fc
-  --gv-state-model-fc-num-layers 2
-  --gv-observation-model-type fc
-  --gv-observation-model-fc-num-layers 2
+  --gv-state-grid-model-type fc
+  --gv-state-representation-layers 2
+  --gv-observation-grid-model-type fc
+  --gv-observation-representation-layers 2
 )
 
 warnings="-W ignore"

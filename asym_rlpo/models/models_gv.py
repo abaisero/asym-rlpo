@@ -40,16 +40,16 @@ def _make_representation_models(env: gym.Env) -> nn.ModuleDict:
 
     state_model = GV_Representation(
         env.state_space,
-        [f'agent-grid-{config.gv_state_model_type}', 'agent', 'item'],
+        [f'agent-grid-{config.gv_state_grid_model_type}', 'agent', 'item'],
         embedding_size=1,
-        num_layers=config.gv_state_model_fc_num_layers,
+        layers=[512] * config.gv_state_representation_layers,
     )
     action_model = EmbeddingRepresentation(env.action_space.n, 1)
     observation_model = GV_Representation(
         env.observation_space,
-        [f'grid-{config.gv_state_model_type}', 'item'],
+        [f'grid-{config.gv_state_grid_model_type}', 'item'],
         embedding_size=8,
-        num_layers=config.gv_observation_model_fc_num_layers,
+        layers=[512] * config.gv_observation_representation_layers,
     )
     history_model = GRUHistoryRepresentation(
         action_model,

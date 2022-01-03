@@ -139,25 +139,25 @@ def parse_args():
 
     # gv models
     parser.add_argument(
-        '--gv-observation-model-type',
+        '--gv-observation-grid-model-type',
         choices=['cnn', 'fc'],
         default='fc',
     )
     parser.add_argument(
-        '--gv-observation-model-fc-num-layers',
+        '--gv-observation-representation-layers',
         type=int,
-        default=1,
+        default=0,
     )
 
     parser.add_argument(
-        '--gv-state-model-type',
+        '--gv-state-grid-model-type',
         choices=['cnn', 'fc'],
         default='fc',
     )
     parser.add_argument(
-        '--gv-state-model-fc-num-layers',
+        '--gv-state-representation-layers',
         type=int,
-        default=1,
+        default=0,
     )
 
     # checkpoint
