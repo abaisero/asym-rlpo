@@ -1,6 +1,6 @@
 import math
 from functools import cached_property
-from typing import Dict, Union
+from typing import Dict, Iterable, Union
 
 import gym
 import more_itertools as mitt
@@ -51,103 +51,25 @@ def _check_gv_state_space_keys(space: gym.Space) -> bool:
         )
 
 
-class GV_ObservationRepresentation(Representation):
-    # the GV observation is a dictionary with fields;  we use the fields
-    # `grid` and `item`, and ignore the rest.
-
+class GV_Representation(Representation):
     def __init__(
         self,
-        observation_space: gym.Space,
+        space: gym.spaces.Dict,
+        names: Iterable[str],
         *,
         embedding_size: int,
-        model_type: str,
         num_layers: int,
     ):
         super().__init__()
-
-        checkraise(
-            model_type in ['cnn', 'fc'],
-            ValueError,
-            f'invalid `model_type` ({model_type})',
-        )
-        _check_gv_observation_space_keys(observation_space)
-        self.observation_space = observation_space
+        self.space = space
 
         num_embeddings = max(
-            observation_space['grid'].high.max() + 1,
-            observation_space['item'].high.max() + 1,
+            space['grid'].high.max() + 1,
+            space['item'].high.max() + 1,
         )
-        embedding = EmbeddingRepresentation(num_embeddings, embedding_size)
-        self.cat_representation = CatRepresentation(
-            [
-                GV_Grid_CNN_Representation(observation_space, embedding)
-                if model_type == 'cnn'
-                else GV_Grid_FC_Representation(observation_space, embedding),
-                GV_Item_Representation(observation_space, embedding),
-            ]
-        )
-        self.fc_model: nn.Module
-
-        if num_layers > 0:
-            dims = [self.cat_representation.dim] + [512] * num_layers
-            linear_modules = [
-                make_module('linear', 'relu', in_dim, out_dim)
-                for in_dim, out_dim in mitt.pairwise(dims)
-            ]
-            relu_modules = [nn.ReLU() for _ in linear_modules]
-            modules = mitt.interleave(linear_modules, relu_modules)
-            self.fc_model = nn.Sequential(*modules)
-            self._dim = dims[-1]
-
-        else:
-            self.fc_model = nn.Identity()
-            self._dim = self.cat_representation.dim
-
-    @property
-    def dim(self):
-        return self._dim
-
-    def forward(self, inputs: GV_Observation):
-        return self.fc_model(self.cat_representation(inputs))
-
-
-class GV_StateRepresentation(Representation):
-    # the GV state is a dictionary with fields;  we use the fields `grid`,
-    # `agent_id_grid`, `item`, and `agent`, and ignore the rest.
-
-    def __init__(
-        self,
-        state_space: gym.Space,
-        *,
-        embedding_size: int,
-        model_type: str,
-        num_layers: int,
-    ):
-        super().__init__()
-
-        checkraise(
-            model_type in ['cnn', 'fc'],
-            ValueError,
-            f'invalid `model_type` ({model_type})',
-        )
-        _check_gv_state_space_keys(state_space)
-        self.state_space = state_space
-
-        # `grid` and `item` are the only categorical fields
-        num_embeddings = max(
-            state_space['grid'].high.max() + 1,
-            state_space['item'].high.max() + 1,
-        )
-        embedding = EmbeddingRepresentation(num_embeddings, embedding_size)
-        self.cat_representation = CatRepresentation(
-            [
-                GV_AgentGrid_CNN_Representation(state_space, embedding)
-                if model_type == 'cnn'
-                else GV_AgentGrid_FC_Representation(state_space, embedding),
-                GV_Agent_Representation(state_space),
-                GV_Item_Representation(state_space, embedding),
-            ]
-        )
+        self.embedding = EmbeddingRepresentation(num_embeddings, embedding_size)
+        gv_models = [self._make_gv_model(name) for name in names]
+        self.cat_representation = CatRepresentation(gv_models)
         self.fc_model: nn.Module
 
         if num_layers > 0:
@@ -171,6 +93,67 @@ class GV_StateRepresentation(Representation):
 
     def forward(self, inputs: GV_State):
         return self.fc_model(self.cat_representation(inputs))
+
+    def _make_gv_model(self, name: str):
+        if name == 'agent':
+            checkraise(
+                'agent' in self.space.spaces,
+                KeyError,
+                'space does not contain `agent` key',
+            )
+            return GV_Agent_Representation(self.space)
+
+        if name == 'item':
+            checkraise(
+                'item' in self.space.spaces,
+                KeyError,
+                'space does not contain `item` key',
+            )
+            return GV_Item_Representation(self.space, self.embedding)
+
+        if name == 'grid-cnn':
+            checkraise(
+                'grid' in self.space.spaces,
+                KeyError,
+                'space does not contain `grid` key',
+            )
+            return GV_Grid_CNN_Representation(self.space, self.embedding)
+
+        if name == 'grid-fc':
+            checkraise(
+                'grid' in self.space.spaces,
+                KeyError,
+                'space does not contain `grid` key',
+            )
+            return GV_Grid_FC_Representation(self.space, self.embedding)
+
+        if name == 'agent-grid-cnn':
+            checkraise(
+                'grid' in self.space.spaces,
+                KeyError,
+                'space does not contain `grid` key',
+            )
+            checkraise(
+                'agent_id_grid' in self.space.spaces,
+                KeyError,
+                'space does not contain `agent_id_grid` key',
+            )
+            return GV_AgentGrid_CNN_Representation(self.space, self.embedding)
+
+        if name == 'agent-grid-fc':
+            checkraise(
+                'grid' in self.space.spaces,
+                KeyError,
+                'space does not contain `grid` key',
+            )
+            checkraise(
+                'agent_id_grid' in self.space.spaces,
+                KeyError,
+                'space does not contain `agent_id_grid` key',
+            )
+            return GV_AgentGrid_FC_Representation(self.space, self.embedding)
+
+        raise ValueError(f'invalid gv model name {name}')
 
 
 def gv_cnn(in_channels):

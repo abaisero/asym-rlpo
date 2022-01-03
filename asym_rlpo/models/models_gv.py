@@ -3,10 +3,7 @@ import torch.nn as nn
 
 from asym_rlpo.modules import make_module
 from asym_rlpo.representations.embedding import EmbeddingRepresentation
-from asym_rlpo.representations.gv import (
-    GV_ObservationRepresentation,
-    GV_StateRepresentation,
-)
+from asym_rlpo.representations.gv import GV_Representation
 from asym_rlpo.representations.history import GRUHistoryRepresentation
 from asym_rlpo.representations.normalization import NormalizationRepresentation
 from asym_rlpo.representations.resize import ResizeRepresentation
@@ -41,17 +38,17 @@ def _make_policy_model(in_size, out_size):
 def _make_representation_models(env: gym.Env) -> nn.ModuleDict:
     config = get_config()
 
-    state_model = GV_StateRepresentation(
+    state_model = GV_Representation(
         env.state_space,
+        [f'agent-grid-{config.gv_state_model_type}', 'agent', 'item'],
         embedding_size=1,
-        model_type=config.gv_state_model_type,
         num_layers=config.gv_state_model_fc_num_layers,
     )
     action_model = EmbeddingRepresentation(env.action_space.n, 1)
-    observation_model = GV_ObservationRepresentation(
+    observation_model = GV_Representation(
         env.observation_space,
+        [f'grid-{config.gv_state_model_type}', 'item'],
         embedding_size=8,
-        model_type=config.gv_observation_model_type,
         num_layers=config.gv_observation_model_fc_num_layers,
     )
     history_model = GRUHistoryRepresentation(
