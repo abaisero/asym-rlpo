@@ -236,7 +236,8 @@ class GV_Grid_CNN_Representation(Representation):
         self.space = space
         self.embedding = embedding
 
-        in_channels = 3 * embedding.dim
+        grid_channels = space.spaces['grid'].shape[-1]
+        in_channels = grid_channels * embedding.dim
         self.cnn = gv_cnn(in_channels)
 
     @cached_property
@@ -277,7 +278,10 @@ class GV_AgentGrid_CNN_Representation(Representation):
         self.space = space
         self.embedding = embedding
 
-        in_channels = 3 * embedding.dim + 1  # adding one for agent_id_grid
+        grid_channels = space.spaces['grid'].shape[-1]
+        in_channels = (
+            grid_channels * embedding.dim + 1
+        )  # adding one for agent_id_grid
         self.cnn = gv_cnn(in_channels)
 
     @cached_property

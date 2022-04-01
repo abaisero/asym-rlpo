@@ -349,6 +349,9 @@ def run(runstate: RunState) -> bool:
 
     behavior_policy = algo.behavior_policy(env.action_space)
     target_policy = algo.target_policy()
+    # TODO I need these.. but this is a problem.  Fix.
+    behavior_policy.epsilon = 1.0
+    target_policy.epsilon = 1.0
 
     logger.info(
         f'setting prepopulating policy:'
