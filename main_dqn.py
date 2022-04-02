@@ -138,6 +138,9 @@ def parse_args():
     parser.add_argument('--normalize-hs-features', action='store_true')
 
     # gv models
+    parser.add_argument('--gv-observation-representation', default='compact')
+    parser.add_argument('--gv-state-representation', default='compact')
+
     parser.add_argument(
         '--gv-observation-grid-model-type',
         choices=['cnn', 'fc'],

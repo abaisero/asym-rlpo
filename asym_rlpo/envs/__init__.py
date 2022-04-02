@@ -9,12 +9,13 @@ from gym_gridverse.envs.yaml.factory import factory_env_from_yaml
 from gym_gridverse.gym import GymEnvironment
 from gym_gridverse.outer_env import OuterEnv
 from gym_gridverse.representations.observation_representations import (
-    DefaultObservationRepresentation,
+    make_observation_representation,
 )
 from gym_gridverse.representations.state_representations import (
-    DefaultStateRepresentation,
+    make_state_representation,
 )
 
+from asym_rlpo.utils.config import get_config
 from asym_rlpo.utils.debugging import checkraise
 from asym_rlpo.wrapper import FlatPaddingWrapper, IndexWrapper
 
@@ -132,12 +133,16 @@ def make_po_env(name: str) -> gym.Env:
 def make_gv_env(path: str) -> GymEnvironment:
     reset_gv_debug(False)
 
+    config = get_config()
+
     print('Loading using YAML')
     inner_env = factory_env_from_yaml(path)
-    observation_representation = DefaultObservationRepresentation(
-        inner_env.observation_space
+    observation_representation = make_observation_representation(
+        config.gv_observation_representation, inner_env.observation_space
     )
-    state_representation = DefaultStateRepresentation(inner_env.state_space)
+    state_representation = make_state_representation(
+        config.gv_state_representation, inner_env.state_space
+    )
     outer_env = OuterEnv(
         inner_env,
         observation_representation=observation_representation,
