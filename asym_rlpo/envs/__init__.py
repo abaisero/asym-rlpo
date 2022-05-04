@@ -3,10 +3,9 @@ from typing import Optional
 
 import gym
 import gym_pomdps
-from gym.wrappers import TimeLimit
 from gym_gridverse.debugging import reset_gv_debug
 from gym_gridverse.envs.yaml.factory import factory_env_from_yaml
-from gym_gridverse.gym import GymEnvironment
+from gym_gridverse.gym import GymEnvironment as GVGymEnvironment
 from gym_gridverse.outer_env import OuterEnv
 from gym_gridverse.representations.observation_representations import (
     make_observation_representation,
@@ -20,11 +19,20 @@ from asym_rlpo.utils.debugging import checkraise
 from asym_rlpo.wrapper import FlatPaddingWrapper, IndexWrapper
 
 from . import extra_hai, extra_lyu
+from .env import (
+    Environment,
+    EnvironmentType,
+    GymEnvironment,
+    TimeLimitEnvironment,
+)
 
 
 def make_env(
-    id_or_path: str, *, max_episode_timesteps: Optional[int] = None
-) -> gym.Env:
+    id_or_path: str,
+    *,
+    max_episode_timesteps: Optional[int] = None,
+) -> Environment:
+
     try:
         env = make_po_env(id_or_path)
 
@@ -32,7 +40,7 @@ def make_env(
 
         try:
             print('Loading using gym.make')
-            env = gym.make(id_or_path)
+            gym_env = gym.make(id_or_path)
 
         except gym.error.Error:
             print(
@@ -41,33 +49,44 @@ def make_env(
             )
             env = make_gv_env(id_or_path)
 
-    checkraise(
-        hasattr(env, 'state_space'),
-        ValueError,
-        f'env {id_or_path} does not have state_space',
-    )
+        else:
 
-    if isinstance(env.unwrapped, gym_pomdps.POMDP):
-        env = FlatPaddingWrapper(env)
+            if isinstance(gym_env.unwrapped, gym_pomdps.POMDP):
+                gym_env = FlatPaddingWrapper(gym_env)
+                env = GymEnvironment(gym_env, EnvironmentType.FLAT)
+
+            elif re.fullmatch(r'extra-dectiger-v\d+', gym_env.spec.id):
+                env = GymEnvironment(gym_env, EnvironmentType.EXTRA_DECTIGER)
+
+            elif re.fullmatch(r'extra-cleaner-v\d+', gym_env.spec.id):
+                env = GymEnvironment(gym_env, EnvironmentType.EXTRA_CLEANER)
+
+            elif re.fullmatch(r'extra-car-flag-v\d+', gym_env.spec.id):
+                env = GymEnvironment(gym_env, EnvironmentType.EXTRA_CARFLAG)
+
+            else:
+                env = GymEnvironment(gym_env, EnvironmentType.OTHER)
 
     if max_episode_timesteps is not None:
-        env = TimeLimit(env, max_episode_timesteps)
+        env = TimeLimitEnvironment(env, max_episode_timesteps)
 
     return env
 
 
-po_env_id_re = re.compile(r'^PO-([\w:.-]+)-([\w:.-]+)-v(\d+)$')
+def make_po_env(name: str) -> Environment:
+    """convert a fully observable openai environment into a partially observable openai environment"""
 
-
-def make_po_env(name: str) -> gym.Env:
-    m = po_env_id_re.match(name)
+    pattern = r'^PO-([\w:.-]+)-([\w:.-]+)-v(\d+)$'
+    m = re.match(pattern, name)
     # m[0] is the full name
     # m[1] is the first capture, i.e., the type of partial observability
     # m[2] is the second capture, i.e., the name w/o the version
     # m[3] is the third capture, i.e., the version
 
     checkraise(
-        m is not None, ValueError, f'env name {name} does not satisfy regex'
+        m is not None,
+        ValueError,
+        f'env name {name} does not satisfy regex',
     )
 
     assert m is not None  # silly forcing of type checking
@@ -91,9 +110,9 @@ def make_po_env(name: str) -> gym.Env:
 
         env = gym.make(non_po_name)
         indices = indices_dict[po_type]
-        return IndexWrapper(env, indices)
+        env = IndexWrapper(env, indices)
 
-    if env_name == 'LunarLander':
+    elif env_name == 'LunarLander':
         indices_dict = {
             'pos': [0, 1, 4, 6, 7],  # ignore velocities
             'vel': [2, 3, 5, 6, 7],  # ignore positions
@@ -108,9 +127,9 @@ def make_po_env(name: str) -> gym.Env:
 
         env = gym.make(non_po_name)
         indices = indices_dict[po_type]
-        return IndexWrapper(env, indices)
+        env = IndexWrapper(env, indices)
 
-    if env_name == 'Acrobot':
+    elif env_name == 'Acrobot':
         indices_dict = {
             'pos': [0, 1, 2, 3],  # ignore velocities
             'vel': [4, 5],  # ignore positions
@@ -125,12 +144,15 @@ def make_po_env(name: str) -> gym.Env:
 
         env = gym.make(non_po_name)
         indices = indices_dict[po_type]
-        return IndexWrapper(env, indices)
+        env = IndexWrapper(env, indices)
 
-    raise ValueError('invalid env name {env_name}')
+    else:
+        raise ValueError('invalid env name {env_name}')
+
+    return GymEnvironment(env, EnvironmentType.OPENAI)
 
 
-def make_gv_env(path: str) -> GymEnvironment:
+def make_gv_env(path: str) -> Environment:
     reset_gv_debug(False)
 
     config = get_config()
@@ -138,14 +160,17 @@ def make_gv_env(path: str) -> GymEnvironment:
     print('Loading using YAML')
     inner_env = factory_env_from_yaml(path)
     observation_representation = make_observation_representation(
-        config.gv_observation_representation, inner_env.observation_space
+        config.gv_observation_representation,
+        inner_env.observation_space,
     )
     state_representation = make_state_representation(
-        config.gv_state_representation, inner_env.state_space
+        config.gv_state_representation,
+        inner_env.state_space,
     )
     outer_env = OuterEnv(
         inner_env,
         observation_representation=observation_representation,
         state_representation=state_representation,
     )
-    return GymEnvironment(outer_env)
+    gym_env = GVGymEnvironment(outer_env)
+    return GymEnvironment(gym_env, EnvironmentType.GV)

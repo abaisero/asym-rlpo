@@ -8,7 +8,6 @@ import signal
 from dataclasses import asdict, dataclass
 from typing import Dict, NamedTuple
 
-import gym
 import numpy as np
 import torch
 import torch.nn as nn
@@ -16,7 +15,7 @@ import wandb
 from gym_gridverse.rng import reset_gv_rng
 
 from asym_rlpo.algorithms import PO_A2C_ABC, make_a2c_algorithm
-from asym_rlpo.envs import make_env
+from asym_rlpo.envs import Environment, make_env
 from asym_rlpo.evaluation import evaluate_returns
 from asym_rlpo.q_estimators import q_estimator_factory
 from asym_rlpo.sampling import sample_episodes
@@ -175,7 +174,7 @@ class XStats(Serializable):
 # is only an interface...
 # class RunState(NamedTuple, Serializable):
 class RunState(NamedTuple):
-    env: gym.Env
+    env: Environment
     algo: PO_A2C_ABC
     optimizer_actor: torch.optim.Optimizer
     optimizer_critic: torch.optim.Optimizer
@@ -314,9 +313,6 @@ def run(runstate: RunState) -> bool:
         torch.manual_seed(config.seed)
         reset_gv_rng(config.seed)
         env.seed(config.seed)
-        env.state_space.seed(config.seed)
-        env.action_space.seed(config.seed)
-        env.observation_space.seed(config.seed)
 
     if config.deterministic:
         torch.use_deterministic_algorithms(True)

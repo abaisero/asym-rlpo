@@ -6,6 +6,7 @@ import gym_gridverse as gv
 import gym_pomdps
 import torch.nn as nn
 
+from asym_rlpo.envs import Environment, EnvironmentType
 from asym_rlpo.models.models_extra_carflag import (
     make_models as make_models_extra_carflag,
 )
@@ -22,29 +23,25 @@ from asym_rlpo.utils.debugging import checkraise
 
 
 def make_models(
-    env: gym.Env, *, keys: Optional[Iterable[str]] = None
+    env: Environment, *, keys: Optional[Iterable[str]] = None
 ) -> nn.ModuleDict:
 
-    if isinstance(env.unwrapped, gv.gym.GymEnvironment):
+    if env.type is EnvironmentType.GV:
         models = make_models_gv(env)
 
-    elif (
-        re.fullmatch(r'CartPole-v\d+', env.spec.id)
-        or re.fullmatch(r'Acrobot-v\d+', env.spec.id)
-        or re.fullmatch(r'LunarLander-v\d+', env.spec.id)
-    ):
+    elif env.type is EnvironmentType.OPENAI:
         models = make_models_openai(env)
 
-    elif re.fullmatch(r'extra-dectiger-v\d+', env.spec.id):
+    elif env.type is EnvironmentType.EXTRA_DECTIGER:
         models = make_models_extra_dectiger(env)
 
-    elif re.fullmatch(r'extra-cleaner-v\d+', env.spec.id):
+    elif env.type is EnvironmentType.EXTRA_CLEANER:
         models = make_models_extra_cleaner(env)
 
-    elif re.fullmatch(r'extra-car-flag-v\d+', env.spec.id):
+    elif env.type is EnvironmentType.EXTRA_CARFLAG:
         models = make_models_extra_carflag(env)
 
-    elif isinstance(env.unwrapped, gym_pomdps.POMDP):
+    elif env.type is EnvironmentType.FLAT:
         models = make_models_flat(env)
 
     else:

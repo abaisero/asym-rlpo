@@ -1,6 +1,6 @@
-import gym
 import torch.nn as nn
 
+from asym_rlpo.envs import Environment
 from asym_rlpo.modules import make_module
 from asym_rlpo.representations.history import GRUHistoryRepresentation
 from asym_rlpo.representations.identity import IdentityRepresentation
@@ -41,7 +41,7 @@ def _make_policy_model(in_size, out_size):
     )
 
 
-def _make_representation_models(env: gym.Env) -> nn.ModuleDict:
+def _make_representation_models(env: Environment) -> nn.ModuleDict:
     config = get_config()
     hs_features_dim: int = config.hs_features_dim
     normalize_hs_features: bool = config.normalize_hs_features
@@ -76,9 +76,7 @@ def _make_representation_models(env: gym.Env) -> nn.ModuleDict:
     )
 
 
-def make_models(  # pylint: disable=too-many-locals
-    env: gym.Env,
-) -> nn.ModuleDict:
+def make_models(env: Environment) -> nn.ModuleDict:
 
     models = nn.ModuleDict(
         {

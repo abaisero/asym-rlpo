@@ -2,11 +2,11 @@ import abc
 import copy
 from typing import Dict, List, Union
 
-import gym
 import torch
 import torch.nn as nn
 
 from asym_rlpo.data import Torch_O
+from asym_rlpo.envs import Environment
 from asym_rlpo.features import compute_history_features
 from asym_rlpo.models import make_models
 
@@ -16,7 +16,7 @@ ModelKeysDict = Dict[str, Union[ModelKeysDict, ModelKeysList]]
 
 
 class Algorithm_ABC(metaclass=abc.ABCMeta):
-    def __init__(self, env: gym.Env):
+    def __init__(self, env: Environment):
         super().__init__()
 
         self.models = make_models(env, keys=self.model_keys)
@@ -41,7 +41,7 @@ class FO_Algorithm_ABC(Algorithm_ABC):
 class PO_Algorithm_ABC(Algorithm_ABC):
     def __init__(
         self,
-        env: gym.Env,
+        env: Environment,
         *,
         truncated_histories: bool,
         truncated_histories_n: int

@@ -1,16 +1,16 @@
 from typing import Sequence
 
-import gym
 import numpy as np
 
 from asym_rlpo.data import Episode
+from asym_rlpo.envs import Environment
 from asym_rlpo.policies.base import Policy
 from asym_rlpo.sampling import sample_episode
 from asym_rlpo.utils.returns import returns
 
 
 def evaluate(
-    env: gym.Env,
+    env: Environment,
     policy: Policy,
     *,
     discount: float,
@@ -20,7 +20,7 @@ def evaluate(
     """Return a few empirical returns
 
     Args:
-        env (gym.Env): env
+        env (Environment): env
         discount (float): discount
         num_episodes (int): number of independent sample episode
         num_steps (int): max number of time-steps

@@ -1,4 +1,4 @@
-import gym
+from asym_rlpo.envs import Environment
 
 from .a2c.a2c import A2C
 from .a2c.asym_a2c import AsymA2C
@@ -14,7 +14,11 @@ from .dqn.foe_dqn import FOE_DQN
 
 
 def make_a2c_algorithm(
-    name, env: gym.Env, *, truncated_histories: bool, truncated_histories_n: int
+    name,
+    env: Environment,
+    *,
+    truncated_histories: bool,
+    truncated_histories_n: int,
 ) -> PO_A2C_ABC:
     if name == 'a2c':
         return A2C(
@@ -41,7 +45,11 @@ def make_a2c_algorithm(
 
 
 def make_dqn_algorithm(
-    name, env: gym.Env, *, truncated_histories: bool, truncated_histories_n: int
+    name,
+    env: Environment,
+    *,
+    truncated_histories: bool,
+    truncated_histories_n: int,
 ) -> DQN_ABC:
     if name == 'fob-dqn':
         return FOB_DQN(env)

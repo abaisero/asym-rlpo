@@ -1,6 +1,7 @@
 import time
 
 import gym
+import gym.spaces
 import numpy as np
 from gym import spaces
 from gym.envs.classic_control import rendering as visualize
