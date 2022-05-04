@@ -4,7 +4,7 @@ import numpy as np
 
 from asym_rlpo.data import Episode
 from asym_rlpo.envs import Environment
-from asym_rlpo.policies.base import Policy
+from asym_rlpo.policies import Policy
 from asym_rlpo.sampling import sample_episode
 from asym_rlpo.utils.returns import returns
 

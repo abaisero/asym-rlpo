@@ -7,8 +7,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from asym_rlpo.data import Episode
-from asym_rlpo.features import make_history_integrator
-from asym_rlpo.policies.base import PartiallyObservablePolicy
+from asym_rlpo.features import HistoryIntegrator, make_history_integrator
+from asym_rlpo.policies import HistoryPolicy, PartiallyObservablePolicy
 from asym_rlpo.q_estimators import Q_Estimator, td0_q_estimator
 
 from ..base import PO_Algorithm_ABC
@@ -16,17 +16,29 @@ from ..base import PO_Algorithm_ABC
 
 class PO_A2C_ABC(PO_Algorithm_ABC):
     def behavior_policy(self) -> PartiallyObservablePolicy:
-        return BehaviorPolicy(
-            self.models,
+        history_integrator = make_history_integrator(
+            self.models.agent.action_model,
+            self.models.agent.observation_model,
+            self.models.agent.history_model,
             truncated_histories=self.truncated_histories,
             truncated_histories_n=self.truncated_histories_n,
         )
+        return ModelPolicy(
+            history_integrator,
+            self.models.agent.policy_model,
+        )
 
     def evaluation_policy(self) -> PartiallyObservablePolicy:
-        return EvaluationPolicy(
-            self.models,
+        history_integrator = make_history_integrator(
+            self.models.agent.action_model,
+            self.models.agent.observation_model,
+            self.models.agent.history_model,
             truncated_histories=self.truncated_histories,
             truncated_histories_n=self.truncated_histories_n,
+        )
+        return EpsilonGreedyModelPolicy(
+            history_integrator,
+            self.models.agent.policy_model,
         )
 
     def compute_action_logits(
@@ -103,65 +115,32 @@ class PO_A2C_ABC(PO_Algorithm_ABC):
         return critic_loss
 
 
-class BehaviorPolicy(PartiallyObservablePolicy):
+class ModelPolicy(HistoryPolicy):
     def __init__(
         self,
-        models: nn.ModuleDict,
-        *,
-        truncated_histories: bool,
-        truncated_histories_n: int,
+        history_integrator: HistoryIntegrator,
+        policy_model: nn.Module,
     ):
-        super().__init__()
-        self.models = models
-        self.history_integrator = make_history_integrator(
-            models.agent.action_model,
-            models.agent.observation_model,
-            models.agent.history_model,
-            truncated_histories=truncated_histories,
-            truncated_histories_n=truncated_histories_n,
-        )
-
-    def reset(self, observation):
-        self.history_integrator.reset(observation)
-
-    def step(self, action, observation):
-        self.history_integrator.step(action, observation)
-
-    def action_logits(self):
-        return self.models.agent.policy_model(self.history_integrator.features)
+        super().__init__(history_integrator)
+        self.policy_model = policy_model
 
     def po_sample_action(self):
-        action_dist = torch.distributions.Categorical(
-            logits=self.action_logits()
-        )
+        action_logits = self.policy_model(self.history_integrator.features)
+        action_dist = torch.distributions.Categorical(logits=action_logits)
         return action_dist.sample().item()
 
 
-class EvaluationPolicy(PartiallyObservablePolicy):
+class EpsilonGreedyModelPolicy(HistoryPolicy):
     def __init__(
         self,
-        models: nn.ModuleDict,
-        *,
-        truncated_histories: bool,
-        truncated_histories_n: int,
+        history_integrator: HistoryIntegrator,
+        policy_model: nn.Module,
     ):
-        super().__init__()
-        self.models = models
-        self.behavior_policy = BehaviorPolicy(
-            models,
-            truncated_histories=truncated_histories,
-            truncated_histories_n=truncated_histories_n,
-        )
-        self.epsilon: float
-
-    def reset(self, observation):
-        self.behavior_policy.reset(observation)
-
-    def step(self, action, observation):
-        self.behavior_policy.step(action, observation)
+        super().__init__(history_integrator)
+        self.policy_model = policy_model
 
     def po_sample_action(self):
-        action_logits = self.behavior_policy.action_logits()
+        action_logits = self.policy_model(self.history_integrator.features)
         return (
             torch.distributions.Categorical(logits=action_logits).sample()
             if random.random() < self.epsilon

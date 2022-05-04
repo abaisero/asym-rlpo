@@ -3,7 +3,7 @@ from typing import List
 import torch
 
 from asym_rlpo.envs import Environment
-from asym_rlpo.policies.base import Policy
+from asym_rlpo.policies import Policy
 from asym_rlpo.utils.convert import numpy2torch
 
 from .data import Episode, Interaction

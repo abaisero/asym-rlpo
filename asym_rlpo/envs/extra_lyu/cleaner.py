@@ -226,8 +226,8 @@ class EnvCleaner_Fix(gym.Env):
         self.env = env
         self.num_agents = self.env.N_agent
         self.state_space = gym.spaces.Box(
-            np.zeros((self.env.map_size ** 2 * 5), np.float32),
-            np.ones((self.env.map_size ** 2 * 5), np.float32),
+            np.zeros((self.env.map_size**2 * 5), np.float32),
+            np.ones((self.env.map_size**2 * 5), np.float32),
         )
         self.action_space = gym.spaces.Tuple(
             [

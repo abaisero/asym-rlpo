@@ -119,15 +119,29 @@ def parse_args():
     parser.add_argument('--normalize-hs-features', action='store_true')
 
     # gv models
+    parser.add_argument('--gv-observation-representation', default='compact')
+    parser.add_argument('--gv-state-representation', default='compact')
+
     parser.add_argument(
-        '--gv-observation-model-type',
+        '--gv-observation-grid-model-type',
         choices=['cnn', 'fc'],
         default='fc',
     )
     parser.add_argument(
-        '--gv-state-model-type',
+        '--gv-observation-representation-layers',
+        type=int,
+        default=0,
+    )
+
+    parser.add_argument(
+        '--gv-state-grid-model-type',
         choices=['cnn', 'fc'],
         default='fc',
+    )
+    parser.add_argument(
+        '--gv-state-representation-layers',
+        type=int,
+        default=0,
     )
 
     # checkpoint
@@ -326,7 +340,7 @@ def run(runstate: RunState) -> bool:
 
     behavior_policy = algo.behavior_policy()
     evaluation_policy = algo.evaluation_policy()
-    evaluation_policy.epsilon = 0.1
+    evaluation_policy.epsilon = config.evaluation_epsilon
 
     negentropy_schedule = make_schedule(
         config.negentropy_schedule,

@@ -19,8 +19,7 @@ from asym_rlpo.algorithms.dqn.base import PO_DQN_ABC
 from asym_rlpo.data import EpisodeBuffer
 from asym_rlpo.envs import Environment, make_env
 from asym_rlpo.evaluation import evaluate_returns
-from asym_rlpo.policies.base import Policy
-from asym_rlpo.policies.random import RandomPolicy
+from asym_rlpo.policies import Policy, RandomPolicy
 from asym_rlpo.sampling import sample_episodes
 from asym_rlpo.utils.checkpointing import Serializable, load_data, save_data
 from asym_rlpo.utils.config import get_config
@@ -348,9 +347,6 @@ def run(runstate: RunState) -> bool:
 
     behavior_policy = algo.behavior_policy(env.action_space)
     target_policy = algo.target_policy()
-    # TODO I need these.. but this is a problem.  Fix.
-    behavior_policy.epsilon = 1.0
-    target_policy.epsilon = 1.0
 
     logger.info(
         f'setting prepopulating policy:'

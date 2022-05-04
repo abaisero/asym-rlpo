@@ -5,17 +5,14 @@ import random
 from typing import Sequence, Union
 
 import gym
+import gym.spaces
 import torch
 import torch.nn as nn
 
 import asym_rlpo.generalized_torch as gtorch
 from asym_rlpo.data import Batch, Episode
-from asym_rlpo.features import make_history_integrator
-from asym_rlpo.policies.base import (
-    FullyObservablePolicy,
-    PartiallyObservablePolicy,
-    Policy,
-)
+from asym_rlpo.features import HistoryIntegrator, make_history_integrator
+from asym_rlpo.policies import FullyObservablePolicy, HistoryPolicy, Policy
 from asym_rlpo.utils.collate import collate_torch
 
 from ..base import FO_Algorithm_ABC, PO_Algorithm_ABC
@@ -42,32 +39,48 @@ class DQN_ABC(metaclass=abc.ABCMeta):
 
 
 class PO_DQN_ABC(PO_Algorithm_ABC, DQN_ABC):
-    def target_policy(self) -> PO_TargetPolicy:
-        return PO_TargetPolicy(
-            self.models,
+    def target_policy(self) -> QhPolicy:
+        history_integrator = make_history_integrator(
+            self.models.agent.action_model,
+            self.models.agent.observation_model,
+            self.models.agent.history_model,
             truncated_histories=self.truncated_histories,
             truncated_histories_n=self.truncated_histories_n,
         )
+        return QhPolicy(history_integrator, self.models.agent.qh_model)
 
     def behavior_policy(
         self, action_space: gym.spaces.Discrete
-    ) -> PO_BehaviorPolicy:
-        return PO_BehaviorPolicy(
-            self.models,
-            action_space,
+    ) -> EpsilonGreedyQhPolicy:
+        history_integrator = make_history_integrator(
+            self.models.agent.action_model,
+            self.models.agent.observation_model,
+            self.models.agent.history_model,
             truncated_histories=self.truncated_histories,
             truncated_histories_n=self.truncated_histories_n,
+        )
+        return EpsilonGreedyQhPolicy(
+            history_integrator,
+            self.models.agent.qh_model,
+            action_space,
         )
 
 
 class FO_DQN_ABC(FO_Algorithm_ABC, DQN_ABC):
-    def target_policy(self) -> FO_TargetPolicy:
-        return FO_TargetPolicy(self.models)
+    def target_policy(self) -> QsPolicy:
+        return QsPolicy(
+            self.models.agent.state_model,
+            self.models.agent.qs_model,
+        )
 
     def behavior_policy(
         self, action_space: gym.spaces.Discrete
-    ) -> FO_BehaviorPolicy:
-        return FO_BehaviorPolicy(self.models, action_space)
+    ) -> EpsilonGreedyQsPolicy:
+        return EpsilonGreedyQsPolicy(
+            self.models.agent.state_model,
+            self.models.agent.qs_model,
+            action_space,
+        )
 
 
 class EpisodicDQN_ABC(DQN_ABC):
@@ -113,99 +126,72 @@ BatchedDQN_ABC = FO_BatchedDQN_ABC
 # PO policies
 
 
-class PO_TargetPolicy(PartiallyObservablePolicy):
+class QhPolicy(HistoryPolicy):
     def __init__(
         self,
-        models: nn.ModuleDict,
-        *,
-        truncated_histories: bool,
-        truncated_histories_n: int,
+        history_integrator: HistoryIntegrator,
+        qh_model: nn.Module,
     ):
-        super().__init__()
-        self.models = models
-
-        self.history_integrator = make_history_integrator(
-            models.agent.action_model,
-            models.agent.observation_model,
-            models.agent.history_model,
-            truncated_histories=truncated_histories,
-            truncated_histories_n=truncated_histories_n,
-        )
-
-    def reset(self, observation):
-        self.history_integrator.reset(observation)
-
-    def step(self, action, observation):
-        self.history_integrator.step(action, observation)
+        super().__init__(history_integrator)
+        self.qh_model = qh_model
 
     def po_sample_action(self):
-        qh_values = self.models.agent.qh_model(self.history_integrator.features)
+        qh_values = self.qh_model(self.history_integrator.features)
         return qh_values.argmax().item()
 
 
-class PO_BehaviorPolicy(PartiallyObservablePolicy):
+class EpsilonGreedyQhPolicy(HistoryPolicy):
     def __init__(
         self,
-        models: nn.ModuleDict,
+        history_integrator: HistoryIntegrator,
+        qh_model: nn.Module,
         action_space: gym.Space,
-        *,
-        truncated_histories: bool,
-        truncated_histories_n: int,
     ):
-        super().__init__()
-        self.target_policy = PO_TargetPolicy(
-            models,
-            truncated_histories=truncated_histories,
-            truncated_histories_n=truncated_histories_n,
-        )
+        super().__init__(history_integrator)
+        self.qh_model = qh_model
         self.action_space = action_space
-        self.epsilon: float
-
-    def reset(self, observation):
-        self.target_policy.reset(observation)
-
-    def step(self, action, observation):
-        self.target_policy.step(action, observation)
 
     def po_sample_action(self):
-        return (
-            self.action_space.sample()
-            if random.random() < self.epsilon
-            else self.target_policy.po_sample_action()
-        )
+        if random.random() < self.epsilon:
+            return self.action_space.sample()
+
+        qh_values = self.qh_model(self.history_integrator.features)
+        return qh_values.argmax().item()
 
 
 # FO policies
 
 
-class FO_TargetPolicy(FullyObservablePolicy):
-    def __init__(self, models: nn.ModuleDict):
+class QsPolicy(FullyObservablePolicy):
+    def __init__(self, state_model: nn.ModuleDict, qs_model: nn.ModuleDict):
         super().__init__()
-        self.models = models
+        self.state_model = state_model
+        self.qs_model = qs_model
 
     def fo_sample_action(self, state):
-        device = next(self.models.agent.qs_model.parameters()).device
+        device = next(self.qs_model.parameters()).device
         state_batch = gtorch.to(collate_torch([state]), device)
-        qs_values = self.models.agent.qs_model(
-            self.models.agent.state_model(state_batch)
-        )
+        qs_values = self.qs_model(self.state_model(state_batch))
         return qs_values.squeeze(0).argmax().item()
 
 
-class FO_BehaviorPolicy(FullyObservablePolicy):
+class EpsilonGreedyQsPolicy(FullyObservablePolicy):
     def __init__(
         self,
-        models: nn.ModuleDict,
+        state_model: nn.Module,
+        qs_model: nn.Module,
         action_space: gym.Space,
     ):
         super().__init__()
-        self.target_policy = FO_TargetPolicy(models)
+        self.state_model = state_model
+        self.qs_model = qs_model
         self.action_space = action_space
-        self.epsilon: float
 
     def fo_sample_action(self, state):
-        return (
-            self.action_space.sample()
-            if random.random() < self.epsilon
-            else self.target_policy.fo_sample_action(state)
-        )
+        if random.random() < self.epsilon:
+            return self.action_space.sample()
+
+        device = next(self.qs_model.parameters()).device
+        state_batch = gtorch.to(collate_torch([state]), device)
+        qs_values = self.qs_model(self.state_model(state_batch))
+        return qs_values.squeeze(0).argmax().item()
