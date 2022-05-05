@@ -16,8 +16,6 @@ envs=(
 )
 
 algos=(
-  fob-dqn
-  foe-dqn
   dqn
   adqn
   adqn-bootstrap

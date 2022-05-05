@@ -3,6 +3,7 @@ from functools import cached_property
 from typing import Dict, Iterable, List, Union
 
 import gym
+import gym.spaces
 import more_itertools as mitt
 import torch
 import torch.nn as nn

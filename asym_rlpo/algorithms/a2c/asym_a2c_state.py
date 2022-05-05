@@ -3,10 +3,10 @@ import torch.nn as nn
 
 from asym_rlpo.data import Episode
 
-from .base import PO_A2C_ABC
+from .base import A2C_ABC
 
 
-class AsymA2C_State(PO_A2C_ABC):
+class AsymA2C_State(A2C_ABC):
     model_keys = {
         'agent': [
             'action_model',

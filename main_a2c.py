@@ -14,7 +14,7 @@ import torch.nn as nn
 import wandb
 from gym_gridverse.rng import reset_gv_rng
 
-from asym_rlpo.algorithms import PO_A2C_ABC, make_a2c_algorithm
+from asym_rlpo.algorithms import A2C_ABC, make_a2c_algorithm
 from asym_rlpo.envs import Environment, make_env
 from asym_rlpo.evaluation import evaluate_returns
 from asym_rlpo.q_estimators import q_estimator_factory
@@ -189,7 +189,7 @@ class XStats(Serializable):
 # class RunState(NamedTuple, Serializable):
 class RunState(NamedTuple):
     env: Environment
-    algo: PO_A2C_ABC
+    algo: A2C_ABC
     optimizer_actor: torch.optim.Optimizer
     optimizer_critic: torch.optim.Optimizer
     wandb_logger: WandbLogger

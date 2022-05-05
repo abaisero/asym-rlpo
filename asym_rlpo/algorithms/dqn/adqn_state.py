@@ -8,10 +8,10 @@ import torch.nn.functional as F
 
 from asym_rlpo.data import Episode, Torch_O, Torch_S
 
-from .base import PO_EpisodicDQN_ABC
+from .base import EpisodicDQN_ABC
 
 
-class ADQN_State(PO_EpisodicDQN_ABC):
+class ADQN_State(EpisodicDQN_ABC):
     model_keys = {
         'agent': [
             'action_model',

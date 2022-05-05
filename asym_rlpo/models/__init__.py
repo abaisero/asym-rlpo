@@ -1,9 +1,5 @@
-import re
 from typing import Iterable, Optional
 
-import gym
-import gym_gridverse as gv
-import gym_pomdps
 import torch.nn as nn
 
 from asym_rlpo.envs import Environment, EnvironmentType
@@ -23,7 +19,9 @@ from asym_rlpo.utils.debugging import checkraise
 
 
 def make_models(
-    env: Environment, *, keys: Optional[Iterable[str]] = None
+    env: Environment,
+    *,
+    keys: Optional[Iterable[str]] = None,
 ) -> nn.ModuleDict:
 
     if env.type is EnvironmentType.GV:
@@ -50,9 +48,9 @@ def make_models(
     return models if keys is None else filter_models(models, keys)
 
 
-def filter_models(models: nn.ModuleDict, keys) -> nn.ModuleDict:
+def filter_models(models: nn.ModuleDict, keys: Iterable[str]) -> nn.ModuleDict:
     if isinstance(keys, list):
-        missing_keys = set(keys) - models.keys()
+        missing_keys = set(keys) - set(models.keys())
         checkraise(
             len(missing_keys) == 0,
             ValueError,
@@ -62,7 +60,7 @@ def filter_models(models: nn.ModuleDict, keys) -> nn.ModuleDict:
         return nn.ModuleDict({k: models[k] for k in keys})
 
     if isinstance(keys, dict):
-        missing_keys = set(keys.keys()) - models.keys()
+        missing_keys = set(keys.keys()) - set(models.keys())
         checkraise(
             len(missing_keys) == 0,
             ValueError,

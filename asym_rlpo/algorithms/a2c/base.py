@@ -1,40 +1,38 @@
+from __future__ import annotations
+
 import abc
 import random
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from asym_rlpo.data import Episode
-from asym_rlpo.features import HistoryIntegrator, make_history_integrator
-from asym_rlpo.policies import HistoryPolicy, PartiallyObservablePolicy
+from asym_rlpo.features import HistoryIntegrator
+from asym_rlpo.policies import HistoryPolicy
 from asym_rlpo.q_estimators import Q_Estimator, td0_q_estimator
 
-from ..base import PO_Algorithm_ABC
+from ..base import Algorithm_ABC
 
 
-class PO_A2C_ABC(PO_Algorithm_ABC):
-    def behavior_policy(self) -> PartiallyObservablePolicy:
-        history_integrator = make_history_integrator(
+class A2C_ABC(Algorithm_ABC):
+    def behavior_policy(self) -> ModelPolicy:
+        history_integrator = self.make_history_integrator(
             self.models.agent.action_model,
             self.models.agent.observation_model,
             self.models.agent.history_model,
-            truncated_histories=self.truncated_histories,
-            truncated_histories_n=self.truncated_histories_n,
         )
         return ModelPolicy(
             history_integrator,
             self.models.agent.policy_model,
         )
 
-    def evaluation_policy(self) -> PartiallyObservablePolicy:
-        history_integrator = make_history_integrator(
+    def evaluation_policy(self) -> EpsilonGreedyModelPolicy:
+        history_integrator = self.make_history_integrator(
             self.models.agent.action_model,
             self.models.agent.observation_model,
             self.models.agent.history_model,
-            truncated_histories=self.truncated_histories,
-            truncated_histories_n=self.truncated_histories_n,
         )
         return EpsilonGreedyModelPolicy(
             history_integrator,
@@ -115,17 +113,24 @@ class PO_A2C_ABC(PO_Algorithm_ABC):
         return critic_loss
 
 
+# policies
+
+
+# function which maps history features to action-logits
+PolicyFunction = Callable[[torch.Tensor], torch.Tensor]
+
+
 class ModelPolicy(HistoryPolicy):
     def __init__(
         self,
         history_integrator: HistoryIntegrator,
-        policy_model: nn.Module,
+        policy_function: PolicyFunction,
     ):
         super().__init__(history_integrator)
-        self.policy_model = policy_model
+        self.policy_function = policy_function
 
-    def po_sample_action(self):
-        action_logits = self.policy_model(self.history_integrator.features)
+    def sample_action(self):
+        action_logits = self.policy_function(self.history_integrator.features)
         action_dist = torch.distributions.Categorical(logits=action_logits)
         return action_dist.sample().item()
 
@@ -134,15 +139,15 @@ class EpsilonGreedyModelPolicy(HistoryPolicy):
     def __init__(
         self,
         history_integrator: HistoryIntegrator,
-        policy_model: nn.Module,
+        policy_function: PolicyFunction,
     ):
         super().__init__(history_integrator)
-        self.policy_model = policy_model
+        self.policy_function = policy_function
 
-    def po_sample_action(self):
-        action_logits = self.policy_model(self.history_integrator.features)
-        return (
-            torch.distributions.Categorical(logits=action_logits).sample()
-            if random.random() < self.epsilon
-            else action_logits.argmax()
-        ).item()
+    def sample_action(self):
+        action_logits = self.policy_function(self.history_integrator.features)
+
+        if random.random() < self.epsilon:
+            action_dist = torch.distributions.Categorical(logits=action_logits)
+            return action_dist.sample().item()
+        return action_logits.argmax().item()

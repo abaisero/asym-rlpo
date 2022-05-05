@@ -26,7 +26,7 @@ def sample_episode(
             env.render()
 
         while True:
-            action = policy.sample_action(numpy2torch(state))
+            action = policy.sample_action()
             next_state, next_observation, reward, done = env.step(action)
             policy.step(torch.tensor(action), numpy2torch(next_observation))
 

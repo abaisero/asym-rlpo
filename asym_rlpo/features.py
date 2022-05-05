@@ -1,6 +1,6 @@
 import abc
 from collections import deque
-from typing import Deque, Optional
+from typing import Callable, Deque, Optional
 
 import torch
 
@@ -157,34 +157,30 @@ class FullHistoryIntegrator(HistoryIntegrator):
             observation_model,
             history_model,
         )
-        self._features: torch.Tensor = None
-        self._hidden = None
+        self.__features: torch.Tensor
+        self.__hidden: torch.Tensor
 
     def reset(self, observation):
-        self._hidden = None
-
         input_features = self.compute_input_features(
             None,
             gtorch.unsqueeze(observation, 0),
         ).unsqueeze(1)
-        self._features, self._hidden = self.history_model(
-            input_features, hidden=self._hidden
-        )
-        self._features = self._features.squeeze(0).squeeze(0)
+        self.__features, self.__hidden = self.history_model(input_features)
+        self.__features = self.__features.squeeze(0).squeeze(0)
 
     def step(self, action, observation):
         input_features = self.compute_input_features(
             action.unsqueeze(0),
             gtorch.unsqueeze(observation, 0),
         ).unsqueeze(1)
-        self._features, self._hidden = self.history_model(
-            input_features, hidden=self._hidden
+        self.__features, self.__hidden = self.history_model(
+            input_features, hidden=self.__hidden
         )
-        self._features = self._features.squeeze(0).squeeze(0)
+        self.__features = self.__features.squeeze(0).squeeze(0)
 
     @property
     def features(self) -> torch.Tensor:
-        return self._features
+        return self.__features
 
 
 class TruncatedHistoryIntegrator(HistoryIntegrator):
@@ -260,3 +256,13 @@ def make_history_integrator(
             history_model,
         )
     )
+
+
+HistoryIntegratorMaker = Callable[
+    [Representation, Representation, Representation],
+    HistoryIntegrator,
+]
+HistoryFeaturesComputer = Callable[
+    [Representation, Representation, Representation, torch.Tensor, Torch_O],
+    torch.Tensor,
+]

@@ -15,7 +15,7 @@ import wandb
 from gym_gridverse.rng import reset_gv_rng
 
 from asym_rlpo.algorithms import make_dqn_algorithm
-from asym_rlpo.algorithms.dqn.base import PO_DQN_ABC
+from asym_rlpo.algorithms.dqn.base import DQN_ABC
 from asym_rlpo.data import EpisodeBuffer
 from asym_rlpo.envs import Environment, make_env
 from asym_rlpo.evaluation import evaluate_returns
@@ -54,8 +54,6 @@ def parse_args():
     parser.add_argument(
         'algo',
         choices=[
-            'fob-dqn',
-            'foe-dqn',
             'dqn',
             'adqn',
             'adqn-bootstrap',
@@ -206,7 +204,7 @@ class XStats(Serializable):
 # class RunState(NamedTuple, Serializable):
 class RunState(NamedTuple):
     env: Environment
-    algo: PO_DQN_ABC
+    algo: DQN_ABC
     optimizer: torch.optim.Optimizer
     wandb_logger: WandbLogger
     xstats: XStats

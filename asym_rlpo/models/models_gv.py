@@ -10,7 +10,7 @@ from asym_rlpo.representations.resize import ResizeRepresentation
 from asym_rlpo.utils.config import get_config
 
 
-def _make_q_model(in_size, out_size):
+def _make_q_model(in_size, out_size) -> nn.Module:
     return nn.Sequential(
         make_module('linear', 'relu', in_size, 512),
         nn.ReLU(),
@@ -18,7 +18,7 @@ def _make_q_model(in_size, out_size):
     )
 
 
-def _make_v_model(in_size):
+def _make_v_model(in_size) -> nn.Module:
     return nn.Sequential(
         make_module('linear', 'relu', in_size, 512),
         nn.ReLU(),
@@ -26,7 +26,7 @@ def _make_v_model(in_size):
     )
 
 
-def _make_policy_model(in_size, out_size):
+def _make_policy_model(in_size, out_size) -> nn.Module:
     return nn.Sequential(
         make_module('linear', 'relu', in_size, 512),
         nn.ReLU(),
