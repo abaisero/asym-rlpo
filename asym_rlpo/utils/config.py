@@ -1,4 +1,4 @@
-from typing import Dict, Union
+from typing import Any, Dict, Union
 
 BasicType = Union[str, float, int, bool, None]
 ConfigDict = Dict[str, BasicType]
@@ -17,7 +17,7 @@ class Config:
     def _as_dict(self) -> ConfigDict:
         return self._config.copy()
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         return self._config[name]
 
 
