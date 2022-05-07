@@ -1,6 +1,8 @@
 from typing import List
 
 import gym
+import gym.spaces
+import numpy as np
 
 from asym_rlpo.utils.debugging import checkraise
 
@@ -26,6 +28,7 @@ class IndexWrapper(gym.ObservationWrapper):
             'indices must be unique',
         )
 
+        assert isinstance(env.observation_space, gym.spaces.Box)
         checkraise(
             len(indices) <= env.observation_space.shape[0],
             ValueError,
@@ -53,7 +56,7 @@ class IndexWrapper(gym.ObservationWrapper):
             env.observation_space.high[self.indices],
         )
 
-        self.state = None
+        self.state: np.ndarray
 
     def observation(self, observation):
         self.state = observation
@@ -76,6 +79,7 @@ class FlatPaddingWrapper(gym.ObservationWrapper):
 
         super().__init__(env)
 
+        assert isinstance(env.observation_space, gym.spaces.Discrete)
         self.observation_space = gym.spaces.Discrete(
             env.observation_space.n + 1
         )
