@@ -15,7 +15,7 @@ class A2C(A2C_ABC):
             'policy_model',
         ],
         'critic': [
-            'state_model',
+            'latent_model',
             'action_model',
             'observation_model',
             'history_model',

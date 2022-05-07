@@ -48,7 +48,7 @@ def _make_representation_models(env: Environment) -> nn.ModuleDict:
     normalize_hs_features: bool = config.normalize_hs_features
 
     # agent
-    state_model = EmbeddingRepresentation(env.state_space.n, 64)
+    latent_model = EmbeddingRepresentation(env.state_space.n, 64)
     action_model = OneHotRepresentation(env.action_space)
     observation_model = IdentityRepresentation(env.observation_space)
     history_model = GRUHistoryRepresentation(
@@ -60,16 +60,16 @@ def _make_representation_models(env: Environment) -> nn.ModuleDict:
     # resize history and state models
     if hs_features_dim:
         history_model = ResizeRepresentation(history_model, hs_features_dim)
-        state_model = ResizeRepresentation(state_model, hs_features_dim)
+        latent_model = ResizeRepresentation(latent_model, hs_features_dim)
 
     # normalize history and state models
     if normalize_hs_features:
         history_model = NormalizationRepresentation(history_model)
-        state_model = NormalizationRepresentation(state_model)
+        latent_model = NormalizationRepresentation(latent_model)
 
     return nn.ModuleDict(
         {
-            'state_model': state_model,
+            'latent_model': latent_model,
             'action_model': action_model,
             'observation_model': observation_model,
             'history_model': history_model,
@@ -94,12 +94,12 @@ def make_models(  # pylint: disable=too-many-locals
             'qh_model': _make_q_model(
                 models.agent.history_model.dim, env.action_space.n
             ),
-            'qhs_model': _make_q_model(
-                models.agent.history_model.dim + models.agent.state_model.dim,
+            'qhz_model': _make_q_model(
+                models.agent.history_model.dim + models.agent.latent_model.dim,
                 env.action_space.n,
             ),
-            'qs_model': _make_q_model(
-                models.agent.state_model.dim, env.action_space.n
+            'qz_model': _make_q_model(
+                models.agent.latent_model.dim, env.action_space.n
             ),
         }
     )
@@ -115,10 +115,10 @@ def make_models(  # pylint: disable=too-many-locals
     models.critic.update(
         {
             'vh_model': _make_v_model(models.critic.history_model.dim),
-            'vhs_model': _make_v_model(
-                models.critic.history_model.dim + models.critic.state_model.dim
+            'vhz_model': _make_v_model(
+                models.critic.history_model.dim + models.critic.latent_model.dim
             ),
-            'vs_model': _make_v_model(models.critic.state_model.dim),
+            'vz_model': _make_v_model(models.critic.latent_model.dim),
         }
     )
 

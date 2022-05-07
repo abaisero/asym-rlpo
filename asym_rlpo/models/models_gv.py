@@ -38,7 +38,7 @@ def _make_policy_model(in_size, out_size) -> nn.Module:
 def _make_representation_models(env: Environment) -> nn.ModuleDict:
     config = get_config()
 
-    state_model = GV_Representation(
+    latent_model = GV_Representation(
         env.state_space,
         [f'agent-grid-{config.gv_state_grid_model_type}', 'agent', 'item'],
         embedding_size=1,
@@ -61,16 +61,16 @@ def _make_representation_models(env: Environment) -> nn.ModuleDict:
     hs_features_dim: int = config.hs_features_dim
     if hs_features_dim:
         history_model = ResizeRepresentation(history_model, hs_features_dim)
-        state_model = ResizeRepresentation(state_model, hs_features_dim)
+        latent_model = ResizeRepresentation(latent_model, hs_features_dim)
 
     # normalize history and state models
     if config.normalize_hs_features:
         history_model = NormalizationRepresentation(history_model)
-        state_model = NormalizationRepresentation(state_model)
+        latent_model = NormalizationRepresentation(latent_model)
 
     return nn.ModuleDict(
         {
-            'state_model': state_model,
+            'latent_model': latent_model,
             'action_model': action_model,
             'observation_model': observation_model,
             'history_model': history_model,
@@ -93,12 +93,12 @@ def make_models(env: Environment) -> nn.ModuleDict:
             'qh_model': _make_q_model(
                 models.agent.history_model.dim, env.action_space.n
             ),
-            'qhs_model': _make_q_model(
-                models.agent.history_model.dim + models.agent.state_model.dim,
+            'qhz_model': _make_q_model(
+                models.agent.history_model.dim + models.agent.latent_model.dim,
                 env.action_space.n,
             ),
-            'qs_model': _make_q_model(
-                models.agent.state_model.dim, env.action_space.n
+            'qz_model': _make_q_model(
+                models.agent.latent_model.dim, env.action_space.n
             ),
         }
     )
@@ -114,10 +114,10 @@ def make_models(env: Environment) -> nn.ModuleDict:
     models.critic.update(
         {
             'vh_model': _make_v_model(models.critic.history_model.dim),
-            'vhs_model': _make_v_model(
-                models.critic.history_model.dim + models.critic.state_model.dim
+            'vhz_model': _make_v_model(
+                models.critic.history_model.dim + models.critic.latent_model.dim
             ),
-            'vs_model': _make_v_model(models.critic.state_model.dim),
+            'vz_model': _make_v_model(models.critic.latent_model.dim),
         }
     )
 

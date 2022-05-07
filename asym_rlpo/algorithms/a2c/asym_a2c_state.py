@@ -15,11 +15,11 @@ class AsymA2C_State(A2C_ABC):
             'policy_model',
         ],
         'critic': [
-            'state_model',
+            'latent_model',
             'action_model',
             'observation_model',
             'history_model',
-            'vs_model',
+            'vz_model',
         ],
     }
 
@@ -27,6 +27,6 @@ class AsymA2C_State(A2C_ABC):
         self, models: nn.ModuleDict, episode: Episode
     ) -> torch.Tensor:
 
-        state_features = models.critic.state_model(episode.states)
-        vs_values = models.critic.vs_model(state_features).squeeze(-1)
-        return vs_values
+        latent_features = models.critic.latent_model(episode.states)
+        vz_values = models.critic.vz_model(latent_features).squeeze(-1)
+        return vz_values

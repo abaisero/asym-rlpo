@@ -15,11 +15,11 @@ class AsymA2C(A2C_ABC):
             'policy_model',
         ],
         'critic': [
-            'state_model',
+            'latent_model',
             'action_model',
             'observation_model',
             'history_model',
-            'vhs_model',
+            'vhz_model',
         ],
     }
 
@@ -34,7 +34,7 @@ class AsymA2C(A2C_ABC):
             episode.actions,
             episode.observations,
         )
-        state_features = models.critic.state_model(episode.states)
-        inputs = torch.cat([history_features, state_features], dim=-1)
-        vhs_values = models.critic.vhs_model(inputs).squeeze(-1)
-        return vhs_values
+        latent_features = models.critic.latent_model(episode.states)
+        inputs = torch.cat([history_features, latent_features], dim=-1)
+        vhz_values = models.critic.vhz_model(inputs).squeeze(-1)
+        return vhz_values
