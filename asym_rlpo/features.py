@@ -5,7 +5,7 @@ from typing import Callable, Deque, Optional
 import torch
 
 import asym_rlpo.generalized_torch as gtorch
-from asym_rlpo.data import Torch_O
+from asym_rlpo.data import TorchObservation
 from asym_rlpo.representations.base import Representation
 
 
@@ -13,7 +13,7 @@ def compute_input_features(
     action_model: Representation,
     observation_model: Representation,
     action: Optional[torch.Tensor],
-    observation: Torch_O,
+    observation: TorchObservation,
     *,
     device: torch.device,
 ) -> torch.Tensor:
@@ -35,7 +35,7 @@ def compute_full_history_features(
     observation_model: Representation,
     history_model: Representation,
     actions: torch.Tensor,
-    observations: Torch_O,
+    observations: TorchObservation,
 ) -> torch.Tensor:
 
     action_features = action_model(actions)
@@ -55,7 +55,7 @@ def compute_truncated_history_features(
     observation_model: Representation,
     history_model: Representation,
     actions: torch.Tensor,
-    observations: Torch_O,
+    observations: TorchObservation,
     *,
     n: int,
 ) -> torch.Tensor:
@@ -80,7 +80,7 @@ def compute_history_features(
     observation_model: Representation,
     history_model: Representation,
     actions: torch.Tensor,
-    observations: Torch_O,
+    observations: TorchObservation,
     *,
     truncated: bool,
     n: int,
@@ -118,7 +118,7 @@ class HistoryIntegrator(metaclass=abc.ABCMeta):
         self.history_model = history_model
 
     def compute_input_features(
-        self, action: Optional[torch.Tensor], observation: Torch_O
+        self, action: Optional[torch.Tensor], observation: TorchObservation
     ) -> torch.Tensor:
 
         # the history model is the only one guaranteed to have parameters
@@ -263,6 +263,12 @@ HistoryIntegratorMaker = Callable[
     HistoryIntegrator,
 ]
 HistoryFeaturesComputer = Callable[
-    [Representation, Representation, Representation, torch.Tensor, Torch_O],
+    [
+        Representation,
+        Representation,
+        Representation,
+        torch.Tensor,
+        TorchObservation,
+    ],
     torch.Tensor,
 ]

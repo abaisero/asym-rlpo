@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from asym_rlpo.data import Episode, Torch_L, Torch_O
+from asym_rlpo.data import Episode, TorchLatent, TorchObservation
 
 from .base import DQN_ABC
 
@@ -27,8 +27,8 @@ class ADQN_Short(DQN_ABC):
         self,
         models: nn.ModuleDict,
         actions: torch.Tensor,
-        observations: Torch_O,
-        latents: Torch_L,
+        observations: TorchObservation,
+        latents: TorchLatent,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
 
         history_features = self.compute_history_features(

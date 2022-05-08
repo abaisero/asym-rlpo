@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from asym_rlpo.data import Episode, Torch_O
+from asym_rlpo.data import Episode, TorchObservation
 
 from .base import DQN_ABC
 
@@ -25,7 +25,7 @@ class DQN(DQN_ABC):
         self,
         models: nn.ModuleDict,
         actions: torch.Tensor,
-        observations: Torch_O,
+        observations: TorchObservation,
     ) -> torch.Tensor:
 
         history_features = self.compute_history_features(
