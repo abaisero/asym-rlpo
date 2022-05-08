@@ -8,28 +8,21 @@ import numpy as np
 import torch
 
 import asym_rlpo.generalized_torch as gtorch
-from asym_rlpo.utils.collate import collate_numpy, collate_torch
+from asym_rlpo.utils.collate import collate_numpy
 from asym_rlpo.utils.convert import numpy2torch
 from asym_rlpo.utils.debugging import checkraise
 
-Torch_S = TypeVar(
-    'Torch_S',
-    torch.Tensor,
-    Dict[str, torch.Tensor],
-)
 Torch_O = TypeVar(
     'Torch_O',
     torch.Tensor,
     Dict[str, torch.Tensor],
 )
-
-S = TypeVar(
-    'S',
+Torch_L = TypeVar(
+    'Torch_L',
     torch.Tensor,
     Dict[str, torch.Tensor],
-    np.ndarray,
-    Dict[str, np.ndarray],
 )
+
 O = TypeVar(
     'O',
     torch.Tensor,
@@ -37,58 +30,67 @@ O = TypeVar(
     np.ndarray,
     Dict[str, np.ndarray],
 )
+L = TypeVar(
+    'L',
+    torch.Tensor,
+    Dict[str, torch.Tensor],
+    np.ndarray,
+    Dict[str, np.ndarray],
+)
 
 
-class Interaction(Generic[S, O]):
+class Interaction(Generic[O, L]):
     def __init__(
         self,
         *,
-        state: S,
         observation: O,
+        latent: L,
         action: int,
         reward: float,
     ):
-        self.state: S = state
         self.observation: O = observation
+        self.latent: L = latent
         self.action = action
         self.reward = reward
 
 
-class Episode(Generic[S, O]):
+class Episode(Generic[O, L]):
     """Storage for collated episode data."""
 
-    def __init__(self, *, states: S, observations: O, actions, rewards):
-        self.states: S = states
+    def __init__(self, *, observations: O, latents: L, actions, rewards):
         self.observations: O = observations
+        self.latents: L = latents
         self.actions = actions
         self.rewards = rewards
 
     def __len__(self):
         return len(self.actions)
 
-    def __getitem__(self, index) -> Interaction[S, O]:
+    def __getitem__(self, index) -> Interaction[O, L]:
         return Interaction(
-            state=(
-                {k: v[index] for k, v in self.states.items()}
-                if isinstance(self.states, dict)
-                else self.states[index]
-            ),
             observation=(
                 {k: v[index] for k, v in self.observations.items()}
                 if isinstance(self.observations, dict)
                 else self.observations[index]
+            ),
+            latent=(
+                {k: v[index] for k, v in self.latents.items()}
+                if isinstance(self.latents, dict)
+                else self.latents[index]
             ),
             action=self.actions[index],
             reward=self.rewards[index],
         )
 
     @staticmethod
-    def from_interactions(interactions: Iterable[Interaction[S, O]]):
-        states: S = collate_numpy(
-            [interaction.state for interaction in interactions]
-        )
+    def from_interactions(
+        interactions: Iterable[Interaction[O, L]]
+    ) -> Episode[O, L]:
         observations: O = collate_numpy(
             [interaction.observation for interaction in interactions]
+        )
+        latents: L = collate_numpy(
+            [interaction.latent for interaction in interactions]
         )
         actions = collate_numpy(
             [interaction.action for interaction in interactions]
@@ -97,25 +99,27 @@ class Episode(Generic[S, O]):
             [interaction.reward for interaction in interactions]
         )
         return Episode(
-            states=states,
             observations=observations,
+            latents=latents,
             actions=actions,
             rewards=rewards,
         )
 
-    def torch(self) -> Episode:
+    def torch(self) -> Episode[Torch_O, Torch_L]:
         checkraise(
             (
-                isinstance(self.states, np.ndarray)
-                or isinstance(self.states, dict)
-                and all(isinstance(v, np.ndarray) for v in self.states.values())
-            )
-            and (
                 isinstance(self.observations, np.ndarray)
                 or isinstance(self.observations, dict)
                 and all(
                     isinstance(v, np.ndarray)
                     for v in self.observations.values()
+                )
+            )
+            and (
+                isinstance(self.latents, np.ndarray)
+                or isinstance(self.latents, dict)
+                and all(
+                    isinstance(v, np.ndarray) for v in self.latents.values()
                 )
             )
             and isinstance(self.actions, np.ndarray)
@@ -124,24 +128,24 @@ class Episode(Generic[S, O]):
             'Episode is not numpy to begin with??',
         )
         return Episode(
-            states=numpy2torch(self.states),
             observations=numpy2torch(self.observations),
+            latents=numpy2torch(self.latents),
             actions=numpy2torch(self.actions),
             rewards=numpy2torch(self.rewards),
         )
 
-    def to(self, device: torch.device) -> Episode:
+    def to(self, device: torch.device) -> Episode[O, L]:
         return Episode(
-            states=gtorch.to(self.states, device),
             observations=gtorch.to(self.observations, device),
+            latents=gtorch.to(self.latents, device),
             actions=gtorch.to(self.actions, device),
             rewards=gtorch.to(self.rewards, device),
         )
 
 
-class EpisodeBuffer(Generic[S, O]):
+class EpisodeBuffer(Generic[O, L]):
     def __init__(self, max_timesteps: int):
-        self.episodes: Deque[Episode[S, O]] = deque()
+        self.episodes: Deque[Episode[O, L]] = deque()
         self.max_timesteps = max_timesteps
 
     def num_interactions(self):
@@ -156,21 +160,21 @@ class EpisodeBuffer(Generic[S, O]):
             episode = self.episodes.popleft()
             num_timesteps -= len(episode)
 
-    def append_episode(self, episode: Episode[S, O]):
+    def append_episode(self, episode: Episode[O, L]):
         self.episodes.append(episode)
         self._check_num_timesteps()
 
-    def append_episodes(self, episodes: Sequence[Episode[S, O]]):
+    def append_episodes(self, episodes: Sequence[Episode[O, L]]):
         for episode in episodes:
             self.episodes.append(episode)
         self._check_num_timesteps()
 
-    def sample_episode(self) -> Episode[S, O]:
+    def sample_episode(self) -> Episode[O, L]:
         return random.choice(self.episodes)
 
     def sample_episodes(
         self, *, num_samples: int, replacement: bool
-    ) -> List[Episode[S, O]]:
+    ) -> List[Episode[O, L]]:
 
         if replacement:
             episodes = random.choices(self.episodes, k=num_samples)

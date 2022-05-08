@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from asym_rlpo.data import Episode, Torch_O, Torch_S
+from asym_rlpo.data import Episode, Torch_L, Torch_O
 
 from .base import DQN_ABC
 
@@ -28,7 +28,7 @@ class ADQN_State(DQN_ABC):
         models: nn.ModuleDict,
         actions: torch.Tensor,
         observations: Torch_O,
-        states: Torch_S,
+        latents: Torch_L,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
 
         history_features = self.compute_history_features(
@@ -40,7 +40,7 @@ class ADQN_State(DQN_ABC):
         )
         qh_values = models.agent.qh_model(history_features)
 
-        latent_features = models.agent.latent_model(states)
+        latent_features = models.agent.latent_model(latents)
         qz_values = models.agent.qz_model(latent_features)
 
         return qh_values, qz_values
@@ -101,14 +101,14 @@ class ADQN_State(DQN_ABC):
                 self.models,
                 episode.actions,
                 episode.observations,
-                episode.states,
+                episode.latents,
             )
             with torch.no_grad():
                 target_qh_values, target_qz_values = self.compute_q_values(
                     self.target_models,
                     episode.actions,
                     episode.observations,
-                    episode.states,
+                    episode.latents,
                 )
 
             qz_loss = self.qz_loss(

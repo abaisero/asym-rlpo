@@ -35,8 +35,8 @@ def sample_episode(
 
             interactions.append(
                 Interaction(
-                    state=state,
                     observation=observation,
+                    latent=state,
                     action=action,
                     reward=reward,
                 )

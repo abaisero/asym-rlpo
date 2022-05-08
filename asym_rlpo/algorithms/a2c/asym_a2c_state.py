@@ -27,6 +27,6 @@ class AsymA2C_State(A2C_ABC):
         self, models: nn.ModuleDict, episode: Episode
     ) -> torch.Tensor:
 
-        latent_features = models.critic.latent_model(episode.states)
+        latent_features = models.critic.latent_model(episode.latents)
         vz_values = models.critic.vz_model(latent_features).squeeze(-1)
         return vz_values

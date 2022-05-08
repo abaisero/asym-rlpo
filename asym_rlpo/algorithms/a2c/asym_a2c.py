@@ -34,7 +34,7 @@ class AsymA2C(A2C_ABC):
             episode.actions,
             episode.observations,
         )
-        latent_features = models.critic.latent_model(episode.states)
+        latent_features = models.critic.latent_model(episode.latents)
         inputs = torch.cat([history_features, latent_features], dim=-1)
         vhz_values = models.critic.vhz_model(inputs).squeeze(-1)
         return vhz_values
