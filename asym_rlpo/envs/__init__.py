@@ -1,6 +1,6 @@
 from typing import Optional, Tuple
 
-from .env import Action, Environment, EnvironmentType, Observation, State
+from .env import Action, Environment, EnvironmentType, Latent, Observation
 from .env_gv import make_gv_env
 from .env_gym import make_gym_env
 
@@ -33,7 +33,7 @@ class TimeLimitEnvironment:
     def __init__(self, env: Environment, max_timestep: int):
         self._env = env
         self.type = self._env.type
-        self.state_space = self._env.state_space
+        self.latent_space = self._env.latent_space
         self.action_space = self._env.action_space
         self.observation_space = self._env.observation_space
 
@@ -43,15 +43,15 @@ class TimeLimitEnvironment:
     def seed(self, seed: Optional[int] = None) -> None:
         self._env.seed(seed)
 
-    def reset(self) -> Tuple[State, Observation]:
+    def reset(self) -> Tuple[Observation, Latent]:
         self._timestep = 0
         return self._env.reset()
 
-    def step(self, action: Action) -> Tuple[State, Observation, float, bool]:
+    def step(self, action: Action) -> Tuple[Observation, Latent, float, bool]:
         self._timestep += 1
-        state, observation, reward, done = self._env.step(action)
+        observation, latent, reward, done = self._env.step(action)
         done = done or self._timestep >= self._max_timestep
-        return state, observation, reward, done
+        return observation, latent, reward, done
 
     def render(self) -> None:
         self._env.render()

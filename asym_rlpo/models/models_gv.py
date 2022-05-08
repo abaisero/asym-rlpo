@@ -38,18 +38,18 @@ def _make_policy_model(in_size, out_size) -> nn.Module:
 def _make_representation_models(env: Environment) -> nn.ModuleDict:
     config = get_config()
 
-    latent_model = GV_Representation(
-        env.state_space,
-        [f'agent-grid-{config.gv_state_grid_model_type}', 'agent', 'item'],
-        embedding_size=1,
-        layers=[512] * config.gv_state_representation_layers,
-    )
     action_model = EmbeddingRepresentation(env.action_space.n, 1)
     observation_model = GV_Representation(
         env.observation_space,
         [f'grid-{config.gv_state_grid_model_type}', 'item'],
         embedding_size=8,
         layers=[512] * config.gv_observation_representation_layers,
+    )
+    latent_model = GV_Representation(
+        env.latent_space,
+        [f'agent-grid-{config.gv_state_grid_model_type}', 'agent', 'item'],
+        embedding_size=1,
+        layers=[512] * config.gv_state_representation_layers,
     )
     history_model = GRUHistoryRepresentation(
         action_model,

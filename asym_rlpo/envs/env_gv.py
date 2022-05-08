@@ -21,7 +21,7 @@ from gym_gridverse.representations.state_representations import (
 
 from asym_rlpo.utils.config import get_config
 
-from .env import Action, Environment, EnvironmentType, Observation, State
+from .env import Action, Environment, EnvironmentType, Latent, Observation
 
 
 def make_gv_env(path: str) -> Environment:
@@ -31,18 +31,18 @@ def make_gv_env(path: str) -> Environment:
 
     print('Loading using YAML')
     inner_env = factory_env_from_yaml(path)
-    state_representation = make_state_representation(
-        config.gv_state_representation,
-        inner_env.state_space,
-    )
     observation_representation = make_observation_representation(
         config.gv_observation_representation,
         inner_env.observation_space,
     )
+    latent_representation = make_state_representation(
+        config.gv_state_representation,
+        inner_env.state_space,
+    )
     return GVEnvironment(
         inner_env,
-        state_representation,
         observation_representation,
+        latent_representation,
     )
 
 
@@ -50,42 +50,48 @@ class GVEnvironment:
     def __init__(
         self,
         env: InnerEnv,
-        state_representation: StateRepresentation,
         observation_representation: ObservationRepresentation,
+        latent_representation: StateRepresentation,
     ):
         self._gv_inner_env = env
-        self._gv_state_representation = state_representation
         self._gv_observation_representation = observation_representation
+        self._gv_latent_representation = latent_representation
         self.type = EnvironmentType.GV
 
-        self.state_space = outer_space_to_gym_space(state_representation.space)
         self.action_space = gym.spaces.Discrete(env.action_space.num_actions)
         self.observation_space = outer_space_to_gym_space(
             observation_representation.space
         )
+        self.latent_space = outer_space_to_gym_space(
+            latent_representation.space
+        )
 
     def seed(self, seed: Optional[int] = None) -> None:
         self._gv_inner_env.set_seed(seed)
-        self.state_space.seed(seed)
         self.action_space.seed(seed)
         self.observation_space.seed(seed)
+        self.latent_space.seed(seed)
 
-    def reset(self) -> Tuple[State, Observation]:
+    def reset(self) -> Tuple[Observation, Latent]:
         self._gv_inner_env.reset()
-        state = self._gv_state_representation.convert(self._gv_inner_env.state)
+        latent = self._gv_latent_representation.convert(
+            self._gv_inner_env.state
+        )
         observation = self._gv_observation_representation.convert(
             self._gv_inner_env.observation
         )
-        return state, observation
+        return observation, latent
 
-    def step(self, action: Action) -> Tuple[State, Observation, float, bool]:
+    def step(self, action: Action) -> Tuple[Observation, Latent, float, bool]:
         gv_action = self._gv_inner_env.action_space.int_to_action(action)
         reward, done = self._gv_inner_env.step(gv_action)
-        state = self._gv_state_representation.convert(self._gv_inner_env.state)
+        latent = self._gv_latent_representation.convert(
+            self._gv_inner_env.state
+        )
         observation = self._gv_observation_representation.convert(
             self._gv_inner_env.observation
         )
-        return state, observation, reward, done
+        return observation, latent, reward, done
 
     def render(self) -> None:
         # TODO implement, maybe?  maybe not

@@ -19,7 +19,7 @@ def sample_episode(
         interactions: List[Interaction] = []
 
         done = False
-        state, observation = env.reset()
+        observation, latent = env.reset()
         policy.reset(numpy2torch(observation))
 
         if render:
@@ -27,7 +27,7 @@ def sample_episode(
 
         while True:
             action = policy.sample_action()
-            next_state, next_observation, reward, done = env.step(action)
+            next_observation, next_latent, reward, done = env.step(action)
             policy.step(torch.tensor(action), numpy2torch(next_observation))
 
             if render:
@@ -36,7 +36,7 @@ def sample_episode(
             interactions.append(
                 Interaction(
                     observation=observation,
-                    latent=state,
+                    latent=latent,
                     action=action,
                     reward=reward,
                 )
@@ -45,7 +45,7 @@ def sample_episode(
             if done:
                 break
 
-            state = next_state
+            latent = next_latent
             observation = next_observation
 
     return Episode.from_interactions(interactions)

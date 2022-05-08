@@ -11,7 +11,14 @@ from asym_rlpo.utils.debugging import checkraise
 from asym_rlpo.wrapper import FlatPaddingWrapper, IndexWrapper
 
 from . import extra_hai, extra_lyu
-from .env import Action, Environment, EnvironmentType, Observation, State
+from .env import (
+    Action,
+    Environment,
+    EnvironmentType,
+    Latent,
+    Observation,
+    State,
+)
 
 
 def make_gym_env(id: str) -> Environment:
@@ -154,23 +161,23 @@ class GymEnvironment:
         self.type = type
         self.action_space: gym.spaces.Discrete = env.action_space
         self.observation_space: gym.spaces.Space = env.observation_space
-        self.state_space: gym.spaces.Space = env.state_space
+        self.latent_space: gym.spaces.Space = env.state_space
 
     def seed(self, seed: Optional[int] = None) -> None:
         self._env.seed(seed)
         self.action_space.seed(seed)
         self.observation_space.seed(seed)
-        self.state_space.seed(seed)
+        self.latent_space.seed(seed)
 
-    def reset(self) -> Tuple[State, Observation]:
+    def reset(self) -> Tuple[Observation, Latent]:
         observation = self._env.reset()
-        state = self._env.state
-        return state, observation
+        latent = self._env.state
+        return observation, latent
 
-    def step(self, action: Action) -> Tuple[State, Observation, float, bool]:
+    def step(self, action: Action) -> Tuple[Observation, Latent, float, bool]:
         observation, reward, done, _ = self._env.step(action)
-        state = self._env.state
-        return state, observation, reward, done
+        latent = self._env.state
+        return observation, latent, reward, done
 
     def render(self) -> None:
         self._env.render()

@@ -48,9 +48,9 @@ def _make_representation_models(env: Environment) -> nn.ModuleDict:
     normalize_hs_features: bool = config.normalize_hs_features
 
     # agent
-    latent_model = EmbeddingRepresentation(env.state_space.n, 64)
     action_model = OneHotRepresentation(env.action_space)
     observation_model = IdentityRepresentation(env.observation_space)
+    latent_model = EmbeddingRepresentation(env.latent_space.n, 64)
     history_model = GRUHistoryRepresentation(
         action_model,
         observation_model,

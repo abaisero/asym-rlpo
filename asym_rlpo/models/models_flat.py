@@ -46,11 +46,11 @@ def _make_representation_models(env: Environment) -> nn.ModuleDict:
     normalize_hs_features: bool = config.normalize_hs_features
 
     # agent
-    latent_model = EmbeddingRepresentation(env.state_space.n, 64)
     action_model = EmbeddingRepresentation(env.action_space.n, 64)
     observation_model = EmbeddingRepresentation(
         env.observation_space.n, 64, padding_idx=-1
     )
+    latent_model = EmbeddingRepresentation(env.latent_space.n, 64)
     history_model = GRUHistoryRepresentation(
         action_model,
         observation_model,

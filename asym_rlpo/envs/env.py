@@ -7,6 +7,7 @@ import gym.spaces
 State = Any
 Action = int
 Observation = Any
+Latent = Any
 
 # TODO eventually add
 # * how to type spaces and their elements more specifically?
@@ -26,17 +27,17 @@ class Environment(Protocol):
     """primary environment protocol"""
 
     type: EnvironmentType
-    state_space: gym.spaces.Space
     action_space: gym.spaces.Discrete
     observation_space: gym.spaces.Space
+    latent_space: gym.spaces.Space
 
     def seed(self, seed: Optional[int] = None) -> None:
         ...
 
-    def reset(self) -> Tuple[State, Observation]:
+    def reset(self) -> Tuple[Observation, Latent]:
         ...
 
-    def step(self, action: Action) -> Tuple[State, Observation, float, bool]:
+    def step(self, action: Action) -> Tuple[Observation, Latent, float, bool]:
         ...
 
     # Kinda want to remove this..?
