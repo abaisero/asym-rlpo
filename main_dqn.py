@@ -111,7 +111,6 @@ def parse_args():
         '--training-timesteps-per-simulation-timestep', type=int, default=8
     )
     parser.add_argument('--training-num-episodes', type=int, default=1)
-    parser.add_argument('--training-batch-size', type=int, default=32)
 
     # epsilon schedule
     parser.add_argument('--epsilon-schedule', default='linear')
@@ -499,25 +498,14 @@ def run(runstate: RunState) -> bool:
         ):
             optimizer.zero_grad()
 
-            if algo.episodic_training:
-                episodes = episode_buffer.sample_episodes(
-                    num_samples=config.training_num_episodes,
-                    replacement=True,
-                )
-                episodes = [episode.to(device) for episode in episodes]
-                loss = algo.episodic_loss(
-                    episodes, discount=config.training_discount
-                )
-
-            else:
-                batch = episode_buffer.sample_batch(
-                    batch_size=config.training_batch_size
-                )
-                batch = batch.to(device)
-                loss = algo.batched_loss(
-                    batch, discount=config.training_discount
-                )
-
+            episodes = episode_buffer.sample_episodes(
+                num_samples=config.training_num_episodes,
+                replacement=True,
+            )
+            episodes = [episode.to(device) for episode in episodes]
+            loss = algo.episodic_loss(
+                episodes, discount=config.training_discount
+            )
             loss.backward()
             gradient_norm = nn.utils.clip_grad_norm_(
                 algo.models.parameters(), max_norm=config.optim_max_norm
@@ -553,13 +541,10 @@ def run(runstate: RunState) -> bool:
                 save_data(filename, data)
 
             xstats.optimizer_steps += 1
-            if algo.episodic_training:
-                xstats.training_episodes += len(episodes)
-                xstats.training_timesteps += sum(
-                    len(episode) for episode in episodes
-                )
-            else:
-                xstats.training_timesteps += len(batch)
+            xstats.training_episodes += len(episodes)
+            xstats.training_timesteps += sum(
+                len(episode) for episode in episodes
+            )
 
         xstats.epoch += 1
 

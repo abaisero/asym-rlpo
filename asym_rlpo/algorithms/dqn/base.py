@@ -8,7 +8,7 @@ import gym
 import gym.spaces
 import torch
 
-from asym_rlpo.data import Batch, Episode
+from asym_rlpo.data import Episode
 from asym_rlpo.features import HistoryIntegrator
 from asym_rlpo.policies import HistoryPolicy
 
@@ -16,16 +16,6 @@ from ..base import Algorithm_ABC
 
 
 class DQN_ABC(Algorithm_ABC):
-    @property
-    @abc.abstractmethod
-    def episodic_training(self) -> bool:
-        assert False
-
-    @property
-    @abc.abstractmethod
-    def batched_training(self) -> bool:
-        assert False
-
     def target_policy(self) -> QhPolicy:
         history_integrator = self.make_history_integrator(
             self.models.agent.action_model,
@@ -47,11 +37,6 @@ class DQN_ABC(Algorithm_ABC):
             self.models.agent.qh_model,
             action_space,
         )
-
-
-class EpisodicDQN_ABC(DQN_ABC):
-    episodic_training: bool = True
-    batched_training: bool = False
 
     @abc.abstractmethod
     def episodic_loss(
