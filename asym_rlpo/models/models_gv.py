@@ -1,9 +1,12 @@
 import torch.nn as nn
 
-from asym_rlpo.envs import Environment
+from asym_rlpo.envs import Environment, LatentType
 from asym_rlpo.modules import make_module
 from asym_rlpo.representations.embedding import EmbeddingRepresentation
-from asym_rlpo.representations.gv import GV_Representation
+from asym_rlpo.representations.gv import (
+    GV_Memory_Representation,
+    GV_Representation,
+)
 from asym_rlpo.representations.history import GRUHistoryRepresentation
 from asym_rlpo.representations.normalization import NormalizationRepresentation
 from asym_rlpo.representations.resize import ResizeRepresentation
@@ -45,12 +48,17 @@ def _make_representation_models(env: Environment) -> nn.ModuleDict:
         embedding_size=8,
         layers=[512] * config.gv_observation_representation_layers,
     )
-    latent_model = GV_Representation(
-        env.latent_space,
-        [f'agent-grid-{config.gv_state_grid_model_type}', 'agent', 'item'],
-        embedding_size=1,
-        layers=[512] * config.gv_state_representation_layers,
+    latent_model = (
+        GV_Memory_Representation(env.latent_space, embedding_size=64)
+        if env.latent_type is LatentType.GV_MEMORY
+        else GV_Representation(
+            env.latent_space,
+            [f'agent-grid-{config.gv_state_grid_model_type}', 'agent', 'item'],
+            embedding_size=1,
+            layers=[512] * config.gv_state_representation_layers,
+        )
     )
+
     history_model = GRUHistoryRepresentation(
         action_model,
         observation_model,

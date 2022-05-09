@@ -16,13 +16,17 @@ from .env import (
     Environment,
     EnvironmentType,
     Latent,
+    LatentType,
     Observation,
     State,
 )
 
 
-def make_gym_env(id: str) -> Environment:
+def make_gym_env(id: str, *, latent_type: LatentType) -> Environment:
     """makes a stateful gym environment or converts a fully observable openai environment into a partially observable openai environment"""
+
+    if latent_type is not LatentType.STATE:
+        raise ValueError(f'Invalid latent type {latent_type} for gym envs')
 
     try:
         return make_po_gym_env(id)
@@ -74,6 +78,8 @@ def make_po_gym_env(name: str) -> Environment:
     version = m[3]
     non_po_name = f'{env_name}-v{version}'
 
+    env: StatefulGymEnv
+
     if env_name == 'CartPole':
         indices_dict = {
             'pos': [0, 2],  # ignore velocities
@@ -87,9 +93,9 @@ def make_po_gym_env(name: str) -> Environment:
             f'invalid partial observability {po_type}',
         )
 
-        env = gym.make(non_po_name)
+        gym_env = gym.make(non_po_name)
         indices = indices_dict[po_type]
-        env = IndexWrapper(env, indices)
+        env = IndexWrapper(gym_env, indices)
 
     elif env_name == 'LunarLander':
         indices_dict = {
@@ -104,9 +110,9 @@ def make_po_gym_env(name: str) -> Environment:
             f'invalid partial observability {po_type}',
         )
 
-        env = gym.make(non_po_name)
+        gym_env = gym.make(non_po_name)
         indices = indices_dict[po_type]
-        env = IndexWrapper(env, indices)
+        env = IndexWrapper(gym_env, indices)
 
     elif env_name == 'Acrobot':
         indices_dict = {
@@ -121,9 +127,10 @@ def make_po_gym_env(name: str) -> Environment:
             f'invalid partial observability {po_type}',
         )
 
-        env = gym.make(non_po_name)
+        gym_env = gym.make(non_po_name)
         indices = indices_dict[po_type]
-        env = IndexWrapper(env, indices)
+
+        env = IndexWrapper(gym_env, indices)
 
     else:
         raise ValueError('invalid env name {env_name}')
@@ -153,12 +160,13 @@ class StatefulGymEnv(Protocol):
         ...
 
 
-class GymEnvironment:
+class GymEnvironment(Environment):
     """Converts gym.Env to the Environment protocol"""
 
     def __init__(self, env: StatefulGymEnv, type: EnvironmentType):
         self._env = env
         self.type = type
+        self.latent_type = LatentType.STATE
         self.action_space: gym.spaces.Discrete = env.action_space
         self.observation_space: gym.spaces.Space = env.observation_space
         self.latent_space: gym.spaces.Space = env.state_space

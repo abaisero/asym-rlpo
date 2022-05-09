@@ -49,18 +49,18 @@ class IndexWrapper(gym.ObservationWrapper):
 
         super().__init__(env)
 
-        self.indices = indices
+        self._indices = indices
         self.state_space = env.observation_space
         self.observation_space = gym.spaces.Box(
-            env.observation_space.low[self.indices],
-            env.observation_space.high[self.indices],
+            env.observation_space.low[indices],
+            env.observation_space.high[indices],
         )
 
         self.state: np.ndarray
 
     def observation(self, observation):
         self.state = observation
-        return observation[self.indices]
+        return observation[self._indices]
 
 
 class FlatPaddingWrapper(gym.ObservationWrapper):

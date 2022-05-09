@@ -23,10 +23,17 @@ class EnvironmentType(enum.Enum):
     OTHER = enum.auto()
 
 
+class LatentType(enum.Enum):
+    STATE = enum.auto()
+    GV_MEMORY = enum.auto()
+
+
 class Environment(Protocol):
     """primary environment protocol"""
 
     type: EnvironmentType
+    latent_type: LatentType
+
     action_space: gym.spaces.Discrete
     observation_space: gym.spaces.Space
     latent_space: gym.spaces.Space

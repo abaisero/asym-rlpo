@@ -365,3 +365,17 @@ class GV_AgentGrid_FC_Representation(Representation):
         grid = self.embedding(grid).flatten(start_dim=-4)
         agent_id_grid = agent_id_grid.flatten(start_dim=-2)
         return torch.cat([grid, agent_id_grid], dim=-1)
+
+
+class GV_Memory_Representation(Representation):
+    def __init__(self, space: gym.spaces.Box, *, embedding_size: int):
+        super().__init__()
+        num_embeddings = space.high.item() + 1
+        self.embedding = EmbeddingRepresentation(num_embeddings, embedding_size)
+
+    @property
+    def dim(self):
+        return self.embedding.dim
+
+    def forward(self, inputs: torch.Tensor):
+        return self.embedding(inputs)

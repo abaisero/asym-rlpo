@@ -15,7 +15,7 @@ import wandb
 from gym_gridverse.rng import reset_gv_rng
 
 from asym_rlpo.algorithms import A2C_ABC, make_a2c_algorithm
-from asym_rlpo.envs import Environment, make_env
+from asym_rlpo.envs import Environment, LatentType, make_env
 from asym_rlpo.evaluation import evaluate_returns
 from asym_rlpo.q_estimators import q_estimator_factory
 from asym_rlpo.sampling import sample_episodes
@@ -117,6 +117,9 @@ def parse_args():
     # temporary / development
     parser.add_argument('--hs-features-dim', type=int, default=0)
     parser.add_argument('--normalize-hs-features', action='store_true')
+
+    # latent observation
+    parser.add_argument('--latent-type', default='state')
 
     # gv models
     parser.add_argument('--gv-observation-representation', default='compact')
@@ -242,8 +245,11 @@ class RunState(NamedTuple):
 def setup() -> RunState:
     config = get_config()
 
+    table = str.maketrans({'-': '_'})
+    latent_type = LatentType[config.latent_type.upper().translate(table)]
     env = make_env(
         config.env,
+        latent_type=latent_type,
         max_episode_timesteps=config.max_episode_timesteps,
     )
 
