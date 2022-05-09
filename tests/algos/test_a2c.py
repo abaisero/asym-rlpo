@@ -3,8 +3,8 @@ import itertools as itt
 import torch
 
 from asym_rlpo.algorithms import make_a2c_algorithm
-from asym_rlpo.envs import make_env
-from asym_rlpo.policies.random import RandomPolicy
+from asym_rlpo.envs import LatentType, make_env
+from asym_rlpo.policies import RandomPolicy
 from asym_rlpo.sampling import sample_episodes
 
 
@@ -14,7 +14,9 @@ def test_compute_history_features():
 
     max_episode_timesteps = 100
     env = make_env(
-        'PO-pos-CartPole-v1', max_episode_timesteps=max_episode_timesteps
+        'PO-pos-CartPole-v1',
+        latent_type=LatentType.STATE,
+        max_episode_timesteps=max_episode_timesteps,
     )
     policy = RandomPolicy(env.action_space)
     (episode,) = sample_episodes(env, policy, num_episodes=1)
@@ -35,12 +37,20 @@ def test_compute_history_features():
         'a2c', env, truncated_histories=False, truncated_histories_n=-1
     ).models
 
-    assert not algos['full'].truncated_histories
-    assert algos['full'].truncated_histories_n == -1
-    assert algos['react-2'].truncated_histories
-    assert algos['react-2'].truncated_histories_n == 2
-    assert algos['react-4'].truncated_histories
-    assert algos['react-4'].truncated_histories_n == 4
+    # this test uses implementation details (knows that
+    # make_history_integrator) is build using a partial
+    make_history_integrator = algos['full'].make_history_integrator
+    assert not make_history_integrator.keywords['truncated_histories']
+    make_history_integrator = algos['full'].make_history_integrator
+    assert make_history_integrator.keywords['truncated_histories_n'] == -1
+    make_history_integrator = algos['react-2'].make_history_integrator
+    assert make_history_integrator.keywords['truncated_histories']
+    make_history_integrator = algos['react-2'].make_history_integrator
+    assert make_history_integrator.keywords['truncated_histories_n'] == 2
+    make_history_integrator = algos['react-4'].make_history_integrator
+    assert make_history_integrator.keywords['truncated_histories']
+    make_history_integrator = algos['react-4'].make_history_integrator
+    assert make_history_integrator.keywords['truncated_histories_n'] == 4
 
     with torch.no_grad():
         history_features = {

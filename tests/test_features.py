@@ -3,13 +3,9 @@ import itertools as itt
 import torch
 
 from asym_rlpo.algorithms import make_a2c_algorithm
-from asym_rlpo.envs import make_env
-from asym_rlpo.features import (
-    FullHistoryIntegrator,
-    TruncatedHistoryIntegrator,
-    make_history_integrator,
-)
-from asym_rlpo.policies.random import RandomPolicy
+from asym_rlpo.envs import LatentType, make_env
+from asym_rlpo.features import FullHistoryIntegrator, TruncatedHistoryIntegrator
+from asym_rlpo.policies import RandomPolicy
 from asym_rlpo.sampling import sample_episodes
 
 
@@ -19,7 +15,9 @@ def test_history_integrators():
 
     max_episode_timesteps = 100
     env = make_env(
-        'PO-pos-CartPole-v1', max_episode_timesteps=max_episode_timesteps
+        'PO-pos-CartPole-v1',
+        latent_type=LatentType.STATE,
+        max_episode_timesteps=max_episode_timesteps,
     )
     policy = RandomPolicy(env.action_space)
     (episode,) = sample_episodes(env, policy, num_episodes=1)
@@ -41,12 +39,10 @@ def test_history_integrators():
     ).models
 
     history_integrators = {
-        k: make_history_integrator(
+        k: v.make_history_integrator(
             models.agent.action_model,
             models.agent.observation_model,
             models.agent.history_model,
-            truncated_histories=v.truncated_histories,
-            truncated_histories_n=v.truncated_histories_n,
         )
         for k, v in algos.items()
     }

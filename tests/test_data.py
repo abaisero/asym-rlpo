@@ -5,8 +5,8 @@ from asym_rlpo.data import Episode, EpisodeBuffer
 
 def make_episode(num_timesteps: int):
     return Episode(
-        states=np.zeros(num_timesteps),
         observations=np.zeros(num_timesteps),
+        latents=np.zeros(num_timesteps),
         actions=np.zeros(num_timesteps, dtype=int),
         rewards=np.zeros(num_timesteps),
     )
