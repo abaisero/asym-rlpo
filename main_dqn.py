@@ -383,6 +383,9 @@ def run(runstate: RunState) -> bool:
     while episode_buffer.num_interactions() < prepopulate_timesteps:
         (episode,) = sample_episodes(env, prepopulate_policy, num_episodes=1)
         episode_buffer.append_episode(episode.torch())
+        logger.debug(
+            f'episode buffer {episode_buffer.num_interactions():_} timesteps'
+        )
     logger.info('prepopulating DONE')
 
     if xstats.simulation_timesteps == 0:
