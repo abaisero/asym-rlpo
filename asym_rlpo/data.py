@@ -149,27 +149,32 @@ class EpisodeBuffer(Generic[Observation, Latent]):
     def __init__(self, max_timesteps: int):
         self.episodes: Deque[Episode[Observation, Latent]] = deque()
         self.max_timesteps = max_timesteps
+        self.__num_interactions = 0
 
     def num_interactions(self):
-        return sum(len(episode) for episode in self.episodes)
+        return self.__num_interactions
 
     def num_episodes(self):
         return len(self.episodes)
 
-    def _check_num_timesteps(self):
-        num_timesteps = self.num_interactions()
-        while num_timesteps > self.max_timesteps:
-            episode = self.episodes.popleft()
-            num_timesteps -= len(episode)
+    def _enforce_max_timesteps(self):
+        while self.num_interactions() > self.max_timesteps:
+            self.pop_episode()
 
     def append_episode(self, episode: Episode[Observation, Latent]):
         self.episodes.append(episode)
-        self._check_num_timesteps()
+        self.__num_interactions += len(episode)
+        self._enforce_max_timesteps()
 
     def append_episodes(self, episodes: Sequence[Episode[Observation, Latent]]):
         for episode in episodes:
             self.episodes.append(episode)
-        self._check_num_timesteps()
+        self._enforce_max_timesteps()
+
+    def pop_episode(self) -> Episode[Observation, Latent]:
+        episode = self.episodes.popleft()
+        self.__num_interactions -= len(episode)
+        return episode
 
     def sample_episode(self) -> Episode[Observation, Latent]:
         return random.choice(self.episodes)
