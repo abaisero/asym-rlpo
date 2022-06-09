@@ -2,7 +2,6 @@
 import argparse
 import logging
 import logging.config
-import os
 import random
 import signal
 from dataclasses import asdict, dataclass
@@ -569,7 +568,7 @@ def run(runstate: RunState) -> bool:
     return done
 
 
-def main():
+def main() -> int:
     args = parse_args()
     wandb_kwargs = {
         'project': args.wandb_project,
@@ -615,8 +614,8 @@ def main():
 
         wandb_run_id = wandb.run.id
 
-    if config.checkpoint is not None:
-        if not done:
+    if not done:
+        if config.checkpoint is not None:
             logger.info('checkpointing...')
             checkpoint = {
                 'metadata': {
@@ -628,11 +627,9 @@ def main():
             save_data(config.checkpoint, checkpoint)
             logger.info('checkpointing DONE')
 
-        else:
-            try:
-                os.remove(config.checkpoint)
-            except FileNotFoundError:
-                pass
+        return 1
+
+    return 0
 
 
 if __name__ == '__main__':
@@ -663,4 +660,4 @@ if __name__ == '__main__':
         }
     )
 
-    main()
+    raise SystemExit(main())
