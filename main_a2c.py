@@ -22,7 +22,7 @@ from asym_rlpo.utils.aggregate import average
 from asym_rlpo.utils.checkpointing import Serializable, load_data, save_data
 from asym_rlpo.utils.config import get_config
 from asym_rlpo.utils.device import get_device
-from asym_rlpo.utils.dispenser import DiscreteDispenser
+from asym_rlpo.utils.dispenser import DiscreteDispenser, TimeDispenser
 from asym_rlpo.utils.running_average import (
     InfiniteRunningAverage,
     RunningAverage,
@@ -149,6 +149,7 @@ def parse_args():
 
     # checkpoint
     parser.add_argument('--checkpoint', default=None)
+    parser.add_argument('--checkpoint-period', type=int, default=36_000)
 
     parser.add_argument('--save-model', action='store_true')
     parser.add_argument('--model-filename', default=None)
@@ -303,6 +304,28 @@ def setup() -> RunState:
     )
 
 
+def save_checkpoint(runstate: RunState):
+    """saves a checkpoint with the current runstate
+
+    NOTE:  must be called within an active wandb.init context manager
+    """
+    config = get_config()
+
+    if config.checkpoint is not None:
+        assert wandb.run is not None
+
+        logger.info('checkpointing...')
+        checkpoint = {
+            'metadata': {
+                'config': config._as_dict(),
+                'wandb_id': wandb.run.id,
+            },
+            'data': runstate.state_dict(),
+        }
+        save_data(config.checkpoint, checkpoint)
+        logger.info('checkpointing DONE')
+
+
 def run(runstate: RunState) -> bool:
     config = get_config()
     logger.info('run %s %s', config.env_label, config.algo_label)
@@ -369,11 +392,17 @@ def run(runstate: RunState) -> bool:
 
     signal.signal(signal.SIGUSR1, lambda signal, frame: set_interrupt_flag())
 
+    checkpoint_dispenser = TimeDispenser(config.checkpoint_period)
+    checkpoint_dispenser.dispense()  # burn first dispense
+
     # main learning loop
     wandb.watch(algo.models)
     while xstats.simulation_timesteps < config.max_simulation_timesteps:
         if interrupt:
             break
+
+        if checkpoint_dispenser.dispense():
+            save_checkpoint(runstate)
 
         # evaluate policy
         algo.models.eval()
@@ -591,24 +620,9 @@ def main():
         done = run(runstate)
         logger.info('run DONE')
 
-        wandb_run_id = wandb.run.id
+        save_checkpoint(runstate)
 
-    if not done:
-        if config.checkpoint is not None:
-            logger.info('checkpointing...')
-            checkpoint = {
-                'metadata': {
-                    'config': config._as_dict(),
-                    'wandb_id': wandb_run_id,
-                },
-                'data': runstate.state_dict(),
-            }
-            save_data(config.checkpoint, checkpoint)
-            logger.info('checkpointing DONE')
-
-        return 1
-
-    return 0
+    return int(not done)
 
 
 if __name__ == '__main__':
