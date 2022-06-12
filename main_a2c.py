@@ -22,13 +22,14 @@ from asym_rlpo.utils.aggregate import average
 from asym_rlpo.utils.checkpointing import Serializable, load_data, save_data
 from asym_rlpo.utils.config import get_config
 from asym_rlpo.utils.device import get_device
+from asym_rlpo.utils.dispenser import DiscreteDispenser
 from asym_rlpo.utils.running_average import (
     InfiniteRunningAverage,
     RunningAverage,
     WindowRunningAverage,
 )
 from asym_rlpo.utils.scheduling import make_schedule
-from asym_rlpo.utils.timer import Dispenser, Timer
+from asym_rlpo.utils.timer import Timer
 from asym_rlpo.utils.wandb_logger import WandbLogger
 
 logger = logging.getLogger(__name__)
@@ -198,7 +199,7 @@ class RunState(NamedTuple):
     xstats: XStats
     timer: Timer
     running_averages: Dict[str, RunningAverage]
-    dispensers: Dict[str, Dispenser]
+    dispensers: Dict[str, DiscreteDispenser]
 
     def state_dict(self):
         return {
@@ -283,8 +284,10 @@ def setup() -> RunState:
 
     wandb_log_period = config.max_simulation_timesteps // config.num_wandb_logs
     dispensers = {
-        'target_update_dispenser': Dispenser(config.target_update_period),
-        'wandb_log_dispenser': Dispenser(wandb_log_period),
+        'target_update_dispenser': DiscreteDispenser(
+            config.target_update_period
+        ),
+        'wandb_log_dispenser': DiscreteDispenser(wandb_log_period),
     }
 
     return RunState(

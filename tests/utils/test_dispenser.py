@@ -1,8 +1,10 @@
-from asym_rlpo.utils.timer import Dispenser
+import time
+
+from asym_rlpo.utils.dispenser import DiscreteDispenser, TimeDispenser
 
 
-def test_dispenser():
-    dispenser = Dispenser(3)
+def test_discrete_dispenser():
+    dispenser = DiscreteDispenser(3)
 
     assert dispenser.dispense(0)
     assert not dispenser.dispense(1)
@@ -29,3 +31,26 @@ def test_dispenser():
     assert not dispenser.dispense(107)
     assert not dispenser.dispense(108)
     assert dispenser.dispense(109)
+
+
+def test_time_dispenser():
+    dispenser = TimeDispenser(0.5)
+
+    assert dispenser.dispense()
+    assert not dispenser.dispense()
+    assert not dispenser.dispense()
+
+    time.sleep(1)
+    assert dispenser.dispense()
+    assert not dispenser.dispense()
+    assert not dispenser.dispense()
+
+    time.sleep(2)
+    assert dispenser.dispense()
+    assert not dispenser.dispense()
+    assert not dispenser.dispense()
+
+    time.sleep(1)
+    assert dispenser.dispense()
+    time.sleep(1)
+    assert dispenser.dispense()
