@@ -1,8 +1,8 @@
 import abc
 from collections import deque
-from typing import Deque, Sequence
+from typing import Deque, Dict, Sequence
 
-from asym_rlpo.utils.checkpointing import Serializable
+from asym_rlpo.utils.checkpointing import Serializer
 
 
 class RunningAverage(metaclass=abc.ABCMeta):
@@ -19,7 +19,7 @@ class RunningAverage(metaclass=abc.ABCMeta):
         assert False
 
 
-class InfiniteRunningAverage(RunningAverage, Serializable):
+class InfiniteRunningAverage(RunningAverage):
     def __init__(self):
         self.cum_value = 0.0
         self.num_values = 0
@@ -35,18 +35,20 @@ class InfiniteRunningAverage(RunningAverage, Serializable):
     def value(self) -> float:
         return self.cum_value / self.num_values
 
-    def state_dict(self):
+
+class InfiniteRunningAverageSerializer(Serializer[RunningAverage]):
+    def serialize(self, obj: InfiniteRunningAverage) -> Dict:
         return {
-            'cum_value': self.cum_value,
-            'num_values': self.num_values,
+            'cum_value': obj.cum_value,
+            'num_values': obj.num_values,
         }
 
-    def load_state_dict(self, data):
-        self.cum_value = data['cum_value']
-        self.num_values = data['num_values']
+    def deserialize(self, obj: InfiniteRunningAverage, data: Dict):
+        obj.cum_value = data['cum_value']
+        obj.num_values = data['num_values']
 
 
-class WindowRunningAverage(RunningAverage, Serializable):
+class WindowRunningAverage(RunningAverage):
     def __init__(self, size: int):
         self.values: Deque[float] = deque(maxlen=size)
 
@@ -59,8 +61,40 @@ class WindowRunningAverage(RunningAverage, Serializable):
     def value(self) -> float:
         return sum(self.values) / len(self.values)
 
-    def state_dict(self):
-        return {'values': self.values}
 
-    def load_state_dict(self, data):
-        self.values = data['values']
+class WindowRunningAverageSerializer(Serializer[WindowRunningAverage]):
+    def serialize(self, obj: WindowRunningAverage) -> Dict:
+        return {'values': obj.values}
+
+    def deserialize(self, obj: WindowRunningAverage, data: Dict):
+        obj.values = data['values']
+
+
+class RunningAverageSerializer(Serializer[RunningAverage]):
+    def __init__(self):
+        self.infinite_running_average_serializer = (
+            InfiniteRunningAverageSerializer()
+        )
+        self.window_running_average_serializer = (
+            WindowRunningAverageSerializer()
+        )
+
+    def serialize(self, obj: RunningAverage) -> Dict:
+        if isinstance(obj, InfiniteRunningAverage):
+            return self.infinite_running_average_serializer.serialize(obj)
+
+        if isinstance(obj, WindowRunningAverage):
+            return self.window_running_average_serializer.serialize(obj)
+
+        raise TypeError(f'invalid type {type(obj)}')
+
+    def deserialize(self, obj: RunningAverage, data: Dict):
+        if isinstance(obj, InfiniteRunningAverage):
+            return self.infinite_running_average_serializer.deserialize(
+                obj, data
+            )
+
+        if isinstance(obj, WindowRunningAverage):
+            return self.window_running_average_serializer.deserialize(obj, data)
+
+        raise TypeError(f'invalid type {type(obj)}')

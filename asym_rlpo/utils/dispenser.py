@@ -1,9 +1,10 @@
 import time
+from typing import Dict
 
-from asym_rlpo.utils.checkpointing import Serializable
+from asym_rlpo.utils.checkpointing import Serializer
 
 
-class DiscreteDispenser(Serializable):
+class DiscreteDispenser:
     """Dispenses `True` no more than once every `n` steps."""
 
     def __init__(self, n: int):
@@ -17,15 +18,17 @@ class DiscreteDispenser(Serializable):
 
         return False
 
-    def state_dict(self):
+
+class DiscreteDispenserSerializer(Serializer[DiscreteDispenser]):
+    def serialize(self, obj: DiscreteDispenser) -> Dict:
         return {
-            'n': self.n,
-            'next_i': self.next_i,
+            'n': obj.n,
+            'next_i': obj.next_i,
         }
 
-    def load_state_dict(self, data):
-        self.n = data['n']
-        self.next_i = data['next_i']
+    def deserialize(self, obj: DiscreteDispenser, data: Dict):
+        obj.n = data['n']
+        obj.next_i = data['next_i']
 
 
 class TimeDispenser:

@@ -1,14 +1,12 @@
 import abc
 import os
 import pickle
-from typing import Any
+from typing import Any, Dict, Generic, TypeVar
 
 
 def save_data(filename: str, data: Any):
-    try:
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-    except FileNotFoundError:
-        pass
+    dirname = os.path.dirname(filename)
+    os.makedirs(dirname, exist_ok=True)
 
     with open(filename, 'wb') as f:
         pickle.dump(data, f)
@@ -19,11 +17,14 @@ def load_data(filename: str) -> Any:
         return pickle.load(f)
 
 
-class Serializable(metaclass=abc.ABCMeta):
+T = TypeVar('T')
+
+
+class Serializer(Generic[T], metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def state_dict(self):
+    def serialize(self, obj: T) -> Dict:
         assert False
 
     @abc.abstractmethod
-    def load_state_dict(self, data):
+    def deserialize(self, obj: T, data: Dict):
         assert False

@@ -19,18 +19,23 @@ from asym_rlpo.evaluation import evaluate_returns
 from asym_rlpo.q_estimators import q_estimator_factory
 from asym_rlpo.sampling import sample_episodes
 from asym_rlpo.utils.aggregate import average
-from asym_rlpo.utils.checkpointing import Serializable, load_data, save_data
+from asym_rlpo.utils.checkpointing import Serializer, load_data, save_data
 from asym_rlpo.utils.config import get_config
 from asym_rlpo.utils.device import get_device
-from asym_rlpo.utils.dispenser import DiscreteDispenser, TimeDispenser
+from asym_rlpo.utils.dispenser import (
+    DiscreteDispenser,
+    DiscreteDispenserSerializer,
+    TimeDispenser,
+)
 from asym_rlpo.utils.running_average import (
     InfiniteRunningAverage,
     RunningAverage,
+    RunningAverageSerializer,
     WindowRunningAverage,
 )
 from asym_rlpo.utils.scheduling import make_schedule
-from asym_rlpo.utils.timer import Timer
-from asym_rlpo.utils.wandb_logger import WandbLogger
+from asym_rlpo.utils.timer import Timer, TimerSerializer
+from asym_rlpo.utils.wandb_logger import WandbLogger, WandbLoggerSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +170,7 @@ def parse_args():
 
 
 @dataclass
-class XStats(Serializable):
+class XStats:
     epoch: int = 0
     simulation_episodes: int = 0
     simulation_timesteps: int = 0
@@ -176,21 +181,20 @@ class XStats(Serializable):
     def asdict(self):
         return asdict(self)
 
-    def state_dict(self):
-        return self.asdict()
 
-    def load_state_dict(self, data):
-        self.epoch = data['epoch']
-        self.simulation_episodes = data['simulation_episodes']
-        self.simulation_timesteps = data['simulation_timesteps']
-        self.optimizer_steps = data['optimizer_steps']
-        self.training_episodes = data['training_episodes']
-        self.training_timesteps = data['training_timesteps']
+class XStatsSerializer(Serializer[XStats]):
+    def serialize(self, obj: XStats) -> Dict:
+        return obj.asdict()
+
+    def deserialize(self, obj: XStats, data: Dict):
+        obj.epoch = data['epoch']
+        obj.simulation_episodes = data['simulation_episodes']
+        obj.simulation_timesteps = data['simulation_timesteps']
+        obj.optimizer_steps = data['optimizer_steps']
+        obj.training_episodes = data['training_episodes']
+        obj.training_timesteps = data['training_timesteps']
 
 
-# NOTE:  namedtuple does not allow multiple inheritance.. luckily Serializable
-# is only an interface...
-# class RunState(NamedTuple, Serializable):
 class RunState(NamedTuple):
     env: Environment
     algo: A2C_ABC
@@ -202,45 +206,67 @@ class RunState(NamedTuple):
     running_averages: Dict[str, RunningAverage]
     dispensers: Dict[str, DiscreteDispenser]
 
-    def state_dict(self):
+
+class RunStateSerializer(Serializer[RunState]):
+    def __init__(self):
+        self.wandb_logger_serializer = WandbLoggerSerializer()
+        self.xstats_serializer = XStatsSerializer()
+        self.timer_serializer = TimerSerializer()
+        self.running_average_serializer = RunningAverageSerializer()
+        self.dispenser_serializer = DiscreteDispenserSerializer()
+
+    def serialize(self, obj: RunState) -> Dict:
         return {
-            'models': self.algo.models.state_dict(),
-            'target_models': self.algo.target_models.state_dict(),
-            'optimizer_actor': self.optimizer_actor.state_dict(),
-            'optimizer_critic': self.optimizer_critic.state_dict(),
-            'wandb_logger': self.wandb_logger.state_dict(),
-            'xstats': self.xstats.state_dict(),
-            'timer': self.timer.state_dict(),
+            'models': obj.algo.models.state_dict(),
+            'target_models': obj.algo.target_models.state_dict(),
+            'optimizer_actor': obj.optimizer_actor.state_dict(),
+            'optimizer_critic': obj.optimizer_critic.state_dict(),
+            'wandb_logger': self.wandb_logger_serializer.serialize(
+                obj.wandb_logger
+            ),
+            'xstats': self.xstats_serializer.serialize(obj.xstats),
+            'timer': self.timer_serializer.serialize(obj.timer),
             'running_averages': {
-                k: v.state_dict() for k, v in self.running_averages.items()
+                k: self.running_average_serializer.serialize(v)
+                for k, v in obj.running_averages.items()
             },
             'dispensers': {
-                k: v.state_dict() for k, v in self.dispensers.items()
+                k: self.dispenser_serializer.serialize(v)
+                for k, v in obj.dispensers.items()
             },
         }
 
-    def load_state_dict(self, data):
-        self.algo.models.load_state_dict(data['models'])
-        self.algo.target_models.load_state_dict(data['target_models'])
-        self.optimizer_actor.load_state_dict(data['optimizer_actor'])
-        self.optimizer_critic.load_state_dict(data['optimizer_critic'])
-        self.wandb_logger.load_state_dict(data['wandb_logger'])
-        self.xstats.load_state_dict(data['xstats'])
-        self.timer.load_state_dict(data['timer'])
+    def deserialize(self, obj: RunState, data: Dict):
+        obj.algo.models.load_state_dict(data['models'])
+        obj.algo.target_models.load_state_dict(data['target_models'])
+        obj.optimizer_actor.load_state_dict(data['optimizer_actor'])
+        obj.optimizer_critic.load_state_dict(data['optimizer_critic'])
+        self.wandb_logger_serializer.deserialize(
+            obj.wandb_logger,
+            data['wandb_logger'],
+        )
+        self.xstats_serializer.deserialize(obj.xstats, data['xstats'])
+        self.timer_serializer.deserialize(obj.timer, data['timer'])
 
         data_keys = data['running_averages'].keys()
-        self_keys = self.running_averages.keys()
-        if set(data_keys) != set(self_keys):
+        obj_keys = obj.running_averages.keys()
+        if set(data_keys) != set(obj_keys):
             raise RuntimeError()
-        for k, running_average in self.running_averages.items():
-            running_average.load_state_dict(data['running_averages'][k])
+        for k, running_average in obj.running_averages.items():
+            self.running_average_serializer.deserialize(
+                running_average,
+                data['running_averages'][k],
+            )
 
         data_keys = data['dispensers'].keys()
-        self_keys = self.dispensers.keys()
-        if set(data_keys) != set(self_keys):
+        obj_keys = obj.dispensers.keys()
+        if set(data_keys) != set(obj_keys):
             raise RuntimeError()
-        for k, dispenser in self.dispensers.items():
-            dispenser.load_state_dict(data['dispensers'][k])
+        for k, dispenser in obj.dispensers.items():
+            self.dispenser_serializer.deserialize(
+                dispenser,
+                data['dispensers'][k],
+            )
 
 
 def setup() -> RunState:
@@ -315,12 +341,13 @@ def save_checkpoint(runstate: RunState):
         assert wandb.run is not None
 
         logger.info('checkpointing...')
+        runstate_serializer = RunStateSerializer()
         checkpoint = {
             'metadata': {
                 'config': config._as_dict(),
                 'wandb_id': wandb.run.id,
             },
-            'data': runstate.state_dict(),
+            'data': runstate_serializer.serialize(runstate),
         }
         save_data(config.checkpoint, checkpoint)
         logger.info('checkpointing DONE')
@@ -498,7 +525,7 @@ def run(runstate: RunState) -> bool:
         ]
         critic_loss = average(losses)
         critic_loss.backward()
-        critic_gradient_norm = nn.utils.clip_grad_norm_(
+        critic_gradient_norm = nn.utils.clip_grad.clip_grad_norm_(
             algo.models.parameters(), max_norm=config.optim_max_norm
         )
         optimizer_critic.step()
@@ -520,7 +547,7 @@ def run(runstate: RunState) -> bool:
 
         loss = actor_loss + weight_negentropy * negentropy_loss
         loss.backward()
-        actor_gradient_norm = nn.utils.clip_grad_norm_(
+        actor_gradient_norm = nn.utils.clip_grad.clip_grad_norm_(
             algo.models.parameters(), max_norm=config.optim_max_norm
         )
         optimizer_actor.step()
@@ -614,7 +641,8 @@ def main():
                 )
 
             logger.debug('updating runstate from checkpoint')
-            runstate.load_state_dict(checkpoint['data'])
+            runstate_serializer = RunStateSerializer()
+            runstate_serializer.deserialize(runstate, checkpoint['data'])
 
         logger.info('run...')
         done = run(runstate)

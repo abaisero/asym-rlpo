@@ -1,9 +1,10 @@
 import time
+from typing import Dict
 
-from asym_rlpo.utils.checkpointing import Serializable
+from asym_rlpo.utils.checkpointing import Serializer
 
 
-class Timer(Serializable):
+class Timer:
     def __init__(self):
         self.reset()
 
@@ -18,8 +19,10 @@ class Timer(Serializable):
     def hours(self) -> float:
         return self.seconds / 3600
 
-    def state_dict(self):
-        return {'seconds': self.seconds}
 
-    def load_state_dict(self, data):
-        self.start = time.time() - data['seconds']
+class TimerSerializer(Serializer[Timer]):
+    def serialize(self, obj: Timer) -> Dict:
+        return {'seconds': obj.seconds}
+
+    def deserialize(self, obj: Timer, data: Dict):
+        obj.start = time.time() - data['seconds']

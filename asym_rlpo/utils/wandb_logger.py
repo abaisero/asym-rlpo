@@ -1,9 +1,11 @@
+from typing import Dict
+
 import wandb
 
-from asym_rlpo.utils.checkpointing import Serializable
+from asym_rlpo.utils.checkpointing import Serializer
 
 
-class WandbLogger(Serializable):
+class WandbLogger:
     def __init__(self, step=0):
         self.step = step
 
@@ -11,8 +13,10 @@ class WandbLogger(Serializable):
         wandb.log(*args, step=self.step, **kwargs)
         self.step += 1
 
-    def state_dict(self):
-        return {'step': self.step}
 
-    def load_state_dict(self, data):
-        self.step = data['step']
+class WandbLoggerSerializer(Serializer[WandbLogger]):
+    def serialize(self, obj: WandbLogger) -> Dict:
+        return {'step': obj.step}
+
+    def deserialize(self, obj: WandbLogger, data: Dict):
+        obj.step = data['step']
