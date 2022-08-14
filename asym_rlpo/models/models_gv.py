@@ -2,7 +2,7 @@ import torch.nn as nn
 
 from asym_rlpo.envs import Environment, LatentType
 from asym_rlpo.modules import make_module
-from asym_rlpo.representations.embedding import EmbeddingRepresentation
+from asym_rlpo.representations.empty import EmptyRepresentation
 from asym_rlpo.representations.gv import (
     GV_Memory_Representation,
     GV_Representation,
@@ -41,7 +41,7 @@ def _make_policy_model(in_size, out_size) -> nn.Module:
 def _make_representation_models(env: Environment) -> nn.ModuleDict:
     config = get_config()
 
-    action_model = EmbeddingRepresentation(env.action_space.n, 1)
+    action_model = EmptyRepresentation()
     observation_model = GV_Representation(
         env.observation_space,
         [f'grid-{config.gv_state_grid_model_type}', 'item'],
