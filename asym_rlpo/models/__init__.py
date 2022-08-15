@@ -3,18 +3,12 @@ from typing import Iterable, Optional
 import torch.nn as nn
 
 from asym_rlpo.envs import Environment, EnvironmentType
-from asym_rlpo.models.models_extra_carflag import (
-    make_models as make_models_extra_carflag,
-)
-from asym_rlpo.models.models_extra_cleaner import (
-    make_models as make_models_extra_cleaner,
-)
-from asym_rlpo.models.models_extra_dectiger import (
-    make_models as make_models_extra_dectiger,
-)
-from asym_rlpo.models.models_flat import make_models as make_models_flat
-from asym_rlpo.models.models_gv import make_models as make_models_gv
-from asym_rlpo.models.models_openai import make_models as make_models_openai
+from asym_rlpo.models.carflag import make_models as make_models_carflag
+from asym_rlpo.models.cleaner import make_models as make_models_cleaner
+from asym_rlpo.models.dectiger import make_models as make_models_dectiger
+from asym_rlpo.models.flat import make_models as make_models_flat
+from asym_rlpo.models.gv import make_models as make_models_gv
+from asym_rlpo.models.openai import make_models as make_models_openai
 from asym_rlpo.utils.debugging import checkraise
 
 
@@ -31,13 +25,13 @@ def make_models(
         models = make_models_openai(env)
 
     elif env.type is EnvironmentType.EXTRA_DECTIGER:
-        models = make_models_extra_dectiger(env)
+        models = make_models_dectiger(env)
 
     elif env.type is EnvironmentType.EXTRA_CLEANER:
-        models = make_models_extra_cleaner(env)
+        models = make_models_cleaner(env)
 
     elif env.type is EnvironmentType.EXTRA_CARFLAG:
-        models = make_models_extra_carflag(env)
+        models = make_models_carflag(env)
 
     elif env.type is EnvironmentType.FLAT:
         models = make_models_flat(env)
