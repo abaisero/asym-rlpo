@@ -8,6 +8,7 @@ from asym_rlpo.representations.gv import (
     GV_Representation,
 )
 from asym_rlpo.representations.history import GRUHistoryRepresentation
+from asym_rlpo.representations.interaction import InteractionRepresentation
 from asym_rlpo.representations.normalization import NormalizationRepresentation
 from asym_rlpo.representations.resize import ResizeRepresentation
 from asym_rlpo.utils.config import get_config
@@ -59,11 +60,10 @@ def _make_representation_models(env: Environment) -> nn.ModuleDict:
         )
     )
 
-    history_model = GRUHistoryRepresentation(
-        action_model,
-        observation_model,
-        hidden_size=64,
+    interaction_model = InteractionRepresentation(
+        action_model, observation_model
     )
+    history_model = GRUHistoryRepresentation(interaction_model, hidden_size=64)
 
     # resize history and state models
     hs_features_dim: int = config.hs_features_dim

@@ -4,6 +4,7 @@ from asym_rlpo.envs import Environment
 from asym_rlpo.modules import make_module
 from asym_rlpo.representations.history import GRUHistoryRepresentation
 from asym_rlpo.representations.identity import IdentityRepresentation
+from asym_rlpo.representations.interaction import InteractionRepresentation
 from asym_rlpo.representations.normalization import NormalizationRepresentation
 from asym_rlpo.representations.onehot import OneHotRepresentation
 from asym_rlpo.representations.resize import ResizeRepresentation
@@ -50,11 +51,10 @@ def _make_representation_models(env: Environment) -> nn.ModuleDict:
     action_model = OneHotRepresentation(env.action_space)
     observation_model = IdentityRepresentation(env.observation_space)
     latent_model = IdentityRepresentation(env.latent_space)
-    history_model = GRUHistoryRepresentation(
-        action_model,
-        observation_model,
-        hidden_size=128,
+    interaction_model = InteractionRepresentation(
+        action_model, observation_model
     )
+    history_model = GRUHistoryRepresentation(interaction_model, hidden_size=128)
 
     # resize history and state models
     if hs_features_dim:
