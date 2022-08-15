@@ -23,7 +23,5 @@ class IdentityRepresentation(Representation):
     def dim(self):
         return self.__out_dim
 
-    def forward(  # pylint: disable=no-self-use
-        self, inputs: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         return inputs

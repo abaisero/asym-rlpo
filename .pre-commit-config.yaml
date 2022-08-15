@@ -7,10 +7,10 @@ repos:
     -   id: no-commit
         exclude: pre-commit-config.yaml
 -   repo: https://github.com/psf/black
-    rev: 20.8b1
+    rev: 22.3.0
     hooks:
     -   id: black
 -   repo: https://github.com/PyCQA/isort 
-    rev: 5.7.0
+    rev: 5.10.1
     hooks:
     -   id: isort
