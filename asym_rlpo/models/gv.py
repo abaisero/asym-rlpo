@@ -1,7 +1,7 @@
 import torch.nn as nn
 
 from asym_rlpo.envs import Environment, LatentType
-from asym_rlpo.modules import make_module
+from asym_rlpo.modules.mlp import make_mlp
 from asym_rlpo.representations.empty import EmptyRepresentation
 from asym_rlpo.representations.gv import (
     GV_Memory_Representation,
@@ -15,28 +15,15 @@ from asym_rlpo.utils.config import get_config
 
 
 def _make_q_model(in_size, out_size) -> nn.Module:
-    return nn.Sequential(
-        make_module('linear', 'relu', in_size, 512),
-        nn.ReLU(),
-        make_module('linear', 'linear', 512, out_size),
-    )
+    return make_mlp([in_size, 512, out_size], ['relu', 'identity'])
 
 
 def _make_v_model(in_size) -> nn.Module:
-    return nn.Sequential(
-        make_module('linear', 'relu', in_size, 512),
-        nn.ReLU(),
-        make_module('linear', 'linear', 512, 1),
-    )
+    return make_mlp([in_size, 512, 1], ['relu', 'identity'])
 
 
 def _make_policy_model(in_size, out_size) -> nn.Module:
-    return nn.Sequential(
-        make_module('linear', 'relu', in_size, 512),
-        nn.ReLU(),
-        make_module('linear', 'linear', 512, out_size),
-        nn.LogSoftmax(dim=-1),
-    )
+    return make_mlp([in_size, 512, out_size], ['relu', 'logsoftmax'])
 
 
 def _make_representation_models(env: Environment) -> nn.ModuleDict:

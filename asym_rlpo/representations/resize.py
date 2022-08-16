@@ -1,6 +1,4 @@
-import torch.nn as nn
-
-from asym_rlpo.modules import make_module
+from asym_rlpo.modules.mlp import make_mlp
 
 from .base import Representation
 
@@ -9,10 +7,7 @@ class ResizeRepresentation(Representation):
     def __init__(self, representation: Representation, dim: int):
         super().__init__()
         self._representation = representation
-        self._resize_model = nn.Sequential(
-            make_module('linear', 'relu', representation.dim, dim),
-            nn.ReLU(),
-        )
+        self._resize_model = make_mlp([representation.dim, dim], ['relu'])
         self._dim = dim
 
     @property

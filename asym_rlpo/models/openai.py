@@ -1,7 +1,7 @@
 import torch.nn as nn
 
 from asym_rlpo.envs import Environment
-from asym_rlpo.modules import make_module
+from asym_rlpo.modules.mlp import make_mlp
 from asym_rlpo.representations.history import GRUHistoryRepresentation
 from asym_rlpo.representations.identity import IdentityRepresentation
 from asym_rlpo.representations.interaction import InteractionRepresentation
@@ -12,33 +12,17 @@ from asym_rlpo.utils.config import get_config
 
 
 def _make_q_model(in_size, out_size):
-    return nn.Sequential(
-        make_module('linear', 'relu', in_size, 512),
-        nn.ReLU(),
-        make_module('linear', 'relu', 512, 256),
-        nn.ReLU(),
-        make_module('linear', 'linear', 256, out_size),
-    )
+    return make_mlp([in_size, 512, 256, out_size], ['relu', 'relu', 'identity'])
 
 
 def _make_v_model(in_size):
-    return nn.Sequential(
-        make_module('linear', 'relu', in_size, 512),
-        nn.ReLU(),
-        make_module('linear', 'relu', 512, 256),
-        nn.ReLU(),
-        make_module('linear', 'linear', 256, 1),
-    )
+    return make_mlp([in_size, 512, 256, 1], ['relu', 'relu', 'identity'])
 
 
 def _make_policy_model(in_size, out_size):
-    return nn.Sequential(
-        make_module('linear', 'relu', in_size, 512),
-        nn.ReLU(),
-        make_module('linear', 'relu', 512, 256),
-        nn.ReLU(),
-        make_module('linear', 'linear', 256, out_size),
-        nn.LogSoftmax(dim=-1),
+    return make_mlp(
+        [in_size, 512, 256, out_size],
+        ['relu', 'relu', 'logsoftmax'],
     )
 
 

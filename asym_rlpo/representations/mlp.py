@@ -2,11 +2,9 @@ import itertools as itt
 from typing import Sequence
 
 import gym
-import more_itertools as mitt
 import torch
-import torch.nn as nn
 
-from asym_rlpo.modules import make_module
+from asym_rlpo.modules.mlp import make_mlp
 from asym_rlpo.utils.debugging import checkraise
 
 from .base import Representation
@@ -30,12 +28,8 @@ class MLPRepresentation(Representation):
 
         (input_dim,) = input_space.shape
         self.dims = list(itt.chain([input_dim], dims))
-
-        modules = mitt.flatten(
-            (make_module('linear', 'relu', in_dim, out_dim), nn.ReLU())
-            for in_dim, out_dim in mitt.pairwise(self.dims)
-        )
-        self.model = nn.Sequential(*modules)
+        nonlinearities = ['relu'] * len(dims)
+        self.model = make_mlp(self.dims, nonlinearities)
 
     @property
     def dim(self):

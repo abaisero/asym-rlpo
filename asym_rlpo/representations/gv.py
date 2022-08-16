@@ -4,12 +4,11 @@ from typing import Dict, Iterable, List, Union
 
 import gym
 import gym.spaces
-import more_itertools as mitt
 import torch
 import torch.nn as nn
 
 import asym_rlpo.generalized_torch as gtorch
-from asym_rlpo.modules import make_module
+from asym_rlpo.modules.mlp import make_mlp
 from asym_rlpo.representations.cat import CatRepresentation
 from asym_rlpo.representations.embedding import EmbeddingRepresentation
 from asym_rlpo.utils.convert import numpy2torch
@@ -74,15 +73,10 @@ class GV_Representation(Representation):
         self.fc_model: nn.Module
 
         if len(layers) > 0:
-            dims = [self.cat_representation.dim] + layers
-            linear_modules = [
-                make_module('linear', 'relu', in_dim, out_dim)
-                for in_dim, out_dim in mitt.pairwise(dims)
-            ]
-            relu_modules = [nn.ReLU() for _ in linear_modules]
-            modules = mitt.interleave(linear_modules, relu_modules)
-            self.fc_model = nn.Sequential(*modules)
-            self._dim = dims[-1]
+            sizes = [self.cat_representation.dim] + layers
+            nonlinearities = ['relu'] * len(layers)
+            self.fc_model = make_mlp(sizes, nonlinearities)
+            self._dim = sizes[-1]
 
         else:
             self.fc_model = nn.Identity()
