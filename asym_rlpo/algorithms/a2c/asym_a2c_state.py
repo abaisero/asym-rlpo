@@ -11,6 +11,7 @@ class AsymA2C_State(A2C_ABC):
         'agent': [
             'action_model',
             'observation_model',
+            'interaction_model',
             'history_model',
             'policy_model',
         ],
@@ -18,6 +19,7 @@ class AsymA2C_State(A2C_ABC):
             'latent_model',
             'action_model',
             'observation_model',
+            'interaction_model',
             'history_model',
             'vz_model',
         ],

@@ -61,6 +61,11 @@ def parse_args():
     parser.add_argument('--algo-label', default=None)
 
     # truncated histories
+    parser.add_argument(
+        '--history-model',
+        choices=['rnn', 'gru', 'attention'],
+        default='gru',
+    )
     parser.add_argument('--truncated-histories', action='store_true')
     parser.add_argument('--truncated-histories-n', type=int, default=-1)
 

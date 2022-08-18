@@ -18,8 +18,7 @@ from ..base import Algorithm_ABC
 class DQN_ABC(Algorithm_ABC):
     def target_policy(self) -> QhPolicy:
         history_integrator = self.make_history_integrator(
-            self.models.agent.action_model,
-            self.models.agent.observation_model,
+            self.models.agent.interaction_model,
             self.models.agent.history_model,
         )
         return QhPolicy(history_integrator, self.models.agent.qh_model)
@@ -28,8 +27,7 @@ class DQN_ABC(Algorithm_ABC):
         self, action_space: gym.spaces.Discrete
     ) -> EpsilonGreedyQhPolicy:
         history_integrator = self.make_history_integrator(
-            self.models.agent.action_model,
-            self.models.agent.observation_model,
+            self.models.agent.interaction_model,
             self.models.agent.history_model,
         )
         return EpsilonGreedyQhPolicy(

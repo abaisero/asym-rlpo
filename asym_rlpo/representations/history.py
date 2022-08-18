@@ -1,58 +1,39 @@
 from __future__ import annotations
 
-import torch.nn as nn
-
 from .base import Representation
+from .sequence import SequenceRepresentation, make_sequence_model
 
 
 class HistoryRepresentation(Representation):
+    # TODO where is interaction_model used...?
+
     def __init__(
         self,
-        interaction_model: Representation,
-        rnn: nn.Module,
+        sequence_model: SequenceRepresentation,
     ):
-        # crease a separate SequenceModule thingie which will encompass various
-        # possibilities;  it just receives a sequence as input and returns a
-        # sequence as output..
         super().__init__()
-        self.interaction_model = interaction_model
-        self.rnn = rnn
-
-    @staticmethod
-    def make_rnn(
-        interaction_model: Representation,
-        *,
-        hidden_size: int,
-        num_layers: int = 1,
-        nonlinearity: str = 'relu',
-    ) -> HistoryRepresentation:
-        rnn = nn.RNN(
-            input_size=interaction_model.dim,
-            hidden_size=hidden_size,
-            num_layers=num_layers,
-            nonlinearity=nonlinearity,
-            batch_first=True,
-        )
-        return HistoryRepresentation(interaction_model, rnn)
-
-    @staticmethod
-    def make_gru(
-        interaction_model: Representation,
-        *,
-        hidden_size: int,
-        num_layers: int = 1,
-    ) -> HistoryRepresentation:
-        gru = nn.GRU(
-            input_size=interaction_model.dim,
-            hidden_size=hidden_size,
-            num_layers=num_layers,
-            batch_first=True,
-        )
-        return HistoryRepresentation(interaction_model, gru)
+        self.sequence_model = sequence_model
 
     @property
     def dim(self):
-        return self.rnn.hidden_size
+        return self.sequence_model.dim
 
     def forward(self, inputs, *, hidden=None):
-        return self.rnn(inputs, hidden)
+        return self.sequence_model(inputs, hidden)
+
+
+def make_history_representation(
+    name: str,
+    interaction_model: Representation,
+    dim: int,
+    **kwargs,
+) -> HistoryRepresentation:
+    """makes a history representation"""
+
+    sequence_model = make_sequence_model(
+        name,
+        interaction_model.dim,
+        dim,
+        **kwargs,
+    )
+    return HistoryRepresentation(sequence_model)

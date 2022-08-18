@@ -6,17 +6,20 @@ import torch
 
 import asym_rlpo.generalized_torch as gtorch
 from asym_rlpo.data import TorchObservation
-from asym_rlpo.representations.base import Representation
+from asym_rlpo.representations.history import HistoryRepresentation
+from asym_rlpo.representations.interaction import InteractionRepresentation
 
 
-def compute_input_features(
-    action_model: Representation,
-    observation_model: Representation,
+def compute_interaction_features(
+    interaction_model: InteractionRepresentation,
     action: Optional[torch.Tensor],
     observation: TorchObservation,
     *,
     device: torch.device,
 ) -> torch.Tensor:
+
+    action_model = interaction_model.action_model
+    observation_model = interaction_model.observation_model
 
     observation_features = observation_model(gtorch.to(observation, device))
     batch_shape = observation_features.shape[:-1]
@@ -25,60 +28,67 @@ def compute_input_features(
         if action is None
         else action_model(action.to(device))
     )
-    input_features = torch.cat([action_features, observation_features], dim=-1)
+    interaction_features = torch.cat(
+        [action_features, observation_features], dim=-1
+    )
 
-    return input_features
+    return interaction_features
 
 
 def compute_full_history_features(
-    action_model: Representation,
-    observation_model: Representation,
-    history_model: Representation,
+    interaction_model: InteractionRepresentation,
+    history_model: HistoryRepresentation,
     actions: torch.Tensor,
     observations: TorchObservation,
 ) -> torch.Tensor:
 
-    action_features = action_model(actions)
+    action_features = interaction_model.action_model(actions)
     action_features = action_features.roll(1, 0)
     action_features[0, :] = 0.0
-    observation_features = observation_model(observations)
+    observation_features = interaction_model.observation_model(observations)
 
-    inputs = torch.cat([action_features, observation_features], dim=-1)
-    history_features, _ = history_model(inputs.unsqueeze(0))
+    interaction_features = torch.cat(
+        [action_features, observation_features],
+        dim=-1,
+    )
+    history_features, _ = history_model(interaction_features.unsqueeze(0))
     history_features = history_features.squeeze(0)
 
     return history_features
 
 
 def compute_truncated_history_features(
-    action_model: Representation,
-    observation_model: Representation,
-    history_model: Representation,
+    interaction_model: InteractionRepresentation,
+    history_model: HistoryRepresentation,
     actions: torch.Tensor,
     observations: TorchObservation,
     *,
     n: int,
 ) -> torch.Tensor:
-
-    action_features = action_model(actions)
+    action_features = interaction_model.action_model(actions)
     action_features = action_features.roll(1, 0)
     action_features[0, :] = 0.0
-    observation_features = observation_model(observations)
+    observation_features = interaction_model.observation_model(observations)
 
-    inputs = torch.cat([action_features, observation_features], dim=-1)
-    padding = torch.zeros_like(inputs[0].expand(n - 1, -1))
-    inputs = torch.cat([padding, inputs], dim=0).unfold(0, n, 1)
-    inputs = inputs.swapaxes(-2, -1)
-    history_features, _ = history_model(inputs)
+    interaction_features = torch.cat(
+        [action_features, observation_features],
+        dim=-1,
+    )
+    padding = torch.zeros_like(interaction_features[0].expand(n - 1, -1))
+    interaction_features = torch.cat(
+        [padding, interaction_features],
+        dim=0,
+    ).unfold(0, n, 1)
+    interaction_features = interaction_features.swapaxes(-2, -1)
+    history_features, _ = history_model(interaction_features)
     history_features = history_features[:, -1]
 
     return history_features
 
 
 def compute_history_features(
-    action_model: Representation,
-    observation_model: Representation,
-    history_model: Representation,
+    interaction_model: InteractionRepresentation,
+    history_model: HistoryRepresentation,
     actions: torch.Tensor,
     observations: TorchObservation,
     *,
@@ -88,8 +98,7 @@ def compute_history_features(
 
     return (
         compute_truncated_history_features(
-            action_model,
-            observation_model,
+            interaction_model,
             history_model,
             actions,
             observations,
@@ -97,8 +106,7 @@ def compute_history_features(
         )
         if truncated
         else compute_full_history_features(
-            action_model,
-            observation_model,
+            interaction_model,
             history_model,
             actions,
             observations,
@@ -109,23 +117,20 @@ def compute_history_features(
 class HistoryIntegrator(metaclass=abc.ABCMeta):
     def __init__(
         self,
-        action_model: Representation,
-        observation_model: Representation,
-        history_model: Representation,
+        interaction_model: InteractionRepresentation,
+        history_model: HistoryRepresentation,
     ):
-        self.action_model = action_model
-        self.observation_model = observation_model
+        self.interaction_model = interaction_model
         self.history_model = history_model
 
-    def compute_input_features(
+    def compute_interaction_features(
         self, action: Optional[torch.Tensor], observation: TorchObservation
     ) -> torch.Tensor:
 
         # the history model is the only one guaranteed to have parameters
         device = next(self.history_model.parameters()).device
-        return compute_input_features(
-            self.action_model,
-            self.observation_model,
+        return compute_interaction_features(
+            self.interaction_model,
             action,
             observation,
             device=device,
@@ -148,33 +153,33 @@ class HistoryIntegrator(metaclass=abc.ABCMeta):
 class FullHistoryIntegrator(HistoryIntegrator):
     def __init__(
         self,
-        action_model: Representation,
-        observation_model: Representation,
-        history_model: Representation,
+        interaction_model: InteractionRepresentation,
+        history_model: HistoryRepresentation,
     ):
         super().__init__(
-            action_model,
-            observation_model,
+            interaction_model,
             history_model,
         )
         self.__features: torch.Tensor
         self.__hidden: torch.Tensor
 
     def reset(self, observation):
-        input_features = self.compute_input_features(
+        interaction_features = self.compute_interaction_features(
             None,
             gtorch.unsqueeze(observation, 0),
         ).unsqueeze(1)
-        self.__features, self.__hidden = self.history_model(input_features)
+        self.__features, self.__hidden = self.history_model(
+            interaction_features
+        )
         self.__features = self.__features.squeeze(0).squeeze(0)
 
     def step(self, action, observation):
-        input_features = self.compute_input_features(
+        interaction_features = self.compute_interaction_features(
             action.unsqueeze(0),
             gtorch.unsqueeze(observation, 0),
         ).unsqueeze(1)
         self.__features, self.__hidden = self.history_model(
-            input_features, hidden=self.__hidden
+            interaction_features, hidden=self.__hidden
         )
         self.__features = self.__features.squeeze(0).squeeze(0)
 
@@ -186,87 +191,80 @@ class FullHistoryIntegrator(HistoryIntegrator):
 class TruncatedHistoryIntegrator(HistoryIntegrator):
     def __init__(
         self,
-        action_model: Representation,
-        observation_model: Representation,
-        history_model: Representation,
+        interaction_model: InteractionRepresentation,
+        history_model: HistoryRepresentation,
         *,
         n: int,
     ):
         super().__init__(
-            action_model,
-            observation_model,
+            interaction_model,
             history_model,
         )
         self.n = n
-        self._input_features_deque: Deque[torch.Tensor] = deque(maxlen=n)
+        self._interaction_features_deque: Deque[torch.Tensor] = deque(maxlen=n)
 
     def reset(self, observation):
-        input_features = self.compute_input_features(
+        interaction_features = self.compute_interaction_features(
             None,
             gtorch.unsqueeze(observation, 0),
         ).squeeze(0)
 
-        self._input_features_deque.clear()
-        self._input_features_deque.extend(
-            torch.zeros(input_features.size(-1)) for _ in range(self.n - 1)
+        self._interaction_features_deque.clear()
+        self._interaction_features_deque.extend(
+            torch.zeros(interaction_features.size(-1))
+            for _ in range(self.n - 1)
         )
 
-        self._input_features_deque.append(input_features)
+        self._interaction_features_deque.append(interaction_features)
 
     def step(self, action, observation):
-        input_features = self.compute_input_features(
+        interaction_features = self.compute_interaction_features(
             action.unsqueeze(0),
             gtorch.unsqueeze(observation, 0),
         ).squeeze(0)
-        self._input_features_deque.append(input_features)
+        self._interaction_features_deque.append(interaction_features)
 
     @property
     def features(self) -> torch.Tensor:
-        assert len(self._input_features_deque) == self.n
+        assert len(self._interaction_features_deque) == self.n
 
-        input_features = torch.stack(
-            tuple(self._input_features_deque)
-        ).unsqueeze(0)
-
-        history_features, _ = self.history_model(input_features)
+        interaction_tensors = tuple(self._interaction_features_deque)
+        interaction_features = torch.stack(interaction_tensors).unsqueeze(0)
+        history_features, _ = self.history_model(interaction_features)
         history_features = history_features.squeeze(0)[-1]
 
         return history_features
 
 
 def make_history_integrator(
-    action_model: Representation,
-    observation_model: Representation,
-    history_model: Representation,
+    interaction_model: InteractionRepresentation,
+    history_model: HistoryRepresentation,
     *,
     truncated_histories: bool,
     truncated_histories_n: int,
 ) -> HistoryIntegrator:
     return (
         TruncatedHistoryIntegrator(
-            action_model,
-            observation_model,
+            interaction_model,
             history_model,
             n=truncated_histories_n,
         )
         if truncated_histories
         else FullHistoryIntegrator(
-            action_model,
-            observation_model,
+            interaction_model,
             history_model,
         )
     )
 
 
 HistoryIntegratorMaker = Callable[
-    [Representation, Representation, Representation],
+    [InteractionRepresentation, HistoryRepresentation],
     HistoryIntegrator,
 ]
 HistoryFeaturesComputer = Callable[
     [
-        Representation,
-        Representation,
-        Representation,
+        InteractionRepresentation,
+        HistoryRepresentation,
         torch.Tensor,
         TorchObservation,
     ],

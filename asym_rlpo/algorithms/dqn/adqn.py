@@ -16,6 +16,7 @@ class ADQN(DQN_ABC):
         'agent': [
             'action_model',
             'observation_model',
+            'interaction_model',
             'history_model',
             'qh_model',
             'latent_model',
@@ -32,8 +33,7 @@ class ADQN(DQN_ABC):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
 
         history_features = self.compute_history_features(
-            models.agent.action_model,
-            models.agent.observation_model,
+            models.agent.interaction_model,
             models.agent.history_model,
             actions,
             observations,

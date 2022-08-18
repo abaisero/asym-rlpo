@@ -19,8 +19,7 @@ from ..base import Algorithm_ABC
 class A2C_ABC(Algorithm_ABC):
     def behavior_policy(self) -> ModelPolicy:
         history_integrator = self.make_history_integrator(
-            self.models.agent.action_model,
-            self.models.agent.observation_model,
+            self.models.agent.interaction_model,
             self.models.agent.history_model,
         )
         return ModelPolicy(
@@ -30,8 +29,7 @@ class A2C_ABC(Algorithm_ABC):
 
     def evaluation_policy(self) -> EpsilonGreedyModelPolicy:
         history_integrator = self.make_history_integrator(
-            self.models.agent.action_model,
-            self.models.agent.observation_model,
+            self.models.agent.interaction_model,
             self.models.agent.history_model,
         )
         return EpsilonGreedyModelPolicy(
@@ -44,8 +42,7 @@ class A2C_ABC(Algorithm_ABC):
     ) -> torch.Tensor:
 
         history_features = self.compute_history_features(
-            models.agent.action_model,
-            models.agent.observation_model,
+            models.agent.interaction_model,
             models.agent.history_model,
             episode.actions,
             episode.observations,

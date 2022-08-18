@@ -1,12 +1,15 @@
-from typing import List, Sequence
+from typing import List, Sequence, Tuple
 
 import more_itertools as mitt
 import torch.nn as nn
+
+from asym_rlpo.modules.skip import SkipSequential
 
 from .init import init_linear_module
 
 # NOTE: the possible values for `nonlinearity` change between some of these
 # functions
+
 
 def make_perceptron_modules(
     in_features: int,
@@ -14,22 +17,24 @@ def make_perceptron_modules(
     nonlinearity: str,
     *args,
     **kwargs,
-) -> List[nn.Module]:
+) -> Tuple[nn.Linear, nn.Module]:
     """creates and initializes a linear module with a nonlinearity"""
 
     module = nn.Linear(in_features, out_features, *args, **kwargs)
 
     if nonlinearity == 'identity':
         init_linear_module(module, 'linear')
-        return [module]
+        # keep the Identity layer seems useless, but it's necessary for potential
+        # skip connections
+        return module, nn.Identity()
 
     if nonlinearity == 'relu':
         init_linear_module(module, 'relu')
-        return [module, nn.ReLU()]
+        return module, nn.ReLU()
 
     if nonlinearity == 'logsoftmax':
         init_linear_module(module, 'linear')
-        return [module, nn.LogSoftmax(dim=-1)]
+        return module, nn.LogSoftmax(dim=-1)
 
     raise ValueError(f'invalid nonlinearity {nonlinearity}')
 
@@ -51,7 +56,7 @@ def make_mlp_modules(
             f'given {len(sizes)} and {len(nonlinearities)}'
         )
 
-    modules = mitt.flatten(
+    perceptron_modules = (
         make_perceptron_modules(
             in_size,
             out_size,
@@ -63,6 +68,7 @@ def make_mlp_modules(
             mitt.pairwise(sizes), nonlinearities
         )
     )
+    modules = sum(perceptron_modules, ())
     return list(modules)
 
 
@@ -70,9 +76,10 @@ def make_mlp(
     sizes: Sequence[int],
     nonlinearities: Sequence[str],
     *args,
+    skip_last: bool = False,
     **kwargs,
 ) -> nn.Sequential:
     """creates and initializes multiple layers of linear modules and nonlinearities"""
 
     modules = make_mlp_modules(sizes, nonlinearities, *args, **kwargs)
-    return nn.Sequential(*modules)
+    return SkipSequential(*modules) if skip_last else nn.Sequential(*modules)

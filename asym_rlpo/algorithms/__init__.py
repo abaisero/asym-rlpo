@@ -14,6 +14,21 @@ from .dqn.adqn_state import ADQN_State, ADQN_State_Bootstrap
 from .dqn.base import DQN_ABC
 from .dqn.dqn import DQN
 
+_a2c_algorithm_classes = {
+    'a2c': A2C,
+    'asym-a2c': AsymA2C,
+    'asym-a2c-state': AsymA2C_State,
+}
+
+_dqn_algorithm_classes = {
+    'dqn': DQN,
+    'adqn': ADQN,
+    'adqn-bootstrap': ADQN_Bootstrap,
+    'adqn-state': ADQN_State,
+    'adqn-state-bootstrap': ADQN_State_Bootstrap,
+    'adqn-short': ADQN_Short,
+}
+
 
 def make_a2c_algorithm(
     name: str,
@@ -34,13 +49,9 @@ def make_a2c_algorithm(
         n=truncated_histories_n,
     )
 
-    if name == 'a2c':
-        algorithm_class = A2C
-    elif name == 'asym-a2c':
-        algorithm_class = AsymA2C
-    elif name == 'asym-a2c-state':
-        algorithm_class = AsymA2C_State
-    else:
+    try:
+        algorithm_class = _a2c_algorithm_classes[name]
+    except KeyError:
         raise ValueError(f'invalid algorithm name {name}')
 
     models = make_models(env, keys=algorithm_class.model_keys)
@@ -70,19 +81,9 @@ def make_dqn_algorithm(
         n=truncated_histories_n,
     )
 
-    if name == 'dqn':
-        algorithm_class = DQN
-    elif name == 'adqn':
-        algorithm_class = ADQN
-    elif name == 'adqn-bootstrap':
-        algorithm_class = ADQN_Bootstrap
-    elif name == 'adqn-state':
-        algorithm_class = ADQN_State
-    elif name == 'adqn-state-bootstrap':
-        algorithm_class = ADQN_State_Bootstrap
-    elif name == 'adqn-short':
-        algorithm_class = ADQN_Short
-    else:
+    try:
+        algorithm_class = _dqn_algorithm_classes[name]
+    except KeyError:
         raise ValueError(f'invalid algorithm name {name}')
 
     models = make_models(env, keys=algorithm_class.model_keys)

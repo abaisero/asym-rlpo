@@ -3,7 +3,7 @@ import torch.nn as nn
 from asym_rlpo.envs import Environment
 from asym_rlpo.modules.mlp import make_mlp
 from asym_rlpo.representations.embedding import EmbeddingRepresentation
-from asym_rlpo.representations.history import HistoryRepresentation
+from asym_rlpo.representations.history import make_history_representation
 from asym_rlpo.representations.identity import IdentityRepresentation
 from asym_rlpo.representations.interaction import InteractionRepresentation
 from asym_rlpo.representations.normalization import NormalizationRepresentation
@@ -39,8 +39,8 @@ def _make_representation_models(env: Environment) -> nn.ModuleDict:
     interaction_model = InteractionRepresentation(
         action_model, observation_model
     )
-    history_model = HistoryRepresentation.make_gru(
-        interaction_model, hidden_size=128
+    history_model = make_history_representation(
+        config.history_model, interaction_model, 128
     )
 
     # resize history and state models
@@ -58,6 +58,7 @@ def _make_representation_models(env: Environment) -> nn.ModuleDict:
             'latent_model': latent_model,
             'action_model': action_model,
             'observation_model': observation_model,
+            'interaction_model': interaction_model,
             'history_model': history_model,
         }
     )

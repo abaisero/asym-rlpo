@@ -30,28 +30,15 @@ class InteractionRepresentation(Representation):
         actions: Optional[torch.Tensor],
         observations: TorchObservation,
     ):
-
-        return (
-            self._forward_actionless(observations=observations)
-            if actions is None
-            else self._forward_actionful(
-                actions=actions, observations=observations
-            )
-        )
-
-    def _forward_actionful(
-        self,
-        *,
-        actions: torch.Tensor,
-        observations: TorchObservation,
-    ):
-        action_features = self.action_model(actions)
         observation_features = self.observation_model(observations)
+        action_features = (
+            self._default_action_features(observation_features)
+            if actions is None
+            else self.action_model(actions)
+        )
         return torch.cat([action_features, observation_features], dim=-1)
 
-    def _forward_actionless(self, *, observations: TorchObservation):
-        observation_features = self.observation_model(observations)
+    def _default_action_features(self, observation_features):
         batch_shape = observation_features.shape[:-1]
         shape = batch_shape + (self.action_model.dim,)
-        action_features = torch.zeros(shape, device=observation_features.device)
-        return torch.cat([action_features, observation_features], dim=-1)
+        return torch.zeros(shape, device=observation_features.device)
