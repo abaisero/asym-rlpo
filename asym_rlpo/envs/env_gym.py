@@ -8,7 +8,7 @@ import gym.spaces
 import gym_pomdps
 
 from asym_rlpo.utils.debugging import checkraise
-from asym_rlpo.wrapper import FlatPaddingWrapper, IndexWrapper
+from asym_rlpo.wrapper import IndexWrapper
 
 from . import extra_hai, extra_lyu
 from .env import (
@@ -41,7 +41,7 @@ def make_gym_env(id: str, *, latent_type: LatentType) -> Environment:
 
         else:
             if isinstance(gym_env.unwrapped, gym_pomdps.POMDP):
-                gym_env = FlatPaddingWrapper(gym_env)
+                gym_env = gym_pomdps.ResetObservationWrapper(gym_env)
                 return GymEnvironment(gym_env, EnvironmentType.FLAT)
 
             if re.fullmatch(r'extra-dectiger-v\d+', gym_env.spec.id):

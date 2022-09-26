@@ -61,32 +61,3 @@ class IndexWrapper(gym.ObservationWrapper):
     def observation(self, observation):
         self.state = observation
         return observation[self._indices]
-
-
-class FlatPaddingWrapper(gym.ObservationWrapper):
-    """FlatPaddingWrapper.
-
-    Takes a gym_pomdps.POMDP and extends the observation space by introducing a
-    novel integer observation to be received upon reset.
-    """
-
-    def __init__(self, env: gym.Env):
-        checkraise(
-            isinstance(env.observation_space, gym.spaces.Discrete),
-            ValueError,
-            'env.observation_space must be Discrete',
-        )
-
-        super().__init__(env)
-
-        assert isinstance(env.observation_space, gym.spaces.Discrete)
-        self.observation_space = gym.spaces.Discrete(
-            env.observation_space.n + 1
-        )
-
-    def observation(self, observation):
-        return (
-            observation
-            if observation is not None
-            else self.observation_space.n - 1
-        )
