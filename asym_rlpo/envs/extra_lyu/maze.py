@@ -134,7 +134,7 @@ class Maze:
         return s
 
     def to_np(self):
-        s = np.zeros((2 * self.height + 1, 2 * self.width + 1), dtype=np.int)
+        s = np.zeros((2 * self.height + 1, 2 * self.width + 1), dtype=int)
         # print(s.shape)
         for col in range(0, 2 * self.width + 1):
             s[0][col] = 1
