@@ -41,7 +41,6 @@ def make_gym_env(id: str, *, latent_type: LatentType) -> Environment:
 
         else:
             if isinstance(gym_env.unwrapped, gym_pomdps.POMDP):
-                gym_env = gym_pomdps.ResetObservationWrapper(gym_env)
                 return GymEnvironment(gym_env, EnvironmentType.FLAT)
 
             if re.fullmatch(r'extra-dectiger-v\d+', gym_env.spec.id):
