@@ -36,3 +36,21 @@ def test_episode_buffer_max_timesteps():
     episode_buffer.append_episode(make_episode(1))
     assert episode_buffer.num_interactions() == 81
     assert episode_buffer.num_episodes() == 2
+
+    episode_buffer.append_episodes(
+        [
+            make_episode(10),
+            make_episode(9),
+        ]
+    )
+    assert episode_buffer.num_interactions() == 100
+    assert episode_buffer.num_episodes() == 4
+
+    episode_buffer.append_episodes(
+        [
+            make_episode(50),
+            make_episode(50),
+        ]
+    )
+    assert episode_buffer.num_interactions() == 100
+    assert episode_buffer.num_episodes() == 2

@@ -151,11 +151,11 @@ class EpisodeBuffer(Generic[Observation, Latent]):
         self.max_timesteps = max_timesteps
         self.__num_interactions = 0
 
-    def num_interactions(self):
-        return self.__num_interactions
-
     def num_episodes(self):
         return len(self.episodes)
+
+    def num_interactions(self):
+        return self.__num_interactions
 
     def _enforce_max_timesteps(self):
         while self.num_interactions() > self.max_timesteps:
@@ -169,6 +169,7 @@ class EpisodeBuffer(Generic[Observation, Latent]):
     def append_episodes(self, episodes: Sequence[Episode[Observation, Latent]]):
         for episode in episodes:
             self.episodes.append(episode)
+            self.__num_interactions += len(episode)
         self._enforce_max_timesteps()
 
     def pop_episode(self) -> Episode[Observation, Latent]:
@@ -180,15 +181,11 @@ class EpisodeBuffer(Generic[Observation, Latent]):
         return random.choice(self.episodes)
 
     def sample_episodes(
-        self, *, num_samples: int, replacement: bool
+        self, num_samples: int, *, replacement: bool
     ) -> List[Episode[Observation, Latent]]:
-
         if replacement:
-            episodes = random.choices(self.episodes, k=num_samples)
+            return random.choices(self.episodes, k=num_samples)
 
-        else:
-            indices = list(range(self.num_episodes()))
-            random.shuffle(indices)
-            episodes = [self.episodes[i] for i in indices[:num_samples]]
-
-        return episodes
+        indices = list(range(self.num_episodes()))
+        random.shuffle(indices)
+        return [self.episodes[i] for i in indices[:num_samples]]

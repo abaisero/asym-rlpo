@@ -17,7 +17,7 @@ from asym_rlpo.algorithms import A2C_ABC, make_a2c_algorithm
 from asym_rlpo.envs import Environment, LatentType, make_env
 from asym_rlpo.evaluation import evaluate_returns
 from asym_rlpo.q_estimators import q_estimator_factory
-from asym_rlpo.sampling import sample_episodes
+from asym_rlpo.sampling import sample_episode, sample_episodes
 from asym_rlpo.utils.aggregate import average
 from asym_rlpo.utils.checkpointing import Serializer, load_data, save_data
 from asym_rlpo.utils.config import get_config
@@ -441,10 +441,9 @@ def run(runstate: RunState) -> bool:
 
         if config.evaluation and xstats.epoch % config.evaluation_period == 0:
             if config.render:
-                sample_episodes(
+                sample_episode(
                     env,
                     evaluation_policy,
-                    num_episodes=1,
                     render=True,
                 )
 

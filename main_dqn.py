@@ -19,7 +19,7 @@ from asym_rlpo.data import EpisodeBuffer
 from asym_rlpo.envs import Environment, LatentType, make_env
 from asym_rlpo.evaluation import evaluate_returns
 from asym_rlpo.policies import Policy, RandomPolicy
-from asym_rlpo.sampling import sample_episodes
+from asym_rlpo.sampling import sample_episode, sample_episodes
 from asym_rlpo.utils.checkpointing import Serializer, load_data, save_data
 from asym_rlpo.utils.config import get_config
 from asym_rlpo.utils.device import get_device
@@ -438,7 +438,7 @@ def run(runstate: RunState) -> bool:
     )
     episode_buffer = EpisodeBuffer(config.episode_buffer_max_timesteps)
     while episode_buffer.num_interactions() < prepopulate_timesteps:
-        (episode,) = sample_episodes(env, prepopulate_policy, num_episodes=1)
+        episode = sample_episode(env, prepopulate_policy)
         episode_buffer.append_episode(episode.torch())
         logger.debug(
             f'episode buffer {episode_buffer.num_interactions():_} timesteps'
@@ -476,10 +476,9 @@ def run(runstate: RunState) -> bool:
         # evaluate target policy
         if config.evaluation and xstats.epoch % config.evaluation_period == 0:
             if config.render:
-                sample_episodes(
+                sample_episode(
                     env,
                     target_policy,
-                    num_episodes=1,
                     render=True,
                 )
 
@@ -571,7 +570,7 @@ def run(runstate: RunState) -> bool:
             optimizer.zero_grad()
 
             episodes = episode_buffer.sample_episodes(
-                num_samples=config.training_num_episodes,
+                config.training_num_episodes,
                 replacement=True,
             )
             episodes = [episode.to(device) for episode in episodes]
