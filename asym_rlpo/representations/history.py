@@ -5,8 +5,6 @@ from .sequence import SequenceRepresentation, make_sequence_model
 
 
 class HistoryRepresentation(Representation):
-    # TODO where is interaction_model used...?
-
     def __init__(
         self,
         sequence_model: SequenceRepresentation,
@@ -19,7 +17,7 @@ class HistoryRepresentation(Representation):
         return self.sequence_model.dim
 
     def forward(self, inputs, *, hidden=None):
-        return self.sequence_model(inputs, hidden)
+        return self.sequence_model(inputs, hidden=hidden)
 
 
 def make_history_representation(

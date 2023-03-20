@@ -5,7 +5,7 @@ from asym_rlpo.utils.config import get_config
 
 # setup config singleton when running tests
 @pytest.fixture(scope='session', autouse=True)
-def execute_before_tests():
+def execute_before_session():
     config = get_config()
     config._update(
         {
@@ -13,3 +13,10 @@ def execute_before_tests():
             'normalize_hs_features': False,
         }
     )
+
+
+# setup config singleton when running tests
+@pytest.fixture(autouse=True)
+def execute_before_tests():
+    config = get_config()
+    config._update({'history_model': 'rnn'})

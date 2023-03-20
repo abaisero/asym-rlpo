@@ -1,4 +1,5 @@
 import functools
+from typing import Optional, Type
 
 from asym_rlpo.envs import Environment
 from asym_rlpo.features import compute_history_features, make_history_integrator
@@ -30,30 +31,36 @@ _dqn_algorithm_classes = {
 }
 
 
+def get_a2c_algorithm_class(name: str) -> Type[A2C_ABC]:
+    try:
+        return _a2c_algorithm_classes[name]
+    except KeyError:
+        raise ValueError(f'invalid algorithm name {name}')
+
+
+def get_dqn_algorithm_class(name: str) -> Type[DQN_ABC]:
+    try:
+        return _dqn_algorithm_classes[name]
+    except KeyError:
+        raise ValueError(f'invalid algorithm name {name}')
+
+
 def make_a2c_algorithm(
     name: str,
     env: Environment,
     *,
-    truncated_histories: bool,
-    truncated_histories_n: int,
+    truncated_histories_n: Optional[int] = None,
 ) -> A2C_ABC:
-
     partial_make_history_integrator = functools.partial(
         make_history_integrator,
-        truncated_histories=truncated_histories,
         truncated_histories_n=truncated_histories_n,
     )
     partial_compute_history_features = functools.partial(
         compute_history_features,
-        truncated=truncated_histories,
         n=truncated_histories_n,
     )
 
-    try:
-        algorithm_class = _a2c_algorithm_classes[name]
-    except KeyError:
-        raise ValueError(f'invalid algorithm name {name}')
-
+    algorithm_class = get_a2c_algorithm_class(name)
     models = make_models(env, keys=algorithm_class.model_keys)
     return algorithm_class(
         models,
@@ -66,26 +73,18 @@ def make_dqn_algorithm(
     name: str,
     env: Environment,
     *,
-    truncated_histories: bool,
-    truncated_histories_n: int,
+    truncated_histories_n: Optional[int] = None,
 ) -> DQN_ABC:
-
     partial_make_history_integrator = functools.partial(
         make_history_integrator,
-        truncated_histories=truncated_histories,
         truncated_histories_n=truncated_histories_n,
     )
     partial_compute_history_features = functools.partial(
         compute_history_features,
-        truncated=truncated_histories,
         n=truncated_histories_n,
     )
 
-    try:
-        algorithm_class = _dqn_algorithm_classes[name]
-    except KeyError:
-        raise ValueError(f'invalid algorithm name {name}')
-
+    algorithm_class = get_dqn_algorithm_class(name)
     models = make_models(env, keys=algorithm_class.model_keys)
     return algorithm_class(
         models,

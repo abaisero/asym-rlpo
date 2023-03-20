@@ -16,6 +16,7 @@ class SequenceRepresentation(Generic[H], Representation):
     def forward(
         self,
         input: torch.Tensor,
+        *,
         hidden=Optional[H],
     ) -> Tuple[torch.Tensor, H]:
         assert False
@@ -38,6 +39,7 @@ class RNNSequenceRepresentation(SequenceRepresentation[torch.Tensor]):
     def forward(
         self,
         input: torch.Tensor,
+        *,
         hidden=Optional[torch.Tensor],
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         return self.rnn(input, hidden)
@@ -60,6 +62,7 @@ class GRUSequenceRepresentation(SequenceRepresentation[torch.Tensor]):
     def forward(
         self,
         input: torch.Tensor,
+        *,
         hidden=Optional[torch.Tensor],
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         return self.gru(input, hidden)
@@ -96,6 +99,7 @@ class AttentionSequenceRepresentation(SequenceRepresentation[torch.Tensor]):
     def forward(
         self,
         input: torch.Tensor,
+        *,
         hidden: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
 

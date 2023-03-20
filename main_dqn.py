@@ -77,8 +77,7 @@ def parse_args():
         choices=['rnn', 'gru', 'attention'],
         default='gru',
     )
-    parser.add_argument('--truncated-histories', action='store_true')
-    parser.add_argument('--truncated-histories-n', type=int, default=-1)
+    parser.add_argument('--truncated-histories-n', type=int, default=None)
 
     # reproducibility
     parser.add_argument('--seed', type=int, default=None)
@@ -299,7 +298,6 @@ def setup() -> RunState:
     algo = make_dqn_algorithm(
         config.algo,
         env,
-        truncated_histories=config.truncated_histories,
         truncated_histories_n=config.truncated_histories_n,
     )
 

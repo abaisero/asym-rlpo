@@ -17,7 +17,6 @@ def compute_interaction_features(
     *,
     device: torch.device,
 ) -> torch.Tensor:
-
     action_model = interaction_model.action_model
     observation_model = interaction_model.observation_model
 
@@ -41,7 +40,6 @@ def compute_full_history_features(
     actions: torch.Tensor,
     observations: TorchObservation,
 ) -> torch.Tensor:
-
     action_features = interaction_model.action_model(actions)
     action_features = action_features.roll(1, 0)
     action_features[0, :] = 0.0
@@ -65,6 +63,9 @@ def compute_truncated_history_features(
     *,
     n: int,
 ) -> torch.Tensor:
+    if n <= 0:
+        raise ValueError(f'invalid truncation value n={n}')
+
     action_features = interaction_model.action_model(actions)
     action_features = action_features.roll(1, 0)
     action_features[0, :] = 0.0
@@ -92,24 +93,22 @@ def compute_history_features(
     actions: torch.Tensor,
     observations: TorchObservation,
     *,
-    truncated: bool,
-    n: int,
+    n: Optional[int] = None,
 ) -> torch.Tensor:
-
     return (
-        compute_truncated_history_features(
+        compute_full_history_features(
+            interaction_model,
+            history_model,
+            actions,
+            observations,
+        )
+        if n is None
+        else compute_truncated_history_features(
             interaction_model,
             history_model,
             actions,
             observations,
             n=n,
-        )
-        if truncated
-        else compute_full_history_features(
-            interaction_model,
-            history_model,
-            actions,
-            observations,
         )
     )
 
@@ -126,7 +125,6 @@ class HistoryIntegrator(metaclass=abc.ABCMeta):
     def compute_interaction_features(
         self, action: Optional[torch.Tensor], observation: TorchObservation
     ) -> torch.Tensor:
-
         # the history model is the only one guaranteed to have parameters
         device = next(self.history_model.parameters()).device
         return compute_interaction_features(
@@ -240,19 +238,18 @@ def make_history_integrator(
     interaction_model: InteractionRepresentation,
     history_model: HistoryRepresentation,
     *,
-    truncated_histories: bool,
-    truncated_histories_n: int,
+    truncated_histories_n: Optional[int] = None,
 ) -> HistoryIntegrator:
     return (
-        TruncatedHistoryIntegrator(
+        FullHistoryIntegrator(
+            interaction_model,
+            history_model,
+        )
+        if truncated_histories_n is None
+        else TruncatedHistoryIntegrator(
             interaction_model,
             history_model,
             n=truncated_histories_n,
-        )
-        if truncated_histories
-        else FullHistoryIntegrator(
-            interaction_model,
-            history_model,
         )
     )
 

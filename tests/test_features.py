@@ -1,81 +1,154 @@
-import itertools as itt
+import functools
+from typing import Optional
 
+import pytest
 import torch
 
-from asym_rlpo.algorithms import make_a2c_algorithm
+from asym_rlpo.algorithms import get_a2c_algorithm_class
 from asym_rlpo.envs import LatentType, make_env
-from asym_rlpo.features import FullHistoryIntegrator, TruncatedHistoryIntegrator
-from asym_rlpo.policies import RandomPolicy
-from asym_rlpo.sampling import sample_episodes
+from asym_rlpo.features import (
+    FullHistoryIntegrator,
+    TruncatedHistoryIntegrator,
+    make_history_integrator,
+)
+from asym_rlpo.models import make_models
+from asym_rlpo.sampling import sample_episode
+from asym_rlpo.utils.config import get_config
 
 
-def test_history_integrators():
-    # checks that full history integrator and reactive history integrator
-    # features are different
+def integer_min(*args: Optional[int]) -> Optional[int]:
+    integer_args = (n for n in args if n is not None)
+    return min(integer_args, default=None)
 
-    max_episode_timesteps = 100
+
+# reducing default tolerance to make tests pass
+torch_isclose = functools.partial(torch.isclose, rtol=1e-05, atol=1e-05)
+
+
+@pytest.mark.parametrize('history_model', ['rnn', 'attention'])
+def test_full_history_integrator(history_model: str):
+    config = get_config()
+    config._update({'history_model': history_model})
+
     env = make_env(
         'PO-pos-CartPole-v1',
         latent_type=LatentType.STATE,
-        max_episode_timesteps=max_episode_timesteps,
+        max_episode_timesteps=100,
     )
-    policy = RandomPolicy(env.action_space)
-    (episode,) = sample_episodes(env, policy, num_episodes=1)
-    episode = episode.torch()
+    episode = sample_episode(env).torch()
 
-    algos = {
-        'full': make_a2c_algorithm(
-            'a2c', env, truncated_histories=False, truncated_histories_n=-1
-        ),
-        'react-2': make_a2c_algorithm(
-            'a2c', env, truncated_histories=True, truncated_histories_n=2
-        ),
-        'react-4': make_a2c_algorithm(
-            'a2c', env, truncated_histories=True, truncated_histories_n=4
-        ),
-    }
-    models = make_a2c_algorithm(
-        'a2c', env, truncated_histories=False, truncated_histories_n=-1
-    ).models
-
-    history_integrators = {
-        k: v.make_history_integrator(
-            models.agent.action_model,
-            models.agent.observation_model,
-            models.agent.history_model,
-        )
-        for k, v in algos.items()
-    }
-
-    assert isinstance(history_integrators['full'], FullHistoryIntegrator)
-    assert isinstance(
-        history_integrators['react-2'], TruncatedHistoryIntegrator
+    algorithm_class = get_a2c_algorithm_class('a2c')
+    models = make_models(env, keys=algorithm_class.model_keys)
+    history_integrator = make_history_integrator(
+        models.agent.interaction_model,
+        models.agent.history_model,
     )
-    assert history_integrators['react-2'].n == 2
-    assert isinstance(
-        history_integrators['react-4'], TruncatedHistoryIntegrator
+
+    assert isinstance(history_integrator, FullHistoryIntegrator)
+
+    history_integrator.reset(episode.observations[0])
+    history_features = history_integrator.features
+    assert history_features.shape == (128,)
+
+
+@pytest.mark.parametrize('history_model', ['rnn', 'attention'])
+@pytest.mark.parametrize('truncated_histories_n', [2, 4, 6])
+def test_truncated_history_integrators(
+    history_model: str,
+    truncated_histories_n: Optional[int],
+):
+    config = get_config()
+    config._update({'history_model': history_model})
+
+    env = make_env(
+        'PO-pos-CartPole-v1',
+        latent_type=LatentType.STATE,
+        max_episode_timesteps=100,
     )
-    assert history_integrators['react-4'].n == 4
+    episode = sample_episode(env).torch()
 
-    for history_integrator in history_integrators.values():
-        history_integrator.reset(episode.observations[0])
+    algorithm_class = get_a2c_algorithm_class('a2c')
+    models = make_models(env, keys=algorithm_class.model_keys)
+    history_integrator = make_history_integrator(
+        models.agent.interaction_model,
+        models.agent.history_model,
+        truncated_histories_n=truncated_histories_n,
+    )
 
-    history_features = (v.features for v in history_integrators.values())
-    pairs = itt.combinations(history_features, 2)
-    for x, y in pairs:
-        assert not torch.isclose(x, y).all()
+    assert isinstance(history_integrator, TruncatedHistoryIntegrator)
+    assert history_integrator.n == truncated_histories_n
+
+    history_integrator.reset(episode.observations[0])
+    history_features = history_integrator.features
+    assert history_features.shape == (128,)
+
+
+@pytest.mark.parametrize('history_model', ['rnn', 'attention'])
+@pytest.mark.parametrize('truncated_histories_n1', [None, 4, 8])
+@pytest.mark.parametrize('truncated_histories_n2', [None, 4, 8])
+def test_history_integrators(
+    history_model: str,
+    truncated_histories_n1: Optional[int],
+    truncated_histories_n2: Optional[int],
+):
+    config = get_config()
+    config._update({'history_model': history_model})
+
+    env = make_env(
+        'PO-pos-CartPole-v1',
+        latent_type=LatentType.STATE,
+        max_episode_timesteps=100,
+    )
+    episode = sample_episode(env).torch()
+
+    # single set of models for both integrators
+    algorithm_class = get_a2c_algorithm_class('a2c')
+    models = make_models(env, keys=algorithm_class.model_keys)
+
+    history_integrator1 = make_history_integrator(
+        models.agent.interaction_model,
+        models.agent.history_model,
+        truncated_histories_n=truncated_histories_n1,
+    )
+    history_integrator2 = make_history_integrator(
+        models.agent.interaction_model,
+        models.agent.history_model,
+        truncated_histories_n=truncated_histories_n2,
+    )
+
+    expected = truncated_histories_n1 == truncated_histories_n2
+
+    observation = episode.observations[0]
+    history_integrator1.reset(observation)
+    history_integrator2.reset(observation)
+
+    history_features1 = history_integrator1.features
+    history_features2 = history_integrator2.features
+    assert torch_isclose(history_features1, history_features2).all() == expected
 
     for t in range(1, len(episode)):
-        for history_integrator in history_integrators.values():
-            history_integrator.step(
-                episode.actions[t - 1], episode.observations[t]
-            )
+        interaction = (episode.actions[t - 1], episode.observations[t])
+        history_integrator1.step(*interaction)
+        history_integrator2.step(*interaction)
 
-        # full and react-n are the same at the nth timestep
-        if t not in (1, 3):
-            history_features = (
-                v.features for v in history_integrators.values()
-            )
-            pairs = itt.combinations(history_features, 2)
-            for x, y in pairs:
-                assert not torch.isclose(x, y).all()
+        # full and truncated-n are the same at the nth timestep
+        same_model = truncated_histories_n1 == truncated_histories_n2
+        non_truncated_model = None in [
+            truncated_histories_n1,
+            truncated_histories_n2,
+        ]
+        min_truncated_histories_n = integer_min(
+            truncated_histories_n1, truncated_histories_n2
+        )
+        equivalent_model = (t + 1) == min_truncated_histories_n
+        # expected result is equality if they are the same model,
+        # or if one model is non-truncated, while the other is truncated,
+        # and at the exact timestep corresponding to the truncation length
+        expected = same_model or (non_truncated_model and equivalent_model)
+
+        history_features1 = history_integrator1.features
+        history_features2 = history_integrator2.features
+        history_features_close = torch_isclose(
+            history_features1, history_features2
+        ).all()
+        assert history_features_close == expected

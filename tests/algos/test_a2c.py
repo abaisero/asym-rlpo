@@ -19,44 +19,28 @@ def test_compute_history_features():
         max_episode_timesteps=max_episode_timesteps,
     )
     policy = RandomPolicy(env.action_space)
-    (episode,) = sample_episodes(env, policy, num_episodes=1)
-    episode = episode.torch()
+    episode = sample_episode(env, policy).torch()
 
     algos = {
-        'full': make_a2c_algorithm(
-            'a2c', env, truncated_histories=False, truncated_histories_n=-1
-        ),
-        'react-2': make_a2c_algorithm(
-            'a2c', env, truncated_histories=True, truncated_histories_n=2
-        ),
-        'react-4': make_a2c_algorithm(
-            'a2c', env, truncated_histories=True, truncated_histories_n=4
-        ),
+        'full': make_a2c_algorithm('a2c', env),
+        'react-2': make_a2c_algorithm('a2c', env, truncated_histories_n=2),
+        'react-4': make_a2c_algorithm('a2c', env, truncated_histories_n=4),
     }
-    models = make_a2c_algorithm(
-        'a2c', env, truncated_histories=False, truncated_histories_n=-1
-    ).models
+    models = make_a2c_algorithm('a2c', env).models
 
     # this test uses implementation details (knows that
     # make_history_integrator) is build using a partial
     make_history_integrator = algos['full'].make_history_integrator
-    assert not make_history_integrator.keywords['truncated_histories']
-    make_history_integrator = algos['full'].make_history_integrator
-    assert make_history_integrator.keywords['truncated_histories_n'] == -1
-    make_history_integrator = algos['react-2'].make_history_integrator
-    assert make_history_integrator.keywords['truncated_histories']
+    assert make_history_integrator.keywords['truncated_histories_n'] is None
     make_history_integrator = algos['react-2'].make_history_integrator
     assert make_history_integrator.keywords['truncated_histories_n'] == 2
-    make_history_integrator = algos['react-4'].make_history_integrator
-    assert make_history_integrator.keywords['truncated_histories']
     make_history_integrator = algos['react-4'].make_history_integrator
     assert make_history_integrator.keywords['truncated_histories_n'] == 4
 
     with torch.no_grad():
         history_features = {
             k: v.compute_history_features(
-                models.agent.action_model,
-                models.agent.observation_model,
+                models.agent.interaction_model,
                 models.agent.history_model,
                 episode.actions,
                 episode.observations,
