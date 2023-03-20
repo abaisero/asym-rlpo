@@ -5,12 +5,11 @@ import torch
 from asym_rlpo.algorithms import make_a2c_algorithm
 from asym_rlpo.envs import LatentType, make_env
 from asym_rlpo.policies import RandomPolicy
-from asym_rlpo.sampling import sample_episodes
+from asym_rlpo.sampling import sample_episode
 
 
 def test_compute_history_features():
-    # checks that full history features and reactive history features are
-    # different
+    # checks that full history features and reactive history features are different
 
     max_episode_timesteps = 100
     env = make_env(

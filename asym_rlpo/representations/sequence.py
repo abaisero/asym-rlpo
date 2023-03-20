@@ -131,17 +131,13 @@ def make_sequence_model(
 
     if name == 'rnn':
         kwargs.setdefault('nonlinearity', 'relu')
-        return RNNSequenceRepresentation(
-            in_features,
-            out_features,
-            **kwargs,
-        )
+        return RNNSequenceRepresentation(in_features, out_features, **kwargs)
 
     if name == 'gru':
         return GRUSequenceRepresentation(in_features, out_features, **kwargs)
 
     if name == 'attention':
-        num_heads = kwargs.pop('num_heads', 1)
+        num_heads = kwargs.pop('num_heads', 2)
         return AttentionSequenceRepresentation(
             in_features,
             out_features,

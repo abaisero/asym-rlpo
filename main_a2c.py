@@ -456,9 +456,10 @@ def run(runstate: RunState) -> bool:
             )
             avg_target_returns.extend(returns.tolist())
             logger.info(
-                f'EVALUATE epoch {xstats.epoch}'
-                f' simulation_timestep {xstats.simulation_timesteps}'
-                f' return {returns.mean():.3f}'
+                'EVALUATE epoch %d simulation_timestep %d return % .3f',
+                xstats.epoch,
+                xstats.simulation_timesteps,
+                returns.mean(),
             )
             wandb_logger.log(
                 {
@@ -487,9 +488,10 @@ def run(runstate: RunState) -> bool:
 
         if wandb_log:
             logger.info(
-                'behavior log - simulation_step %d return %.3f',
+                'behavior log - simulation_step %d return=% .3f avg100=% .3f',
                 xstats.simulation_timesteps,
                 returns.mean(),
+                avg100_behavior_returns.value(),
             )
             wandb_logger.log(
                 {
@@ -556,7 +558,7 @@ def run(runstate: RunState) -> bool:
 
         if wandb_log:
             logger.info(
-                'training log - simulation_step %d losses %.3f %.3f %.3f',
+                'training log - simulation_step %d losses actor=% .3f critic=% .3f negentropy=% .3f',
                 xstats.simulation_timesteps,
                 actor_loss,
                 critic_loss,
