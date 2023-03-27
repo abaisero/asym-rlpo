@@ -51,7 +51,10 @@ def _make_representation_models(env: Environment) -> nn.ModuleDict:
         action_model, observation_model
     )
     history_model = make_history_representation(
-        config.history_model, interaction_model, 64
+        config.history_model,
+        interaction_model,
+        128,
+        num_heads=config._get('attention_num_heads'),
     )
 
     # resize history and state models
@@ -77,7 +80,6 @@ def _make_representation_models(env: Environment) -> nn.ModuleDict:
 
 
 def make_models(env: Environment) -> nn.ModuleDict:
-
     models = nn.ModuleDict(
         {
             'agent': _make_representation_models(env),

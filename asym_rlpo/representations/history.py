@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Optional
 from .base import Representation
 from .sequence import SequenceRepresentation, make_sequence_model
 
@@ -24,6 +25,8 @@ def make_history_representation(
     name: str,
     interaction_model: Representation,
     dim: int,
+    *,
+    num_heads: Optional[int] = None,
     **kwargs,
 ) -> HistoryRepresentation:
     """makes a history representation"""
@@ -32,6 +35,7 @@ def make_history_representation(
         name,
         interaction_model.dim,
         dim,
+        num_heads = num_heads,
         **kwargs,
     )
     return HistoryRepresentation(sequence_model)

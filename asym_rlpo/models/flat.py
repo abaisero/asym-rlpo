@@ -1,4 +1,5 @@
 import torch.nn as nn
+from gym.spaces import Discrete
 
 from asym_rlpo.envs import Environment
 from asym_rlpo.modules.mlp import make_mlp
@@ -31,16 +32,20 @@ def _make_representation_models(env: Environment) -> nn.ModuleDict:
     normalize_hs_features: bool = config.normalize_hs_features
 
     # agent
+    assert isinstance(env.action_space, Discrete)
     action_model = EmbeddingRepresentation(env.action_space.n, 64)
-    observation_model = EmbeddingRepresentation(
-        env.observation_space.n, 64, padding_idx=-1
-    )
+    assert isinstance(env.observation_space, Discrete)
+    observation_model = EmbeddingRepresentation(env.observation_space.n, 64)
+    assert isinstance(env.latent_space, Discrete)
     latent_model = EmbeddingRepresentation(env.latent_space.n, 64)
     interaction_model = InteractionRepresentation(
         action_model, observation_model
     )
     history_model = make_history_representation(
-        config.history_model, interaction_model, 128
+        config.history_model,
+        interaction_model,
+        128,
+        num_heads=config._get('attention_num_heads'),
     )
 
     # resize history and state models
@@ -65,7 +70,6 @@ def _make_representation_models(env: Environment) -> nn.ModuleDict:
 
 
 def make_models(env: Environment) -> nn.ModuleDict:
-
     models = nn.ModuleDict(
         {
             'agent': _make_representation_models(env),

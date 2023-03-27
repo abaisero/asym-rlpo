@@ -14,6 +14,9 @@ class Config:
     def _update(self, cd: ConfigDict):
         self._config.update(cd)
 
+    def _get(self, name: str, default=None) -> Any:
+        return self._config.get(name, default)
+
     def _as_dict(self) -> ConfigDict:
         return self._config.copy()
 

@@ -144,6 +144,14 @@ def parse_args():
     # latent observation
     parser.add_argument('--latent-type', default='state')
 
+    # representation options
+    parser.add_argument(
+        '--attention-num-heads',
+        choices=[2**k for k in range(10)],
+        type=int,
+        default=2,
+    )
+
     # gv models
     parser.add_argument('--gv-observation-representation', default='compact')
     parser.add_argument('--gv-state-representation', default='compact')

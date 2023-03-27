@@ -1,13 +1,13 @@
 import torch.nn as nn
+from gym.spaces import Box, Discrete
 
 from asym_rlpo.envs import Environment
 from asym_rlpo.modules.mlp import make_mlp
 from asym_rlpo.representations.embedding import EmbeddingRepresentation
 from asym_rlpo.representations.history import make_history_representation
-from asym_rlpo.representations.identity import IdentityRepresentation
 from asym_rlpo.representations.interaction import InteractionRepresentation
+from asym_rlpo.representations.mlp import MLPRepresentation
 from asym_rlpo.representations.normalization import NormalizationRepresentation
-from asym_rlpo.representations.onehot import OneHotRepresentation
 from asym_rlpo.representations.resize import ResizeRepresentation
 from asym_rlpo.utils.config import get_config
 
@@ -33,14 +33,22 @@ def _make_representation_models(env: Environment) -> nn.ModuleDict:
     normalize_hs_features: bool = config.normalize_hs_features
 
     # agent
-    action_model = OneHotRepresentation(env.action_space)
-    observation_model = IdentityRepresentation(env.observation_space)
+    assert isinstance(env.action_space, Discrete)
+    action_model = EmbeddingRepresentation(env.action_space.n, 64)
+    assert isinstance(env.observation_space, Box)
+    assert isinstance(env.observation_space.shape, tuple)
+    (observation_space_dim,) = env.observation_space.shape
+    observation_model = MLPRepresentation([observation_space_dim, 64])
+    assert isinstance(env.latent_space, Discrete)
     latent_model = EmbeddingRepresentation(env.latent_space.n, 64)
     interaction_model = InteractionRepresentation(
         action_model, observation_model
     )
     history_model = make_history_representation(
-        config.history_model, interaction_model, 128
+        config.history_model,
+        interaction_model,
+        128,
+        num_heads=config._get('attention_num_heads'),
     )
 
     # resize history and state models
@@ -67,7 +75,6 @@ def _make_representation_models(env: Environment) -> nn.ModuleDict:
 def make_models(  # pylint: disable=too-many-locals
     env: Environment,
 ) -> nn.ModuleDict:
-
     models = nn.ModuleDict(
         {
             'agent': _make_representation_models(env),

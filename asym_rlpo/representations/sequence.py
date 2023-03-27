@@ -102,7 +102,6 @@ class AttentionSequenceRepresentation(SequenceRepresentation[torch.Tensor]):
         *,
         hidden: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-
         source = input if hidden is None else torch.cat([hidden, input], dim=1)
 
         L = input.size(-2)
@@ -125,6 +124,8 @@ def make_sequence_model(
     name: str,
     in_features: int,
     out_features: int,
+    *,
+    num_heads: Optional[int] = None,
     **kwargs,
 ) -> SequenceRepresentation:
     """sequence model factory"""
@@ -137,7 +138,9 @@ def make_sequence_model(
         return GRUSequenceRepresentation(in_features, out_features, **kwargs)
 
     if name == 'attention':
-        num_heads = kwargs.pop('num_heads', 2)
+        if num_heads is None or num_heads <= 0:
+            raise ValueError(f'{num_heads=} must be positive integer for attention model')
+
         return AttentionSequenceRepresentation(
             in_features,
             out_features,
