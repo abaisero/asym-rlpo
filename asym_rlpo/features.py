@@ -40,14 +40,8 @@ def compute_full_history_features(
     actions: torch.Tensor,
     observations: TorchObservation,
 ) -> torch.Tensor:
-    action_features = interaction_model.action_model(actions)
-    action_features = action_features.roll(1, 0)
-    action_features[0, :] = 0.0
-    observation_features = interaction_model.observation_model(observations)
-
-    interaction_features = torch.cat(
-        [action_features, observation_features],
-        dim=-1,
+    interaction_features = interaction_model.episode_features(
+        actions, observations
     )
     history_features, _ = history_model(interaction_features.unsqueeze(0))
     history_features = history_features.squeeze(0)
@@ -66,14 +60,8 @@ def compute_truncated_history_features(
     if n <= 0:
         raise ValueError(f'invalid truncation value n={n}')
 
-    action_features = interaction_model.action_model(actions)
-    action_features = action_features.roll(1, 0)
-    action_features[0, :] = 0.0
-    observation_features = interaction_model.observation_model(observations)
-
-    interaction_features = torch.cat(
-        [action_features, observation_features],
-        dim=-1,
+    interaction_features = interaction_model.episode_features(
+        actions, observations
     )
     padding = torch.zeros_like(interaction_features[0].expand(n - 1, -1))
     interaction_features = torch.cat(
