@@ -4,13 +4,16 @@ import wandb
 
 from asym_rlpo.utils.checkpointing import Serializer
 
+from .logger import DataLogger
 
-class WandbLogger:
-    def __init__(self, step=0):
+
+class WandbLogger(DataLogger):
+    def __init__(self, step: int = 0):
+        super().__init__()
         self.step = step
 
-    def log(self, *args, **kwargs):
-        wandb.log(*args, step=self.step, **kwargs)
+    def log(self, data: Dict):
+        wandb.log(data, step=self.step)
         self.step += 1
 
 

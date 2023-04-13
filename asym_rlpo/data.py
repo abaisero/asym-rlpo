@@ -1,8 +1,18 @@
 from __future__ import annotations
 
+import logging
 import random
 from collections import deque
-from typing import Deque, Dict, Generic, Iterable, List, Sequence, TypeVar
+from typing import (
+    Deque,
+    Dict,
+    Generic,
+    Iterable,
+    List,
+    Protocol,
+    Sequence,
+    TypeVar,
+)
 
 import numpy as np
 import torch
@@ -11,6 +21,8 @@ import asym_rlpo.generalized_torch as gtorch
 from asym_rlpo.utils.collate import collate_numpy
 from asym_rlpo.utils.convert import numpy2torch
 from asym_rlpo.utils.debugging import checkraise
+
+logger = logging.getLogger(__name__)
 
 TorchObservation = TypeVar(
     'TorchObservation',
@@ -151,11 +163,14 @@ class EpisodeBuffer(Generic[Observation, Latent]):
         self.max_timesteps = max_timesteps
         self.__num_interactions = 0
 
-    def num_episodes(self):
+    def num_episodes(self) -> int:
         return len(self.episodes)
 
-    def num_interactions(self):
+    def num_interactions(self) -> int:
         return self.__num_interactions
+
+    def __getitem__(self, i) -> Episode[Observation, Latent]:
+        return self.episodes[i]
 
     def _enforce_max_timesteps(self):
         while self.num_interactions() > self.max_timesteps:
@@ -177,15 +192,59 @@ class EpisodeBuffer(Generic[Observation, Latent]):
         self.__num_interactions -= len(episode)
         return episode
 
+
+class EpisodeBufferSampler(Generic[Observation, Latent]):
+    def __init__(self, episode_buffer: EpisodeBuffer[Observation, Latent]):
+        super().__init__()
+        self.episode_buffer = episode_buffer
+
     def sample_episode(self) -> Episode[Observation, Latent]:
-        return random.choice(self.episodes)
+        if self.episode_buffer.num_episodes == 0:
+            raise ValueError('Cannot sample from empty episode buffer')
+
+        i = random.randrange(self.episode_buffer.num_episodes())
+        return self.episode_buffer[i]
 
     def sample_episodes(
         self, num_samples: int, *, replacement: bool
     ) -> List[Episode[Observation, Latent]]:
-        if replacement:
-            return random.choices(self.episodes, k=num_samples)
+        if self.episode_buffer.num_episodes == 0:
+            raise ValueError('Cannot sample from empty episode buffer')
 
-        indices = list(range(self.num_episodes()))
-        random.shuffle(indices)
-        return [self.episodes[i] for i in indices[:num_samples]]
+        if not replacement and num_samples > self.episode_buffer.num_episodes():
+            raise ValueError(
+                f'Cannot sample {num_samples} episodes from an episode buffer'
+                f' that contains only {self.episode_buffer.num_episodes()} episodes'
+            )
+
+        indices = list(range(self.episode_buffer.num_episodes()))
+
+        if replacement:
+            indices = random.choices(indices, k=num_samples)
+
+        else:
+            random.shuffle(indices)
+            indices = indices[:num_samples]
+
+        return [self.episode_buffer[i] for i in indices]
+
+
+class EpisodeFactory(Protocol, Generic[Observation, Latent]):
+    def __call__(self) -> Episode[Observation, Latent]:
+        ...
+
+
+def prepopulate_episode_buffer(
+    episode_buffer: EpisodeBuffer[Observation, Latent],
+    episode_factory: EpisodeFactory[Observation, Latent],
+    *,
+    timesteps: int,
+):
+    logger.info(f'prepopulating episode buffer ({timesteps:_} timesteps)...')
+    while episode_buffer.num_interactions() < timesteps:
+        episode = episode_factory().torch()
+        episode_buffer.append_episode(episode)
+        logger.debug(
+            f'episode buffer {episode_buffer.num_interactions():_} timesteps'
+        )
+    logger.info('prepopulating DONE')

@@ -35,7 +35,7 @@ from asym_rlpo.utils.running_average import (
 )
 from asym_rlpo.utils.scheduling import make_schedule
 from asym_rlpo.utils.timer import Timer, TimerSerializer
-from asym_rlpo.utils.wandb_logger import WandbLogger, WandbLoggerSerializer
+from asym_rlpo.data_logging.wandb_logger import WandbLogger, WandbLoggerSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +167,7 @@ def parse_args():
 
     # checkpoint
     parser.add_argument('--checkpoint', default=None)
-    parser.add_argument('--checkpoint-period', type=int, default=36_000)
+    parser.add_argument('--checkpoint-period', type=int, default=10 * 60)
 
     parser.add_argument('--save-model', action='store_true')
     parser.add_argument('--model-filename', default=None)

@@ -15,7 +15,15 @@ from gym_gridverse.rng import reset_gv_rng
 
 from asym_rlpo.algorithms import make_dqn_algorithm
 from asym_rlpo.algorithms.dqn.base import DQN_ABC
-from asym_rlpo.data import EpisodeBuffer
+from asym_rlpo.data import (
+    EpisodeBuffer,
+    EpisodeBufferSampler,
+    prepopulate_episode_buffer,
+)
+from asym_rlpo.data_logging.wandb_logger import (
+    WandbLogger,
+    WandbLoggerSerializer,
+)
 from asym_rlpo.envs import Environment, LatentType, make_env
 from asym_rlpo.evaluation import evaluate_returns
 from asym_rlpo.policies import Policy, RandomPolicy
@@ -36,7 +44,6 @@ from asym_rlpo.utils.running_average import (
 )
 from asym_rlpo.utils.scheduling import make_schedule
 from asym_rlpo.utils.timer import Timer, TimerSerializer
-from asym_rlpo.utils.wandb_logger import WandbLogger, WandbLoggerSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -180,7 +187,7 @@ def parse_args():
 
     # checkpoint
     parser.add_argument('--checkpoint', default=None)
-    parser.add_argument('--checkpoint-period', type=int, default=36_000)
+    parser.add_argument('--checkpoint-period', type=int, default=10 * 60)
 
     parser.add_argument('--save-model', action='store_true')
     parser.add_argument('--model-filename', default=None)
@@ -418,39 +425,36 @@ def run(runstate: RunState) -> bool:
         f'setting prepopulating policy:'
         f' {config.episode_buffer_prepopulate_policy}'
     )
-    prepopulate_policy: Policy
-    if config.episode_buffer_prepopulate_policy == 'random':
-        prepopulate_policy = RandomPolicy(env.action_space)
-    elif config.episode_buffer_prepopulate_policy == 'behavior':
-        prepopulate_policy = behavior_policy
-    elif config.episode_buffer_prepopulate_policy == 'target':
-        prepopulate_policy = target_policy
-    else:
-        assert False
 
-    if xstats.simulation_timesteps == 0:
-        prepopulate_timesteps = config.episode_buffer_prepopulate_timesteps
-    else:
+    prepopulate_policies: Dict[str, Policy] = {
+        'random': RandomPolicy(env.action_space),
+        'behavior': behavior_policy,
+        'target': target_policy,
+    }
+    prepopulate_policy = prepopulate_policies[
+        config.episode_buffer_prepopulate_policy
+    ]
+
+    if xstats.simulation_timesteps != 0:
         prepopulate_policy.epsilon = epsilon_schedule(
             xstats.simulation_timesteps
             - config.episode_buffer_prepopulate_timesteps
         )
-        prepopulate_timesteps = xstats.simulation_timesteps
 
     # instantiate and prepopulate buffer
-    logger.info(
-        f'prepopulating episode buffer'
-        f' ({prepopulate_timesteps:_} timesteps)...'
-    )
     episode_buffer = EpisodeBuffer(config.episode_buffer_max_timesteps)
-    while episode_buffer.num_interactions() < prepopulate_timesteps:
-        episode = sample_episode(env, prepopulate_policy)
-        episode_buffer.append_episode(episode.torch())
-        logger.debug(
-            f'episode buffer {episode_buffer.num_interactions():_} timesteps'
-        )
-    logger.info('prepopulating DONE')
+    prepopulate_episode_buffer(
+        episode_buffer,
+        lambda: sample_episode(env, prepopulate_policy),
+        timesteps=(
+            config.episode_buffer_prepopulate_timesteps
+            if xstats.simulation_timesteps == 0
+            else xstats.simulation_timesteps
+        ),
+    )
+    episode_buffer_sampler = EpisodeBufferSampler(episode_buffer)
 
+    # TODO what is the purpose of this?
     if xstats.simulation_timesteps == 0:
         xstats.simulation_episodes = episode_buffer.num_episodes()
         xstats.simulation_timesteps = episode_buffer.num_interactions()
@@ -575,7 +579,7 @@ def run(runstate: RunState) -> bool:
         ):
             optimizer.zero_grad()
 
-            episodes = episode_buffer.sample_episodes(
+            episodes = episode_buffer_sampler.sample_episodes(
                 config.training_num_episodes,
                 replacement=True,
             )
