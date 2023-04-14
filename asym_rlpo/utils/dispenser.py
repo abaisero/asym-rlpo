@@ -1,10 +1,14 @@
-import time
+from __future__ import annotations
+
+from time import time
 from typing import Dict
+
+from dateutil.parser import parse as datetime_parser
 
 from asym_rlpo.utils.checkpointing import Serializer
 
 
-class DiscreteDispenser:
+class StepDispenser:
     """Dispenses `True` no more than once every `n` steps."""
 
     def __init__(self, n: int):
@@ -19,29 +23,45 @@ class DiscreteDispenser:
         return False
 
 
-class DiscreteDispenserSerializer(Serializer[DiscreteDispenser]):
-    def serialize(self, obj: DiscreteDispenser) -> Dict:
+class StepDispenserSerializer(Serializer[StepDispenser]):
+    def serialize(self, obj: StepDispenser) -> Dict:
         return {
             'n': obj.n,
             'next_i': obj.next_i,
         }
 
-    def deserialize(self, obj: DiscreteDispenser, data: Dict):
+    def deserialize(self, obj: StepDispenser, data: Dict):
         obj.n = data['n']
         obj.next_i = data['next_i']
 
 
-class TimeDispenser:
-    """Dispenses `True` no more than once every period (in seconds)."""
+class TimePeriodDispenser:
+    """Dispenses `True` no more than every period (in seconds)."""
 
     def __init__(self, period: float):
         self.period = period
-        self.next_t = time.time()
+        self.next_t = time()
 
     def dispense(self) -> bool:
-        t = time.time()
-        if t >= self.next_t:
-            self.next_t = t + self.period
-            return True
+        t = time()
 
-        return False
+        if t < self.next_t:
+            return False
+
+        self.next_t = t + self.period
+        return True
+
+
+class TimestampDispenser:
+    """Dispenses `True` after a given timestamp."""
+
+    def __init__(self, timestamp: float):
+        self.timestamp = timestamp
+
+    @staticmethod
+    def from_datetime(datetime: str) -> TimestampDispenser:
+        timestamp = datetime_parser(datetime).timestamp()
+        return TimestampDispenser(timestamp)
+
+    def dispense(self) -> bool:
+        return time() >= self.timestamp
