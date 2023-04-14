@@ -123,9 +123,6 @@ def parse_args():
     # device
     parser.add_argument('--device', default='auto')
 
-    # misc
-    parser.add_argument('--render', action='store_true')
-
     # temporary / development
     parser.add_argument('--hs-features-dim', type=int, default=0)
     parser.add_argument('--normalize-hs-features', action='store_true')
@@ -447,13 +444,6 @@ def run(runstate: RunState) -> bool:
         algo.models.eval()
 
         if config.evaluation and xstats.epoch % config.evaluation_period == 0:
-            if config.render:
-                sample_episode(
-                    env,
-                    evaluation_policy,
-                    render=True,
-                )
-
             episodes = sample_episodes(
                 env,
                 evaluation_policy,

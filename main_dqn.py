@@ -142,8 +142,6 @@ def parse_args():
     # device
     parser.add_argument('--device', default='auto')
 
-    parser.add_argument('--render', action='store_true')
-
     # temporary / development
     parser.add_argument('--hs-features-dim', type=int, default=0)
     parser.add_argument('--normalize-hs-features', action='store_true')
@@ -479,17 +477,10 @@ def run(runstate: RunState) -> bool:
         if checkpoint_dispenser.dispense():
             save_checkpoint(runstate)
 
+        # evaluate target policy
         algo.models.eval()
 
-        # evaluate target policy
         if config.evaluation and xstats.epoch % config.evaluation_period == 0:
-            if config.render:
-                sample_episode(
-                    env,
-                    target_policy,
-                    render=True,
-                )
-
             episodes = sample_episodes(
                 env,
                 target_policy,
