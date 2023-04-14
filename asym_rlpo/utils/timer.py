@@ -21,8 +21,8 @@ class Timer:
 
 
 class TimerSerializer(Serializer[Timer]):
-    def serialize(self, obj: Timer) -> Dict:
-        return {'seconds': obj.seconds}
+    def serialize(self, timer: Timer) -> Dict:
+        return {'seconds': timer.seconds}
 
-    def deserialize(self, obj: Timer, data: Dict):
-        obj.start = time.time() - data['seconds']
+    def deserialize(self, timer: Timer, data: Dict):
+        timer.start = time.time() - data['seconds']
