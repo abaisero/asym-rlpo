@@ -19,9 +19,9 @@ from asym_rlpo.data_logging.wandb_logger import (
     WandbLoggerSerializer,
 )
 from asym_rlpo.envs import Environment, LatentType, make_env
-from asym_rlpo.evaluation import evaluate_returns
+from asym_rlpo.evaluation import evaluate, evaluate_returns
 from asym_rlpo.q_estimators import q_estimator_factory
-from asym_rlpo.sampling import sample_episode, sample_episodes
+from asym_rlpo.sampling import sample_episodes
 from asym_rlpo.utils.aggregate import average
 from asym_rlpo.utils.checkpointing import Serializer, load_data, save_data
 from asym_rlpo.utils.config import get_config
@@ -444,31 +444,30 @@ def run(runstate: RunState) -> bool:
         algo.models.eval()
 
         if config.evaluation and xstats.epoch % config.evaluation_period == 0:
-            episodes = sample_episodes(
-                env,
-                evaluation_policy,
-                num_episodes=config.evaluation_num_episodes,
-            )
-            mean_length = sum(map(len, episodes)) / len(episodes)
-            returns = evaluate_returns(
-                episodes, discount=config.evaluation_discount
-            )
-            avg_target_returns.extend(returns.tolist())
-            logger.info(
-                'EVALUATE epoch %d simulation_timestep %d return % .3f',
-                xstats.epoch,
-                xstats.simulation_timesteps,
-                returns.mean(),
-            )
-            wandb_logger.log(
-                {
-                    **xstats.asdict(),
-                    'hours': timer.hours,
-                    'diagnostics/target_mean_episode_length': mean_length,
-                    'performance/target_mean_return': returns.mean(),
-                    'performance/avg_target_mean_return': avg_target_returns.value(),
-                }
-            )
+            with torch.inference_mode():
+                evalstats = evaluate(
+                    env,
+                    evaluation_policy,
+                    discount=config.evaluation_discount,
+                    num_episodes=config.evaluation_num_episodes,
+                )
+
+                avg_target_returns.extend(evalstats.returns.tolist())
+                logger.info(
+                    'EVALUATE epoch %d simulation_timestep %d return % .3f',
+                    xstats.epoch,
+                    xstats.simulation_timesteps,
+                    evalstats.returns.mean(),
+                )
+                wandb_logger.log(
+                    {
+                        **xstats.asdict(),
+                        'hours': timer.hours,
+                        'diagnostics/target_mean_episode_length': evalstats.lengths.mean(),
+                        'performance/target_mean_return': evalstats.returns.mean(),
+                        'performance/avg_target_mean_return': avg_target_returns.value(),
+                    }
+                )
 
         episodes = sample_episodes(
             env,

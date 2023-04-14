@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Sequence
 
 import numpy as np
@@ -5,8 +6,14 @@ import numpy as np
 from asym_rlpo.data import Episode
 from asym_rlpo.envs import Environment
 from asym_rlpo.policies import Policy
-from asym_rlpo.sampling import sample_episode
+from asym_rlpo.sampling import sample_episodes
 from asym_rlpo.utils.returns import returns
+
+
+@dataclass
+class EvalStats:
+    lengths: np.ndarray
+    returns: np.ndarray
 
 
 def evaluate(
@@ -15,28 +22,27 @@ def evaluate(
     *,
     discount: float,
     num_episodes: int,
-    num_steps: int,
-) -> np.ndarray:
+) -> EvalStats:
     """Return a few empirical returns
 
     Args:
         env (Environment): env
         discount (float): discount
         num_episodes (int): number of independent sample episode
-        num_steps (int): max number of time-steps
 
     Returns:
-        np.ndarray:
+        EvalStats:
     """
-    episodes = [
-        sample_episode(env, policy, num_steps=num_steps)
-        for _ in range(num_episodes)
-    ]
-    return evaluate_returns(episodes, discount=discount)
+    episodes = sample_episodes(env, policy, num_episodes=num_episodes)
+    lengths = np.array([len(episode) for episode in episodes])
+    returns = evaluate_returns(episodes, discount=discount)
+    return EvalStats(lengths, returns)
 
 
 def evaluate_returns(
-    episodes: Sequence[Episode], *, discount: float
+    episodes: Sequence[Episode],
+    *,
+    discount: float,
 ) -> np.ndarray:
     rewards = [episode.rewards for episode in episodes]
     tot_num_steps = max(len(rs) for rs in rewards)
