@@ -3,7 +3,6 @@ import argparse
 import logging
 import logging.config
 import random
-import signal
 from dataclasses import asdict, dataclass
 from typing import Dict, NamedTuple
 
@@ -35,6 +34,7 @@ from asym_rlpo.utils.dispenser import (
     StepDispenser,
     StepDispenserSerializer,
     TimePeriodDispenser,
+    TimestampDispenser,
 )
 from asym_rlpo.utils.running_average import (
     InfiniteRunningAverage,
@@ -186,6 +186,8 @@ def parse_args():
     # checkpoint
     parser.add_argument('--checkpoint', default=None)
     parser.add_argument('--checkpoint-period', type=int, default=10 * 60)
+
+    parser.add_argument('--timeout-timestamp', type=float, default=float('inf'))
 
     parser.add_argument('--save-model', action='store_true')
     parser.add_argument('--model-filename', default=None)
@@ -455,15 +457,9 @@ def run(runstate: RunState) -> bool:
         xstats.simulation_episodes = episode_buffer.num_episodes()
         xstats.simulation_timesteps = episode_buffer.num_interactions()
 
-    # setup interrupt flag via signal
-    interrupt = False
-
-    def set_interrupt_flag():
-        nonlocal interrupt
-        logger.debug('signal received, setting interrupt=True')
-        interrupt = True
-
-    signal.signal(signal.SIGUSR1, lambda signal, frame: set_interrupt_flag())
+    # setup timeout dispenser
+    timeout_dispenser = TimestampDispenser(config.timeout_timestamp)
+    timeout = timeout_dispenser.dispense()
 
     checkpoint_dispenser = TimePeriodDispenser(config.checkpoint_period)
     checkpoint_dispenser.dispense()  # burn first dispense
@@ -471,7 +467,10 @@ def run(runstate: RunState) -> bool:
     # main learning loop
     wandb.watch(algo.models)
     while xstats.simulation_timesteps < config.max_simulation_timesteps:
-        if interrupt:
+        timeout = timeout_dispenser.dispense()
+        if timeout:
+            logger.info('timeout dispenser triggered, interrupting')
+            save_checkpoint(runstate)
             break
 
         if checkpoint_dispenser.dispense():
@@ -617,7 +616,7 @@ def run(runstate: RunState) -> bool:
 
         xstats.epoch += 1
 
-    done = not interrupt
+    done = not timeout
 
     if done and config.save_model and config.model_filename is not None:
         data = {

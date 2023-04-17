@@ -58,10 +58,5 @@ class TimestampDispenser:
     def __init__(self, timestamp: float):
         self.timestamp = timestamp
 
-    @staticmethod
-    def from_datetime(datetime: str) -> TimestampDispenser:
-        timestamp = datetime_parser(datetime).timestamp()
-        return TimestampDispenser(timestamp)
-
     def dispense(self) -> bool:
-        return time() >= self.timestamp
+        return time() > self.timestamp
