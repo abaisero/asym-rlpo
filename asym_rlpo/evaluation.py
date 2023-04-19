@@ -1,12 +1,9 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 import numpy as np
 
 from asym_rlpo.data import Episode
-from asym_rlpo.envs import Environment
-from asym_rlpo.policies import Policy
-from asym_rlpo.sampling import sample_episodes
 from asym_rlpo.utils.returns import returns
 
 
@@ -16,24 +13,12 @@ class EvalStats:
     returns: np.ndarray
 
 
-def evaluate(
-    env: Environment,
-    policy: Policy,
+def evaluate_episodes(
+    episodes: Sequence[Episode],
     *,
     discount: float,
-    num_episodes: int,
 ) -> EvalStats:
-    """Return a few empirical returns
-
-    Args:
-        env (Environment): env
-        discount (float): discount
-        num_episodes (int): number of independent sample episode
-
-    Returns:
-        EvalStats:
-    """
-    episodes = sample_episodes(env, policy, num_episodes=num_episodes)
+    """Return evaluation stats"""
     lengths = np.array([len(episode) for episode in episodes])
     returns = evaluate_returns(episodes, discount=discount)
     return EvalStats(lengths, returns)

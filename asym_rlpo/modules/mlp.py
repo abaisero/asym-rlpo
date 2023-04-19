@@ -1,11 +1,10 @@
-from typing import List, Sequence, Tuple
+from collections.abc import Sequence
 
 import more_itertools as mitt
 import torch.nn as nn
 
+from asym_rlpo.modules.init import init_linear_module
 from asym_rlpo.modules.skip import SkipSequential
-
-from .init import init_linear_module
 
 # NOTE: the possible values for `nonlinearity` change between some of these
 # functions
@@ -17,7 +16,7 @@ def make_perceptron_modules(
     nonlinearity: str,
     *args,
     **kwargs,
-) -> Tuple[nn.Linear, nn.Module]:
+) -> tuple[nn.Linear, nn.Module]:
     """creates and initializes a linear module with a nonlinearity"""
 
     module = nn.Linear(in_features, out_features, *args, **kwargs)
@@ -44,7 +43,7 @@ def make_mlp_modules(
     nonlinearities: Sequence[str],
     *args,
     **kwargs,
-) -> List[nn.Module]:
+) -> list[nn.Module]:
     """creates and initializes multiple layers of linear modules and nonlinearities"""
 
     if len(sizes) < 2:

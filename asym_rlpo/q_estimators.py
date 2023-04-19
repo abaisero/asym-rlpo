@@ -1,14 +1,16 @@
 from functools import partial
-from typing import Optional, Protocol
+from typing import Protocol
 
 import torch
-
-from asym_rlpo.utils.debugging import checkraise
 
 
 class Q_Estimator(Protocol):
     def __call__(
-        self, rewards: torch.Tensor, values: torch.Tensor, *, discount: float
+        self,
+        rewards: torch.Tensor,
+        values: torch.Tensor,
+        *,
+        discount: float,
     ) -> torch.Tensor:
         ...
 
@@ -16,8 +18,8 @@ class Q_Estimator(Protocol):
 def q_estimator_factory(
     name: str,
     *,
-    n: Optional[int] = None,
-    lambda_: Optional[float] = None,
+    n: int | None = None,
+    lambda_: float | None = None,
 ) -> Q_Estimator:
     if name == 'mc':
         return mc_q_estimator
@@ -26,9 +28,15 @@ def q_estimator_factory(
         return partial(td0_q_estimator)
 
     if name == 'td-n':
+        if n is None:
+            raise ValueError('argument `n` cannot be None')
+
         return partial(tdn_q_estimator, n=n)
 
     if name == 'td-lambda':
+        if lambda_ is None:
+            raise ValueError('argument `lambda_` cannot be None')
+
         return partial(tdlambda_q_estimator, lambda_=lambda_)
 
     raise ValueError('invalid estimator name `{name}`')
@@ -36,16 +44,17 @@ def q_estimator_factory(
 
 def mc_q_estimator(
     rewards: torch.Tensor,
-    values: torch.Tensor,  # pylint: disable=unused-argument
+    values: torch.Tensor,
     *,
     discount: float,
 ) -> torch.Tensor:
-    checkraise(rewards.ndim == 1, ValueError, '`rewards` must have 1 dimension')
+    if rewards.ndim != 1:
+        raise ValueError('`rewards` must have 1 dimension')
 
     size = rewards.size(-1)
     indices = torch.arange(size)
     exponents = indices.unsqueeze(0) - indices.unsqueeze(-1)
-    discounts = (discount ** exponents).triu()
+    discounts = (discount**exponents).triu()
     return discounts @ rewards
 
 
@@ -55,13 +64,14 @@ def td0_q_estimator(
     *,
     discount: float,
 ) -> torch.Tensor:
-    checkraise(rewards.ndim == 1, ValueError, '`rewards` must have 1 dimension')
-    checkraise(values.ndim == 1, ValueError, '`values` must have 1 dimension')
-    checkraise(
-        rewards.shape == values.shape,
-        ValueError,
-        '`rewards` and `values` must have the same shape',
-    )
+    if rewards.ndim != 1:
+        raise ValueError('`rewards` must have 1 dimension')
+
+    if values.ndim != 1:
+        raise ValueError('`values` must have 1 dimension')
+
+    if rewards.shape != values.shape:
+        raise ValueError('`rewards` and `values` must have the same shape')
 
     values = values.roll(-1)
     values[-1] = 0.0
@@ -75,21 +85,22 @@ def tdn_q_estimator(
     discount: float,
     n: int,
 ) -> torch.Tensor:
-    checkraise(rewards.ndim == 1, ValueError, '`rewards` must have 1 dimension')
-    checkraise(values.ndim == 1, ValueError, '`values` must have 1 dimension')
-    checkraise(
-        rewards.shape == values.shape,
-        ValueError,
-        '`rewards` and `values` must have the same shape',
-    )
+    if rewards.ndim != 1:
+        raise ValueError('`rewards` must have 1 dimension')
+
+    if values.ndim != 1:
+        raise ValueError('`values` must have 1 dimension')
+
+    if rewards.shape != values.shape:
+        raise ValueError('`rewards` and `values` must have the same shape')
 
     size = rewards.size(-1)
     indices = torch.arange(size)
     exponents = indices.unsqueeze(0) - indices.unsqueeze(-1)
-    discounts = (discount ** exponents).triu().tril(n - 1)
+    discounts = (discount**exponents).triu().tril(n - 1)
     values = values.roll(-n)
     values[-n:] = 0.0
-    return discounts @ rewards + (discount ** n) * values
+    return discounts @ rewards + (discount**n) * values
 
 
 def tdlambda_q_estimator(
@@ -99,13 +110,14 @@ def tdlambda_q_estimator(
     discount: float,
     lambda_: float,
 ) -> torch.Tensor:
-    checkraise(rewards.ndim == 1, ValueError, '`rewards` must have 1 dimension')
-    checkraise(values.ndim == 1, ValueError, '`values` must have 1 dimension')
-    checkraise(
-        rewards.shape == values.shape,
-        ValueError,
-        '`rewards` and `values` must have the same shape',
-    )
+    if rewards.ndim != 1:
+        raise ValueError('`rewards` must have 1 dimension')
+
+    if values.ndim != 1:
+        raise ValueError('`values` must have 1 dimension')
+
+    if rewards.shape != values.shape:
+        raise ValueError('`rewards` and `values` must have the same shape')
 
     size = rewards.size(-1)
     indices = torch.arange(size)

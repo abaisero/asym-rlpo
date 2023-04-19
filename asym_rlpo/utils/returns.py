@@ -1,9 +1,6 @@
 from collections import defaultdict
-from typing import Dict
 
 import numpy as np
-
-from asym_rlpo.utils.debugging import checkraise
 
 
 def discounts_uncached(num_steps: int, discount: float) -> np.ndarray:
@@ -13,15 +10,16 @@ def discounts_uncached(num_steps: int, discount: float) -> np.ndarray:
     :param discount:  discount factor
     :rtype: (N,) np.ndarray of discounts
     """
-    checkraise(num_steps > 0, ValueError, 'invalid `num_steps` {}', num_steps)
-    checkraise(
-        0.0 <= discount <= 1.0, ValueError, 'invalid `discount` {}', discount
-    )
+    if num_steps <= 0:
+        raise ValueError(f'invalid {num_steps=}')
+
+    if not 0.0 <= discount <= 1.0:
+        raise ValueError(f'invalid {discount=}')
 
     return discount ** np.arange(num_steps, dtype=float)
 
 
-discounts_cache: Dict[float, np.ndarray] = defaultdict(lambda: np.array([1.0]))
+discounts_cache: dict[float, np.ndarray] = defaultdict(lambda: np.array([1.0]))
 
 
 def discounts(num_steps: int, discount: float) -> np.ndarray:
@@ -31,10 +29,11 @@ def discounts(num_steps: int, discount: float) -> np.ndarray:
     :param discount:  discount factor
     :rtype: (N,) np.ndarray of discounts
     """
-    checkraise(num_steps > 0, ValueError, 'invalid `num_steps` {}', num_steps)
-    checkraise(
-        0.0 <= discount <= 1.0, ValueError, 'invalid `discount` {}', discount
-    )
+    if num_steps <= 0:
+        raise ValueError(f'invalid {num_steps=}')
+
+    if not 0.0 <= discount <= 1.0:
+        raise ValueError(f'invalid {discount=}')
 
     cached_discounts = discounts_cache[discount]
 
@@ -56,9 +55,8 @@ def returns(rewards: np.ndarray, discount: float) -> np.ndarray:
     :param discount:  discount factor
     :rtype: (B,) np.ndarray of empirical returns
     """
-    checkraise(
-        rewards.ndim > 1, ValueError, 'invalid rewards.ndim {}', rewards.ndim
-    )
+    if rewards.ndim <= 1:
+        raise ValueError(f'invalid {rewards.ndim=}')
 
     num_steps = rewards.shape[-1]
     return np.einsum('j,...j->...', discounts(num_steps, discount), rewards)

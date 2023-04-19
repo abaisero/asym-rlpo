@@ -1,124 +1,332 @@
+import math
+from collections.abc import Iterable
+from functools import cached_property
+
+import gym
+import gym.spaces
+import torch
 import torch.nn as nn
 
-from asym_rlpo.envs import Environment, LatentType
+import asym_rlpo.generalized_torch as gtorch
+from asym_rlpo.models.cat import CatModel
+from asym_rlpo.models.embedding import EmbeddingModel
+from asym_rlpo.models.model import Model
 from asym_rlpo.modules.mlp import make_mlp
-from asym_rlpo.representations.empty import EmptyRepresentation
-from asym_rlpo.representations.gv import (
-    GV_Memory_Representation,
-    GV_Representation,
-)
-from asym_rlpo.representations.history import make_history_representation
-from asym_rlpo.representations.interaction import InteractionRepresentation
-from asym_rlpo.representations.normalization import NormalizationRepresentation
-from asym_rlpo.representations.resize import ResizeRepresentation
-from asym_rlpo.utils.config import get_config
+from asym_rlpo.utils.convert import numpy2torch
+
+# gridverse types
+GV_State = dict[str, torch.Tensor]
+GV_Observation = dict[str, torch.Tensor]
 
 
-def _make_q_model(in_size, out_size) -> nn.Module:
-    return make_mlp([in_size, 512, out_size], ['relu', 'identity'])
+def _check_gv_observation_space_keys(space: gym.Space) -> bool:
+    if not isinstance(space, gym.spaces.Dict):
+        raise TypeError('incorrect observation space type')
+
+    for key in ['grid', 'item']:
+        if key not in space.spaces:
+            raise KeyError(f'space does not contain {key=}')
 
 
-def _make_v_model(in_size) -> nn.Module:
-    return make_mlp([in_size, 512, 1], ['relu', 'identity'])
+def _check_gv_state_space_keys(space: gym.Space) -> bool:
+    if not isinstance(space, gym.spaces.Dict):
+        raise TypeError('incorrect state space type')
+
+    for key in ['grid', 'agent_id_grid', 'agent', 'item']:
+        if key not in space.spaces:
+            raise KeyError(f'space does not contain {key=}')
 
 
-def _make_policy_model(in_size, out_size) -> nn.Module:
-    return make_mlp([in_size, 512, out_size], ['relu', 'logsoftmax'])
+class GV_Model(Model):
+    def __init__(
+        self,
+        space: gym.spaces.Dict,
+        names: Iterable[str],
+        *,
+        embedding_size: int,
+        layers: list[int],
+    ):
+        super().__init__()
+        self.space = space
 
-
-def _make_representation_models(env: Environment) -> nn.ModuleDict:
-    config = get_config()
-
-    action_model = EmptyRepresentation()
-    observation_model = GV_Representation(
-        env.observation_space,
-        [f'grid-{config.gv_state_grid_model_type}', 'item'],
-        embedding_size=8,
-        layers=[512] * config.gv_observation_representation_layers,
-    )
-    latent_model = (
-        GV_Memory_Representation(env.latent_space, embedding_size=64)
-        if env.latent_type is LatentType.GV_MEMORY
-        else GV_Representation(
-            env.latent_space,
-            [f'agent-grid-{config.gv_state_grid_model_type}', 'agent', 'item'],
-            embedding_size=1,
-            layers=[512] * config.gv_state_representation_layers,
+        num_embeddings = max(
+            space['grid'].high.max() + 1,
+            space['item'].high.max() + 1,
         )
+        self.embedding_model = EmbeddingModel(num_embeddings, embedding_size)
+        gv_models = [self._make_gv_model(name) for name in names]
+        self.cat_model = CatModel(gv_models)
+        self.fc_model: nn.Module
+
+        if len(layers) > 0:
+            sizes = [self.cat_model.dim] + layers
+            nonlinearities = ['relu'] * len(layers)
+            self.fc_model = make_mlp(sizes, nonlinearities)
+            self._dim = sizes[-1]
+
+        else:
+            self.fc_model = nn.Identity()
+            self._dim = self.cat_model.dim
+
+    @property
+    def dim(self):
+        return self._dim
+
+    def forward(self, inputs: GV_State):
+        return self.fc_model(self.cat_model(inputs))
+
+    def _make_gv_model(self, name: str):
+        if name == 'agent':
+            if 'agent' not in self.space.spaces:
+                raise KeyError('space does not contain `agent` key')
+
+            return GV_Agent_Model(self.space)
+
+        if name == 'item':
+            if 'item' not in self.space.spaces:
+                raise KeyError('space does not contain `item` key')
+
+            return GV_Item_Model(self.space, self.embedding_model)
+
+        if name == 'grid-cnn':
+            if 'grid' not in self.space.spaces:
+                raise KeyError('space does not contain `grid` key')
+
+            return GV_Grid_CNN_Model(self.space, self.embedding_model)
+
+        if name == 'grid-fc':
+            if 'grid' not in self.space.spaces:
+                raise KeyError('space does not contain `grid` key')
+
+            return GV_Grid_FC_Model(self.space, self.embedding_model)
+
+        if name == 'agent-grid-cnn':
+            if 'grid' not in self.space.spaces:
+                raise KeyError('space does not contain `grid` key')
+
+            if 'agent_id_grid' not in self.space.spaces:
+                raise KeyError('space does not contain `agent_id_grid` key')
+
+            return GV_AgentGrid_CNN_Model(self.space, self.embedding_model)
+
+        if name == 'agent-grid-fc':
+            if 'grid' not in self.space.spaces:
+                raise KeyError('space does not contain `grid` key')
+
+            if 'agent_id_grid' not in self.space.spaces:
+                raise KeyError('space does not contain `agent_id_grid` key')
+
+            return GV_AgentGrid_FC_Model(self.space, self.embedding_model)
+
+        raise ValueError(f'invalid gv model name {name}')
+
+
+def gv_cnn(in_channels):
+    """Gridverse convolutional network shared by the observation/state models."""
+    return nn.Sequential(
+        nn.Conv2d(in_channels, 32, kernel_size=3, padding=1),
+        nn.ReLU(),
+        nn.Conv2d(32, 64, kernel_size=3, padding=1),
+        nn.ReLU(),
+        nn.Conv2d(64, 64, kernel_size=3, padding=1),
+        nn.ReLU(),
     )
 
-    interaction_model = InteractionRepresentation(
-        action_model, observation_model
-    )
-    history_model = make_history_representation(
-        config.history_model,
-        interaction_model,
-        128,
-        num_heads=config._get('attention_num_heads'),
-    )
 
-    # resize history and state models
-    hs_features_dim: int = config.hs_features_dim
-    if hs_features_dim:
-        history_model = ResizeRepresentation(history_model, hs_features_dim)
-        latent_model = ResizeRepresentation(latent_model, hs_features_dim)
-
-    # normalize history and state models
-    if config.normalize_hs_features:
-        history_model = NormalizationRepresentation(history_model)
-        latent_model = NormalizationRepresentation(latent_model)
-
-    return nn.ModuleDict(
-        {
-            'latent_model': latent_model,
-            'action_model': action_model,
-            'observation_model': observation_model,
-            'interaction_model': interaction_model,
-            'history_model': history_model,
-        }
-    )
+def batchify(gv_type: GV_Observation | GV_State):
+    """Adds a batch axis to every subcomponent of a gridverse state or observation."""
+    return gtorch.unsqueeze(gv_type, 0)
 
 
-def make_models(env: Environment) -> nn.ModuleDict:
-    models = nn.ModuleDict(
-        {
-            'agent': _make_representation_models(env),
-            'critic': _make_representation_models(env),
-        }
-    )
+class GV_Agent_Model(Model):
+    def __init__(self, space: gym.spaces.Dict):
+        super().__init__()
+        if 'agent' not in space.spaces:
+            raise KeyError('space does not contain `agent` key')
 
-    # DQN models
-    models.agent.update(
-        {
-            'qh_model': _make_q_model(
-                models.agent.history_model.dim, env.action_space.n
-            ),
-            'qhz_model': _make_q_model(
-                models.agent.history_model.dim + models.agent.latent_model.dim,
-                env.action_space.n,
-            ),
-            'qz_model': _make_q_model(
-                models.agent.latent_model.dim, env.action_space.n
-            ),
-        }
-    )
+        self.space = space
 
-    # A2C models
-    models.agent.update(
-        {
-            'policy_model': _make_policy_model(
-                models.agent.history_model.dim, env.action_space.n
+    @property
+    def dim(self):
+        (agent_dim,) = self.space['agent'].shape
+        return agent_dim
+
+    def forward(self, inputs: GV_Observation):
+        agent = inputs['agent']
+        return agent
+
+
+class GV_Item_Model(Model):
+    def __init__(
+        self,
+        space: gym.spaces.Dict,
+        embedding_model: EmbeddingModel,
+    ):
+        super().__init__()
+        if 'item' not in space.spaces:
+            raise KeyError('space does not contain `item` key')
+
+        self.space = space
+        self.embedding_model = embedding_model
+
+    @property
+    def dim(self):
+        (item_dim,) = self.space['item'].shape
+        return item_dim * self.embedding_model.dim
+
+    def forward(self, inputs: GV_Observation):
+        item = inputs['item']
+        return self.embedding_model(item).flatten(start_dim=-2)
+
+
+class GV_Grid_CNN_Model(Model):
+    def __init__(
+        self,
+        space: gym.spaces.Dict,
+        embedding_model: EmbeddingModel,
+    ):
+        super().__init__()
+        if 'grid' not in space.spaces:
+            raise KeyError('space does not contain `grid` key')
+
+        self.space = space
+        self.embedding_model = embedding_model
+
+        grid_channels = space.spaces['grid'].shape[-1]
+        in_channels = grid_channels * embedding_model.dim
+        self.cnn = gv_cnn(in_channels)
+
+    @cached_property
+    def dim(self):
+        observation = self.space.sample()
+        observation = batchify(numpy2torch(observation))
+        return self.forward(observation).shape[1]
+
+    def forward(self, inputs: GV_Observation):
+        grid = inputs['grid']
+        grid = self.embedding_model(grid).flatten(start_dim=-2)
+
+        cnn_input = torch.transpose(grid, 1, 3)
+        cnn_output = self.cnn(cnn_input)
+        cnn_output = cnn_output.flatten(start_dim=1)
+
+        return cnn_output
+
+
+class GV_AgentGrid_CNN_Model(Model):
+    def __init__(
+        self,
+        space: gym.spaces.Dict,
+        embedding_model: EmbeddingModel,
+    ):
+        super().__init__()
+        if 'grid' not in space.spaces:
+            raise KeyError('space does not contain `grid` key')
+
+        if 'agent_id_grid' not in space.spaces:
+            raise KeyError('space does not contain `agent_id_grid` key')
+
+        self.space = space
+        self.embedding_model = embedding_model
+
+        grid_channels = space.spaces['grid'].shape[-1]
+        # adding one for agent_id_grid
+        in_channels = grid_channels * embedding_model.dim + 1
+        self.cnn = gv_cnn(in_channels)
+
+    @cached_property
+    def dim(self):
+        state = self.space.sample()
+        state = batchify(numpy2torch(state))
+        return self.forward(state).shape[1]
+
+    def forward(self, inputs: GV_Observation):
+        grid = inputs['grid']
+        agent_id_grid = inputs['agent_id_grid']
+
+        grid = self.embedding_model(grid).flatten(start_dim=-2)
+        agent_id_grid = agent_id_grid.unsqueeze(-1)
+        cnn_input = torch.cat([grid, agent_id_grid], dim=-1)
+        cnn_input = torch.transpose(cnn_input, 1, 3)
+        cnn_output = self.cnn(cnn_input)
+        cnn_output = cnn_output.flatten(start_dim=1)
+
+        return cnn_output
+
+
+class GV_Grid_FC_Model(Model):
+    def __init__(
+        self,
+        space: gym.spaces.Dict,
+        embedding_model: EmbeddingModel,
+    ):
+        super().__init__()
+        if 'grid' not in space.spaces:
+            raise KeyError('space does not contain `grid` key')
+
+        self.space = space
+        self.embedding_model = embedding_model
+
+    @property
+    def dim(self):
+        grid_dim = math.prod(self.space['grid'].shape)
+        return grid_dim * self.embedding_model.dim
+
+    def forward(self, inputs: GV_Observation):
+        grid = inputs['grid']
+        return self.embedding_model(grid).flatten(start_dim=-4)
+
+
+class GV_AgentGrid_FC_Model(Model):
+    def __init__(
+        self,
+        space: gym.spaces.Dict,
+        embedding_model: EmbeddingModel,
+    ):
+        super().__init__()
+        if 'grid' not in space.spaces:
+            raise KeyError('space does not contain `grid` key')
+
+        if 'agent_id_grid' not in space.spaces:
+            raise KeyError('space does not contain `agent_id_grid` key')
+
+        self.space = space
+        self.embedding_model = embedding_model
+
+    @property
+    def dim(self):
+        grid_dim = math.prod(self.space['grid'].shape)
+        agent_dim = math.prod(self.space['agent_id_grid'].shape)
+        return grid_dim * self.embedding_model.dim + agent_dim
+
+    def forward(self, inputs: GV_Observation):
+        grid = inputs['grid']
+        agent_id_grid = inputs['agent_id_grid']
+
+        grid = self.embedding_model(grid).flatten(start_dim=-4)
+        agent_id_grid = agent_id_grid.flatten(start_dim=-2)
+        return torch.cat([grid, agent_id_grid], dim=-1)
+
+
+class GV_Memory_Model(Model):
+    def __init__(self, space: gym.spaces.Box, *, embedding_size: int):
+        if not isinstance(space, gym.spaces.Box):
+            raise TypeError(
+                f'Invalid space type; should be gym.spaces.Box, is {type(space)}'
             )
-        }
-    )
-    models.critic.update(
-        {
-            'vh_model': _make_v_model(models.critic.history_model.dim),
-            'vhz_model': _make_v_model(
-                models.critic.history_model.dim + models.critic.latent_model.dim
-            ),
-            'vz_model': _make_v_model(models.critic.latent_model.dim),
-        }
-    )
 
-    return models
+        if space.shape is None or len(space.shape) != 1:
+            raise ValueError(
+                f'Invalid space shape;  should have single dimension, has {space.shape}'
+            )
+
+        super().__init__()
+        num_embeddings = space.high.item() + 1
+        self.embedding_model = EmbeddingModel(num_embeddings, embedding_size)
+
+    @property
+    def dim(self):
+        return self.embedding_model.dim
+
+    def forward(self, inputs: torch.Tensor):
+        return self.embedding_model(inputs)

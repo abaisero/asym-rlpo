@@ -1,7 +1,7 @@
-from typing import Any, Dict, Union
+from typing import Any, TypeAlias
 
-BasicType = Union[str, float, int, bool, None]
-ConfigDict = Dict[str, BasicType]
+BasicType: TypeAlias = str | float | int | bool | None
+ConfigDict: TypeAlias = dict[str, BasicType]
 
 
 class Config:
@@ -24,11 +24,11 @@ class Config:
         return self._config[name]
 
 
-_config = None
+_config: Config | None = None
 
 
 def get_config() -> Config:
-    global _config  # pylint: disable=global-statement
+    global _config
 
     if _config is None:
         _config = Config()

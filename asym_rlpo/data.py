@@ -3,16 +3,9 @@ from __future__ import annotations
 import logging
 import random
 from collections import deque
-from typing import (
-    Deque,
-    Dict,
-    Generic,
-    Iterable,
-    List,
-    Protocol,
-    Sequence,
-    TypeVar,
-)
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
+from typing import Generic, Protocol, TypeVar
 
 import numpy as np
 import torch
@@ -20,62 +13,62 @@ import torch
 import asym_rlpo.generalized_torch as gtorch
 from asym_rlpo.utils.collate import collate_numpy
 from asym_rlpo.utils.convert import numpy2torch
-from asym_rlpo.utils.debugging import checkraise
 
 logger = logging.getLogger(__name__)
 
 TorchObservation = TypeVar(
     'TorchObservation',
     torch.Tensor,
-    Dict[str, torch.Tensor],
+    dict[str, torch.Tensor],
 )
 TorchLatent = TypeVar(
     'TorchLatent',
     torch.Tensor,
-    Dict[str, torch.Tensor],
+    dict[str, torch.Tensor],
 )
 
 Observation = TypeVar(
     'Observation',
     torch.Tensor,
-    Dict[str, torch.Tensor],
+    dict[str, torch.Tensor],
     np.ndarray,
-    Dict[str, np.ndarray],
+    dict[str, np.ndarray],
 )
 Latent = TypeVar(
     'Latent',
     torch.Tensor,
-    Dict[str, torch.Tensor],
+    dict[str, torch.Tensor],
     np.ndarray,
-    Dict[str, np.ndarray],
+    dict[str, np.ndarray],
 )
 
 
+@dataclass
 class Interaction(Generic[Observation, Latent]):
-    def __init__(
-        self,
-        *,
-        observation: Observation,
-        latent: Latent,
-        action: int,
-        reward: float,
-    ):
-        self.observation: Observation = observation
-        self.latent: Latent = latent
-        self.action = action
-        self.reward = reward
+    observation: Observation
+    latent: Latent
+    action: int
+    reward: float
+    info: dict
 
 
 class Episode(Generic[Observation, Latent]):
     """Storage for collated episode data."""
 
     def __init__(
-        self, *, observations: Observation, latents: Latent, actions, rewards
+        self,
+        *,
+        observations: Observation,
+        latents: Latent,
+        actions,
+        rewards,
+        info: dict,
     ):
         self.observations: Observation = observations
         self.latents: Latent = latents
         self.actions = actions
         self.rewards = rewards
+        self.info = info
 
     def __len__(self):
         return len(self.actions)
@@ -112,15 +105,17 @@ class Episode(Generic[Observation, Latent]):
         rewards = collate_numpy(
             [interaction.reward for interaction in interactions]
         )
+        info = collate_numpy([interaction.info for interaction in interactions])
         return Episode(
             observations=observations,
             latents=latents,
             actions=actions,
             rewards=rewards,
+            info=info,
         )
 
     def torch(self) -> Episode[TorchObservation, TorchLatent]:
-        checkraise(
+        if not (
             (
                 isinstance(self.observations, np.ndarray)
                 or isinstance(self.observations, dict)
@@ -137,15 +132,16 @@ class Episode(Generic[Observation, Latent]):
                 )
             )
             and isinstance(self.actions, np.ndarray)
-            and isinstance(self.rewards, np.ndarray),
-            TypeError,
-            'Episode is not numpy to begin with??',
-        )
+            and isinstance(self.rewards, np.ndarray)
+        ):
+            raise TypeError('Episode is not numpy to begin with??')
+
         return Episode(
             observations=numpy2torch(self.observations),
             latents=numpy2torch(self.latents),
             actions=numpy2torch(self.actions),
             rewards=numpy2torch(self.rewards),
+            info=numpy2torch(self.info),
         )
 
     def to(self, device: torch.device) -> Episode[Observation, Latent]:
@@ -154,13 +150,34 @@ class Episode(Generic[Observation, Latent]):
             latents=gtorch.to(self.latents, device),
             actions=gtorch.to(self.actions, device),
             rewards=gtorch.to(self.rewards, device),
+            info=gtorch.to(self.info, device),
         )
+
+
+class EpisodeBuilder(Generic[Observation, Latent]):
+    def __init__(self):
+        self.interactions: list[Interaction[Observation, Latent]] = []
+        self.done = False
+
+    def append(
+        self,
+        interaction: Interaction[Observation, Latent],
+        done: bool,
+    ):
+        self.interactions.append(interaction)
+        self.done |= done
+
+    def build(self) -> Episode[Observation, Latent]:
+        if not self.done:
+            raise RuntimeError('Cannot build incomplete episode')
+
+        return Episode.from_interactions(self.interactions)
 
 
 class EpisodeBuffer(Generic[Observation, Latent]):
     def __init__(self, max_timesteps: int):
-        self.episodes: Deque[Episode[Observation, Latent]] = deque()
-        self.max_timesteps = max_timesteps
+        self.episodes = deque()
+        self.__max_timesteps = max_timesteps
         self.__num_interactions = 0
 
     def num_episodes(self) -> int:
@@ -172,20 +189,29 @@ class EpisodeBuffer(Generic[Observation, Latent]):
     def __getitem__(self, i) -> Episode[Observation, Latent]:
         return self.episodes[i]
 
-    def _enforce_max_timesteps(self):
-        while self.num_interactions() > self.max_timesteps:
+    def _enforce_max_timesteps(self) -> bool:
+        max_timesteps_exceeded = self.__max_timesteps < self.num_interactions()
+
+        while self.__max_timesteps < self.num_interactions():
             self.pop_episode()
 
-    def append_episode(self, episode: Episode[Observation, Latent]):
+        return max_timesteps_exceeded
+
+    def append_episode(self, episode: Episode[Observation, Latent]) -> bool:
         self.episodes.append(episode)
         self.__num_interactions += len(episode)
-        self._enforce_max_timesteps()
 
-    def append_episodes(self, episodes: Sequence[Episode[Observation, Latent]]):
+        return self._enforce_max_timesteps()
+
+    def append_episodes(
+        self,
+        episodes: Sequence[Episode[Observation, Latent]],
+    ) -> bool:
         for episode in episodes:
             self.episodes.append(episode)
             self.__num_interactions += len(episode)
-        self._enforce_max_timesteps()
+
+        return self._enforce_max_timesteps()
 
     def pop_episode(self) -> Episode[Observation, Latent]:
         episode = self.episodes.popleft()
@@ -206,8 +232,11 @@ class EpisodeBufferSampler(Generic[Observation, Latent]):
         return self.episode_buffer[i]
 
     def sample_episodes(
-        self, num_samples: int, *, replacement: bool
-    ) -> List[Episode[Observation, Latent]]:
+        self,
+        num_samples: int,
+        *,
+        replacement: bool,
+    ) -> list[Episode[Observation, Latent]]:
         if self.episode_buffer.num_episodes == 0:
             raise ValueError('Cannot sample from empty episode buffer')
 
@@ -234,17 +263,24 @@ class EpisodeFactory(Protocol, Generic[Observation, Latent]):
         ...
 
 
-def prepopulate_episode_buffer(
+class EpisodesFactory(Protocol, Generic[Observation, Latent]):
+    def __call__(self) -> list[Episode[Observation, Latent]]:
+        ...
+
+
+def populate_episode_buffer(
     episode_buffer: EpisodeBuffer[Observation, Latent],
     episode_factory: EpisodeFactory[Observation, Latent],
     *,
     timesteps: int,
 ):
-    logger.info(f'prepopulating episode buffer ({timesteps:_} timesteps)...')
+    logger.info(f'populating episode buffer until {timesteps:_} timesteps...')
     while episode_buffer.num_interactions() < timesteps:
         episode = episode_factory().torch()
-        episode_buffer.append_episode(episode)
+        if episode_buffer.append_episode(episode):
+            break
+
         logger.debug(
-            f'episode buffer {episode_buffer.num_interactions():_} timesteps'
+            f'- episode buffer {episode_buffer.num_interactions():_} timesteps'
         )
-    logger.info('prepopulating DONE')
+    logger.info('populating episode buffer DONE')

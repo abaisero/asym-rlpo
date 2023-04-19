@@ -1,9 +1,9 @@
 import numpy as np
 import pytest
 import torch
+import torch.testing
 
 from asym_rlpo.utils.convert import numpy2torch
-from asym_rlpo.utils.debugging import nested_equal
 
 
 @pytest.mark.parametrize(
@@ -44,4 +44,4 @@ from asym_rlpo.utils.debugging import nested_equal
     ],
 )
 def test_numpy2torch(data, expected):
-    assert nested_equal(numpy2torch(data), expected)
+    torch.testing.assert_close(numpy2torch(data), expected, rtol=0.0, atol=0.0)

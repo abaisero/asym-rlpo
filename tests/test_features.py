@@ -1,23 +1,19 @@
-from typing import Optional
-
 import pytest
 import torch
 
-from asym_rlpo.algorithms import get_a2c_algorithm_class
 from asym_rlpo.envs import LatentType, make_env
-from asym_rlpo.features import (
+from asym_rlpo.models import make_model_factory
+from asym_rlpo.models.history import (
     FullHistoryIntegrator,
-    TruncatedHistoryIntegrator,
-    make_history_integrator,
+    ReactiveHistoryIntegrator,
 )
-from asym_rlpo.models import make_models
+from asym_rlpo.policies import RandomPolicy
 from asym_rlpo.sampling import sample_episode
-from asym_rlpo.utils.config import get_config
 
 
-def integer_min(*args: Optional[int]) -> Optional[int]:
-    integer_args = (n for n in args if n is not None)
-    return min(integer_args, default=None)
+def min_positive(*args: int) -> int | None:
+    positive_args = (n for n in args if n > 0)
+    return min(positive_args, default=None)
 
 
 # reducing default tolerance to make tests pass
@@ -28,105 +24,99 @@ def torch_isclose(x: torch.Tensor, y: torch.Tensor) -> bool:
 # @pytest.mark.parametrize('history_model', ['rnn', 'attention'])
 @pytest.mark.parametrize('history_model', ['rnn'])
 def test_full_history_integrator(history_model: str):
-    config = get_config()
-    config._update({'history_model': history_model, 'attention_num_heads': 1})
-
     env = make_env(
         'PO-pos-CartPole-v1',
         latent_type=LatentType.STATE,
         max_episode_timesteps=100,
     )
-    episode = sample_episode(env).torch()
+    policy = RandomPolicy(env.action_space)
+    episode = sample_episode(env, policy).torch()
 
-    algorithm_class = get_a2c_algorithm_class('a2c')
-    models = make_models(env, keys=algorithm_class.model_keys)
-    history_integrator = make_history_integrator(
-        models.agent.interaction_model,
-        models.agent.history_model,
-    )
+    model_factory = make_model_factory(env)
+    model_factory.history_model = history_model
+    model_factory.attention_num_heads = 1
+    model_factory.history_model_memory_size = 0
+
+    model = model_factory.make_history_model()
+    history_integrator = model.make_history_integrator()
 
     assert isinstance(history_integrator, FullHistoryIntegrator)
 
     history_integrator.reset(episode.observations[0])
-    history_features = history_integrator.features
+    history_features, _ = history_integrator.sample_features()
     assert history_features.shape == (128,)
 
 
 # @pytest.mark.parametrize('history_model', ['rnn', 'attention'])
 @pytest.mark.parametrize('history_model', ['rnn'])
-@pytest.mark.parametrize('truncated_histories_n', [2, 4, 6])
+@pytest.mark.parametrize('memory_size', [2, 4, 6])
 def test_truncated_history_integrators(
     history_model: str,
-    truncated_histories_n: Optional[int],
+    memory_size: int,
 ):
-    config = get_config()
-    config._update({'history_model': history_model, 'attention_num_heads': 1})
-
     env = make_env(
         'PO-pos-CartPole-v1',
         latent_type=LatentType.STATE,
         max_episode_timesteps=100,
     )
-    episode = sample_episode(env).torch()
+    policy = RandomPolicy(env.action_space)
+    episode = sample_episode(env, policy).torch()
 
-    algorithm_class = get_a2c_algorithm_class('a2c')
-    models = make_models(env, keys=algorithm_class.model_keys)
-    history_integrator = make_history_integrator(
-        models.agent.interaction_model,
-        models.agent.history_model,
-        truncated_histories_n=truncated_histories_n,
-    )
+    model_factory = make_model_factory(env)
+    model_factory.history_model = history_model
+    model_factory.attention_num_heads = 1
+    model_factory.history_model_memory_size = memory_size
 
-    assert isinstance(history_integrator, TruncatedHistoryIntegrator)
-    assert history_integrator.n == truncated_histories_n
+    model = model_factory.make_history_model()
+    history_integrator = model.make_history_integrator()
+
+    assert isinstance(history_integrator, ReactiveHistoryIntegrator)
+    assert history_integrator.memory_size == memory_size
 
     history_integrator.reset(episode.observations[0])
-    history_features = history_integrator.features
+    history_features, _ = history_integrator.sample_features()
     assert history_features.shape == (128,)
 
 
 # @pytest.mark.parametrize('history_model', ['rnn', 'attention'])
 @pytest.mark.parametrize('history_model', ['rnn'])
-@pytest.mark.parametrize('truncated_histories_n1', [None, 4, 8])
-@pytest.mark.parametrize('truncated_histories_n2', [None, 4, 8])
+@pytest.mark.parametrize('memory_size_1', [0, 4, 8])
+@pytest.mark.parametrize('memory_size_2', [0, 4, 8])
 def test_history_integrators(
     history_model: str,
-    truncated_histories_n1: Optional[int],
-    truncated_histories_n2: Optional[int],
+    memory_size_1: int,
+    memory_size_2: int,
 ):
-    config = get_config()
-    config._update({'history_model': history_model})
-
     env = make_env(
         'PO-pos-CartPole-v1',
         latent_type=LatentType.STATE,
         max_episode_timesteps=100,
     )
-    episode = sample_episode(env).torch()
+    policy = RandomPolicy(env.action_space)
+    episode = sample_episode(env, policy).torch()
 
     # single set of models for both integrators
-    algorithm_class = get_a2c_algorithm_class('a2c')
-    models = make_models(env, keys=algorithm_class.model_keys)
+    model_factory = make_model_factory(env)
+    model_factory.history_model = history_model
 
-    history_integrator1 = make_history_integrator(
-        models.agent.interaction_model,
-        models.agent.history_model,
-        truncated_histories_n=truncated_histories_n1,
-    )
-    history_integrator2 = make_history_integrator(
-        models.agent.interaction_model,
-        models.agent.history_model,
-        truncated_histories_n=truncated_histories_n2,
-    )
+    model_factory.history_model_memory_size = memory_size_1
+    history_model1 = model_factory.make_history_model()
+    history_integrator1 = history_model1.make_history_integrator()
 
-    expected = truncated_histories_n1 == truncated_histories_n2
+    model_factory.history_model_memory_size = memory_size_2
+    history_model2 = model_factory.make_history_model()
+    history_integrator2 = history_model2.make_history_integrator()
+
+    history_model2.load_state_dict(history_model1.state_dict())
+
+    expected = memory_size_1 == memory_size_2
 
     observation = episode.observations[0]
     history_integrator1.reset(observation)
     history_integrator2.reset(observation)
 
-    history_features1 = history_integrator1.features
-    history_features2 = history_integrator2.features
+    history_features1, _ = history_integrator1.sample_features()
+    history_features2, _ = history_integrator2.sample_features()
     assert torch_isclose(history_features1, history_features2) == expected
 
     for t in range(1, len(episode)):
@@ -135,22 +125,17 @@ def test_history_integrators(
         history_integrator2.step(*interaction)
 
         # full and truncated-n are the same at the nth timestep
-        same_model = truncated_histories_n1 == truncated_histories_n2
-        non_truncated_model = None in [
-            truncated_histories_n1,
-            truncated_histories_n2,
-        ]
-        min_truncated_histories_n = integer_min(
-            truncated_histories_n1, truncated_histories_n2
-        )
-        equivalent_model = (t + 1) == min_truncated_histories_n
+        same_model = memory_size_1 == memory_size_2
+        non_truncated_model = memory_size_1 == 0 or memory_size_2 == 0
+        min_memory_size = min_positive(memory_size_1, memory_size_2)
+        equivalent_model = (t + 1) == min_memory_size
         # expected result is equality if they are the same model,
         # or if one model is non-truncated, while the other is truncated,
         # and at the exact timestep corresponding to the truncation length
         expected = same_model or (non_truncated_model and equivalent_model)
 
-        history_features1 = history_integrator1.features
-        history_features2 = history_integrator2.features
+        history_features1, _ = history_integrator1.sample_features()
+        history_features2, _ = history_integrator2.sample_features()
         history_features_close = torch_isclose(
             history_features1, history_features2
         )

@@ -1,17 +1,13 @@
 from __future__ import annotations
 
 import re
-from typing import Dict, Optional, Protocol, Tuple
+from typing import Protocol
 
 import gym
 import gym.spaces
 import gym_pomdps
 
-from asym_rlpo.utils.debugging import checkraise
-from asym_rlpo.wrapper import IndexWrapper
-
-from . import extra_hai, extra_lyu
-from .env import (
+from asym_rlpo.envs.env import (
     Action,
     Environment,
     EnvironmentType,
@@ -20,6 +16,7 @@ from .env import (
     Observation,
     State,
 )
+from asym_rlpo.envs.wrappers import IndexWrapper
 
 
 def make_gym_env(id: str, *, latent_type: LatentType) -> Environment:
@@ -65,11 +62,8 @@ def make_po_gym_env(name: str) -> Environment:
     # m[2] is the second capture, i.e., the name w/o the version
     # m[3] is the third capture, i.e., the version
 
-    checkraise(
-        m is not None,
-        ValueError,
-        f'env name {name} does not satisfy regex',
-    )
+    if m is None:
+        raise ValueError(f'env name {name} does not satisfy regex')
 
     assert m is not None  # silly forcing of type checking
     po_type = m[1]
@@ -86,11 +80,8 @@ def make_po_gym_env(name: str) -> Environment:
             'full': [0, 1, 2, 3],  # ignore nothing
         }
 
-        checkraise(
-            po_type in indices_dict.keys(),
-            ValueError,
-            f'invalid partial observability {po_type}',
-        )
+        if po_type not in indices_dict.keys():
+            raise ValueError(f'invalid partial observability {po_type}')
 
         gym_env = gym.make(non_po_name)
         indices = indices_dict[po_type]
@@ -103,11 +94,8 @@ def make_po_gym_env(name: str) -> Environment:
             'full': [0, 1, 2, 3, 4, 5, 6, 7],  # ignore nothing
         }
 
-        checkraise(
-            po_type in indices_dict.keys(),
-            ValueError,
-            f'invalid partial observability {po_type}',
-        )
+        if po_type not in indices_dict.keys():
+            raise ValueError(f'invalid partial observability {po_type}')
 
         gym_env = gym.make(non_po_name)
         indices = indices_dict[po_type]
@@ -120,11 +108,8 @@ def make_po_gym_env(name: str) -> Environment:
             'full': [0, 1, 2, 3, 4, 5],  # ignore nothing
         }
 
-        checkraise(
-            po_type in indices_dict.keys(),
-            ValueError,
-            f'invalid partial observability {po_type}',
-        )
+        if po_type not in indices_dict.keys():
+            raise ValueError(f'invalid partial observability {po_type}')
 
         gym_env = gym.make(non_po_name)
         indices = indices_dict[po_type]
@@ -152,7 +137,7 @@ class StatefulGymEnv(Protocol):
     def reset(self) -> Observation:
         ...
 
-    def step(self, action) -> Tuple[Observation, float, bool, Dict]:
+    def step(self, action) -> tuple[Observation, float, bool, dict]:
         ...
 
     def render(self, mode="human"):
@@ -170,18 +155,18 @@ class GymEnvironment(Environment):
         self.observation_space: gym.spaces.Space = env.observation_space
         self.latent_space: gym.spaces.Space = env.state_space
 
-    def seed(self, seed: Optional[int] = None) -> None:
+    def seed(self, seed: int | None = None) -> None:
         self._env.seed(seed)
         self.action_space.seed(seed)
         self.observation_space.seed(seed)
         self.latent_space.seed(seed)
 
-    def reset(self) -> Tuple[Observation, Latent]:
+    def reset(self) -> tuple[Observation, Latent]:
         observation = self._env.reset()
         latent = self._env.state
         return observation, latent
 
-    def step(self, action: Action) -> Tuple[Observation, Latent, float, bool]:
+    def step(self, action: Action) -> tuple[Observation, Latent, float, bool]:
         observation, reward, done, _ = self._env.step(action)
         latent = self._env.state
         return observation, latent, reward, done

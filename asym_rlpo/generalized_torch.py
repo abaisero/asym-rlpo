@@ -1,8 +1,8 @@
-from typing import Dict, TypeVar
+from typing import TypeVar
 
 import torch
 
-GTensor = TypeVar('GTensor', torch.Tensor, Dict[str, torch.Tensor])
+GTensor = TypeVar('GTensor', torch.Tensor, dict[str, torch.Tensor])
 
 
 def f_apply(f, x: GTensor, *args, **kwargs) -> GTensor:

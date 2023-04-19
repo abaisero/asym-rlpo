@@ -1,24 +1,28 @@
-from typing import Optional, Tuple
-
-from .env import (
+from asym_rlpo.envs.carflag import register as register_carflag
+from asym_rlpo.envs.cleaner import register as register_cleaner
+from asym_rlpo.envs.dectiger import register as register_dectiger
+from asym_rlpo.envs.env import (
     Action,
     Environment,
-    EnvironmentType,
     Latent,
     LatentType,
     Observation,
 )
-from .env_gv import make_gv_env
-from .env_gym import make_gym_env
+from asym_rlpo.envs.env_gv import make_gv_env
+from asym_rlpo.envs.env_gym import make_gym_env
+
+register_carflag()
+register_cleaner()
+register_dectiger()
 
 
 def make_env(
     id_or_path: str,
     *,
     latent_type: LatentType,
-    max_episode_timesteps: Optional[int] = None,
+    max_episode_timesteps: int | None = None,
+    gv_representation: str = 'compact',
 ) -> Environment:
-
     try:
         env = make_gym_env(id_or_path, latent_type=latent_type)
 
@@ -27,7 +31,11 @@ def make_env(
             f'Environment with id {id_or_path} not found.'
             ' Trying as a GV YAML environment.'
         )
-        env = make_gv_env(id_or_path, latent_type=latent_type)
+        env = make_gv_env(
+            id_or_path,
+            latent_type=latent_type,
+            gv_representation=gv_representation,
+        )
 
     if max_episode_timesteps is not None:
         env = TimeLimitEnvironment(env, max_episode_timesteps)
@@ -49,14 +57,14 @@ class TimeLimitEnvironment:
         self._timestep: int
         self._max_timestep = max_timestep
 
-    def seed(self, seed: Optional[int] = None) -> None:
+    def seed(self, seed: int | None = None) -> None:
         self._env.seed(seed)
 
-    def reset(self) -> Tuple[Observation, Latent]:
+    def reset(self) -> tuple[Observation, Latent]:
         self._timestep = 0
         return self._env.reset()
 
-    def step(self, action: Action) -> Tuple[Observation, Latent, float, bool]:
+    def step(self, action: Action) -> tuple[Observation, Latent, float, bool]:
         self._timestep += 1
         observation, latent, reward, done = self._env.step(action)
         done = done or self._timestep >= self._max_timestep

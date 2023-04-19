@@ -9,6 +9,7 @@ def make_episode(num_timesteps: int):
         latents=np.zeros(num_timesteps),
         actions=np.zeros(num_timesteps, dtype=int),
         rewards=np.zeros(num_timesteps),
+        info={},
     )
 
 

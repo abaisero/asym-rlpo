@@ -1,16 +1,13 @@
 import enum
-from typing import Any, Optional, Protocol, Tuple
+from typing import Any, Protocol, TypeAlias
 
 import gym
 import gym.spaces
 
-State = Any
-Action = int
-Observation = Any
-Latent = Any
-
-# TODO eventually add
-# * how to type spaces and their elements more specifically?
+State: TypeAlias = Any
+Action: TypeAlias = int
+Observation: TypeAlias = Any
+Latent: TypeAlias = Any
 
 
 class EnvironmentType(enum.Enum):
@@ -38,13 +35,13 @@ class Environment(Protocol):
     observation_space: gym.spaces.Space
     latent_space: gym.spaces.Space
 
-    def seed(self, seed: Optional[int] = None) -> None:
+    def seed(self, seed: int | None = None) -> None:
         ...
 
-    def reset(self) -> Tuple[Observation, Latent]:
+    def reset(self) -> tuple[Observation, Latent]:
         ...
 
-    def step(self, action: Action) -> Tuple[Observation, Latent, float, bool]:
+    def step(self, action: Action) -> tuple[Observation, Latent, float, bool]:
         ...
 
     # Kinda want to remove this..?

@@ -1,62 +1,27 @@
 from __future__ import annotations
 
 from time import time
-from typing import Dict
-
-from dateutil.parser import parse as datetime_parser
-
-from asym_rlpo.utils.checkpointing import Serializer
 
 
-class StepDispenser:
-    """Dispenses `True` no more than once every `n` steps."""
+class Dispenser:
+    """Dispenses `True` no more than once every `period`."""
+    def __init__(self, value: float, period: float):
+        self.__next_value = value
+        self.__period = period
 
-    def __init__(self, n: int):
-        self.n = n
-        self.next_i = 0
+    def dispense(self, value, *, consume=True) -> bool:
+        dispense = self.__next_value <= value
 
-    def dispense(self, i) -> bool:
-        if i >= self.next_i:
-            self.next_i = i + self.n
-            return True
+        if dispense and consume:
+            self.__next_value = value + self.__period
 
-        return False
-
-
-class StepDispenserSerializer(Serializer[StepDispenser]):
-    def serialize(self, obj: StepDispenser) -> Dict:
-        return {
-            'n': obj.n,
-            'next_i': obj.next_i,
-        }
-
-    def deserialize(self, obj: StepDispenser, data: Dict):
-        obj.n = data['n']
-        obj.next_i = data['next_i']
+        return dispense
 
 
-class TimePeriodDispenser:
-    """Dispenses `True` no more than every period (in seconds)."""
-
+class TimeDispenser:
+    """Dispenses `True` no more than once every `period` seconds."""
     def __init__(self, period: float):
-        self.period = period
-        self.next_t = time()
+        self.__dispenser = Dispenser(time(), period)
 
-    def dispense(self) -> bool:
-        t = time()
-
-        if t < self.next_t:
-            return False
-
-        self.next_t = t + self.period
-        return True
-
-
-class TimestampDispenser:
-    """Dispenses `True` after a given timestamp."""
-
-    def __init__(self, timestamp: float):
-        self.timestamp = timestamp
-
-    def dispense(self) -> bool:
-        return time() > self.timestamp
+    def dispense(self, *, consume=True) -> bool:
+        return self.__dispenser.dispense(time(), consume=consume)

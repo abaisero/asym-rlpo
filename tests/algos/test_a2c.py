@@ -2,8 +2,8 @@ import itertools as itt
 
 import torch
 
-from asym_rlpo.algorithms import make_a2c_algorithm
 from asym_rlpo.envs import LatentType, make_env
+from asym_rlpo.models import make_model_factory
 from asym_rlpo.policies import RandomPolicy
 from asym_rlpo.sampling import sample_episode
 
@@ -20,31 +20,27 @@ def test_compute_history_features():
     policy = RandomPolicy(env.action_space)
     episode = sample_episode(env, policy).torch()
 
-    algos = {
-        'full': make_a2c_algorithm('a2c', env),
-        'react-2': make_a2c_algorithm('a2c', env, truncated_histories_n=2),
-        'react-4': make_a2c_algorithm('a2c', env, truncated_histories_n=4),
-    }
-    models = make_a2c_algorithm('a2c', env).models
+    model_factory = make_model_factory(env)
+    model_factory.history_model = 'rnn'
 
-    # this test uses implementation details (knows that
-    # make_history_integrator) is build using a partial
-    make_history_integrator = algos['full'].make_history_integrator
-    assert make_history_integrator.keywords['truncated_histories_n'] is None
-    make_history_integrator = algos['react-2'].make_history_integrator
-    assert make_history_integrator.keywords['truncated_histories_n'] == 2
-    make_history_integrator = algos['react-4'].make_history_integrator
-    assert make_history_integrator.keywords['truncated_histories_n'] == 4
+    history_models = {}
+
+    model_factory.history_model_memory_size = -1
+    history_models['full'] = model_factory.make_history_model()
+
+    model_factory.history_model_memory_size = 2
+    history_models['react-2'] = model_factory.make_history_model()
+
+    model_factory.history_model_memory_size = 4
+    history_models['react-4'] = model_factory.make_history_model()
+
+    history_models['react-2'].load_state_dict(history_models['full'].state_dict())
+    history_models['react-4'].load_state_dict(history_models['full'].state_dict())
 
     with torch.no_grad():
         history_features = {
-            k: v.compute_history_features(
-                models.agent.interaction_model,
-                models.agent.history_model,
-                episode.actions,
-                episode.observations,
-            )
-            for k, v in algos.items()
+            k: history_model.episodic(episode)
+            for k, history_model in history_models.items()
         }
 
     pairs = itt.combinations(history_features.values(), 2)

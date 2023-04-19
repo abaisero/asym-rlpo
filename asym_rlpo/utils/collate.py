@@ -1,4 +1,5 @@
-from typing import Any, Dict, Sequence, overload
+from collections.abc import Sequence
+from typing import Any, overload
 
 import numpy as np
 import torch
@@ -11,8 +12,8 @@ def collate_numpy(data: Sequence[np.ndarray]) -> np.ndarray:
 
 @overload
 def collate_numpy(
-    data: Sequence[Dict[str, np.ndarray]]
-) -> Dict[str, np.ndarray]:
+    data: Sequence[dict[str, np.ndarray]]
+) -> dict[str, np.ndarray]:
     ...
 
 
@@ -41,8 +42,8 @@ def collate_torch(data: Sequence[torch.Tensor]) -> torch.Tensor:
 
 @overload
 def collate_torch(
-    data: Sequence[Dict[str, torch.Tensor]]
-) -> Dict[str, torch.Tensor]:
+    data: Sequence[dict[str, torch.Tensor]]
+) -> dict[str, torch.Tensor]:
     ...
 
 

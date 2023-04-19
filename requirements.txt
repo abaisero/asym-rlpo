@@ -1,6 +1,6 @@
 black
 flake8
-gym[box2d]
+gym
 gym-gridverse
 ipdb
 ipython
@@ -12,6 +12,7 @@ numpy
 pandas
 pre-commit
 pyflakes
+pygame
 pylint
 pytest
 torch

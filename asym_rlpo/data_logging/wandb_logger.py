@@ -1,25 +1,18 @@
-from typing import Dict
-
 import wandb
-
-from asym_rlpo.utils.checkpointing import Serializer
 
 from .logger import DataLogger
 
 
 class WandbLogger(DataLogger):
-    def __init__(self, step: int = 0):
+    def __init__(self):
         super().__init__()
-        self.step = step
+        self.__step = 0
 
-    def log(self, data: Dict):
-        wandb.log(data, step=self.step)
-        self.step += 1
+    def log(self, data: dict, *, commit: bool = True):
+        wandb.log(data, step=self.__step, commit=commit)
+        if commit:
+            self.__step += 1
 
-
-class WandbLoggerSerializer(Serializer[WandbLogger]):
-    def serialize(self, obj: WandbLogger) -> Dict:
-        return {'step': obj.step}
-
-    def deserialize(self, obj: WandbLogger, data: Dict):
-        obj.step = data['step']
+    def commit(self):
+        wandb.log({}, step=self.__step)
+        self.__step += 1

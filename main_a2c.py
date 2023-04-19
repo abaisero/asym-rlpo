@@ -1,10 +1,14 @@
 #!/usr/bin/env python
 import argparse
+import functools
 import logging
 import logging.config
 import random
-from dataclasses import asdict, dataclass
-from typing import Dict, NamedTuple
+import signal
+import sys
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
+from typing import NamedTuple
 
 import numpy as np
 import torch
@@ -12,33 +16,35 @@ import torch.nn as nn
 import wandb
 from gym_gridverse.rng import reset_gv_rng
 
-from asym_rlpo.algorithms import A2C_ABC, make_a2c_algorithm
-from asym_rlpo.data_logging.wandb_logger import (
-    WandbLogger,
-    WandbLoggerSerializer,
-)
+from asym_rlpo.algorithms import A2C, make_a2c_algorithm
+from asym_rlpo.data import Episode, EpisodesFactory
+from asym_rlpo.data_logging.logger import DataLogger
+from asym_rlpo.data_logging.wandb_logger import WandbLogger
 from asym_rlpo.envs import Environment, LatentType, make_env
-from asym_rlpo.evaluation import evaluate, evaluate_returns
-from asym_rlpo.q_estimators import q_estimator_factory
+from asym_rlpo.evaluation import evaluate_episodes
+from asym_rlpo.models import make_model_factory
+from asym_rlpo.models.actor_critic import ActorCriticModel
+from asym_rlpo.q_estimators import Q_Estimator, q_estimator_factory
+from asym_rlpo.runs.xstats import (
+    XStats,
+    update_xstats_epoch,
+    update_xstats_optimizer,
+    update_xstats_simulation,
+    update_xstats_training,
+)
 from asym_rlpo.sampling import sample_episodes
-from asym_rlpo.utils.aggregate import average
-from asym_rlpo.utils.checkpointing import Serializer, load_data, save_data
+from asym_rlpo.types import GradientNormDict, LossDict
+from asym_rlpo.utils.aggregate import average_losses
+from asym_rlpo.utils.checkpointing import load_data, save_data
 from asym_rlpo.utils.config import get_config
 from asym_rlpo.utils.device import get_device
-from asym_rlpo.utils.dispenser import (
-    StepDispenser,
-    StepDispenserSerializer,
-    TimePeriodDispenser,
-    TimestampDispenser,
-)
+from asym_rlpo.utils.dispenser import Dispenser, TimeDispenser
 from asym_rlpo.utils.running_average import (
     InfiniteRunningAverage,
-    RunningAverage,
-    RunningAverageSerializer,
     WindowRunningAverage,
 )
-from asym_rlpo.utils.scheduling import make_schedule
-from asym_rlpo.utils.timer import Timer, TimerSerializer
+from asym_rlpo.utils.scheduling import Schedule, make_schedule
+from asym_rlpo.utils.timer import Timer, timestamp_is_past
 
 logger = logging.getLogger(__name__)
 
@@ -53,23 +59,27 @@ def parse_args():
     parser.add_argument('--wandb-tag', action='append', dest='wandb_tags')
     parser.add_argument('--wandb-offline', action='store_true')
 
-    # wandb related
-    parser.add_argument('--num-wandb-logs', type=int, default=200)
+    # data-logging
+    parser.add_argument('--num-data-logs', type=int, default=200)
 
     # algorithm and environment
     parser.add_argument('env')
-    parser.add_argument('algo', choices=['a2c', 'asym-a2c', 'asym-a2c-state'])
+    parser.add_argument(
+        'algo',
+        choices=['a2c', 'asym-a2c', 'asym-a2c-state'],
+    )
 
     parser.add_argument('--env-label', default=None)
     parser.add_argument('--algo-label', default=None)
 
     # truncated histories
+    # TODO rename into sequence model?
     parser.add_argument(
         '--history-model',
         choices=['rnn', 'gru', 'attention'],
         default='gru',
     )
-    parser.add_argument('--truncated-histories-n', type=int, default=None)
+    parser.add_argument('--history-model-memory-size', type=int, default=0)
 
     # reproducibility
     parser.add_argument('--seed', type=int, default=None)
@@ -86,7 +96,6 @@ def parse_args():
     parser.add_argument('--evaluation', action='store_true')
     parser.add_argument('--evaluation-period', type=int, default=10)
     parser.add_argument('--evaluation-num-episodes', type=int, default=1)
-    parser.add_argument('--evaluation-epsilon', type=float, default=1.0)
 
     # discounts
     parser.add_argument('--evaluation-discount', type=float, default=1.0)
@@ -139,8 +148,7 @@ def parse_args():
     )
 
     # gv models
-    parser.add_argument('--gv-observation-representation', default='compact')
-    parser.add_argument('--gv-state-representation', default='compact')
+    parser.add_argument('--gv-representation', default='compact')
 
     parser.add_argument(
         '--gv-observation-grid-model-type',
@@ -165,125 +173,107 @@ def parse_args():
     )
 
     # checkpoint
+    parser.add_argument('--run-path', default=None)
+
     parser.add_argument('--checkpoint', default=None)
     parser.add_argument('--checkpoint-period', type=int, default=10 * 60)
 
     parser.add_argument('--timeout-timestamp', type=float, default=float('inf'))
 
     parser.add_argument('--save-model', action='store_true')
-    parser.add_argument('--model-filename', default=None)
-
     parser.add_argument('--save-modelseq', action='store_true')
-    parser.add_argument('--modelseq-filename', default=None)
 
     args = parser.parse_args()
+
     args.env_label = args.env if args.env_label is None else args.env_label
     args.algo_label = args.algo if args.algo_label is None else args.algo_label
     args.wandb_mode = 'offline' if args.wandb_offline else None
+
+    if args.run_path is None:
+        args.checkpoint_path = None
+        args.model_path = None
+        args.modelseq_path_template = None
+    else:
+        args.checkpoint_path = f'{args.run_path}/checkpoint.pkl'
+        args.model_path = f'{args.run_path}/model.pkl'
+        args.modelseq_path_template = (
+            f'{args.run_path}/modelseq/modelseq.{{}}.pkl'
+        )
+
     return args
 
 
 @dataclass
-class XStats:
-    epoch: int = 0
-    simulation_episodes: int = 0
-    simulation_timesteps: int = 0
-    optimizer_steps: int = 0
-    training_episodes: int = 0
-    training_timesteps: int = 0
-
-    def asdict(self):
-        return asdict(self)
+class Controlflow:
+    log_data: bool = False
+    update_target_parameters: bool = False
+    evaluate: bool = False
+    save_modelseq: bool = False
 
 
-class XStatsSerializer(Serializer[XStats]):
-    def serialize(self, xstats: XStats) -> Dict:
-        return xstats.asdict()
+@dataclass
+class Runflags:
+    done: bool = False
+    timeout: bool = False
+    interrupt: bool = False
 
-    def deserialize(self, xstats: XStats, data: Dict):
-        xstats.epoch = data['epoch']
-        xstats.simulation_episodes = data['simulation_episodes']
-        xstats.simulation_timesteps = data['simulation_timesteps']
-        xstats.optimizer_steps = data['optimizer_steps']
-        xstats.training_episodes = data['training_episodes']
-        xstats.training_timesteps = data['training_timesteps']
+    def stop_run(self) -> bool:
+        return self.done or self.timeout or self.interrupt
 
 
-class RunState(NamedTuple):
+class RunstateAverages(NamedTuple):
+    target: InfiniteRunningAverage
+    behavior: InfiniteRunningAverage
+    behavior100: WindowRunningAverage
+
+
+class RunstateDispensers(NamedTuple):
+    target_update: Dispenser
+    datalog: Dispenser
+    checkpoint: TimeDispenser
+
+
+class RunstateEpisodesFactories(NamedTuple):
+    behavior_factory: EpisodesFactory
+    evaluation_factory: EpisodesFactory
+
+
+class Runstate(NamedTuple):
+    # original runstate
     env: Environment
-    algo: A2C_ABC
-    optimizer_actor: torch.optim.Optimizer
-    optimizer_critic: torch.optim.Optimizer
-    wandb_logger: WandbLogger
-    xstats: XStats
+    algo: A2C
+    datalogger: DataLogger
     timer: Timer
-    running_averages: Dict[str, RunningAverage]
-    dispensers: Dict[str, StepDispenser]
+    xstats: XStats
+    averages: RunstateAverages
+    dispensers: RunstateDispensers
+    # original loopstate
+    episodes_factories: RunstateEpisodesFactories
+    device: torch.device
+    negentropy_schedule: Schedule
+    q_estimator: Q_Estimator
 
 
-class RunStateSerializer(Serializer[RunState]):
-    def __init__(self):
-        self.wandb_logger_serializer = WandbLoggerSerializer()
-        self.xstats_serializer = XStatsSerializer()
-        self.timer_serializer = TimerSerializer()
-        self.running_average_serializer = RunningAverageSerializer()
-        self.dispenser_serializer = StepDispenserSerializer()
-
-    def serialize(self, runstate: RunState) -> Dict:
-        return {
-            'models': runstate.algo.models.state_dict(),
-            'target_models': runstate.algo.target_models.state_dict(),
-            'optimizer_actor': runstate.optimizer_actor.state_dict(),
-            'optimizer_critic': runstate.optimizer_critic.state_dict(),
-            'wandb_logger': self.wandb_logger_serializer.serialize(
-                runstate.wandb_logger
-            ),
-            'xstats': self.xstats_serializer.serialize(runstate.xstats),
-            'timer': self.timer_serializer.serialize(runstate.timer),
-            'running_averages': {
-                k: self.running_average_serializer.serialize(v)
-                for k, v in runstate.running_averages.items()
-            },
-            'dispensers': {
-                k: self.dispenser_serializer.serialize(v)
-                for k, v in runstate.dispensers.items()
-            },
-        }
-
-    def deserialize(self, runstate: RunState, data: Dict):
-        runstate.algo.models.load_state_dict(data['models'])
-        runstate.algo.target_models.load_state_dict(data['target_models'])
-        runstate.optimizer_actor.load_state_dict(data['optimizer_actor'])
-        runstate.optimizer_critic.load_state_dict(data['optimizer_critic'])
-        self.wandb_logger_serializer.deserialize(
-            runstate.wandb_logger,
-            data['wandb_logger'],
-        )
-        self.xstats_serializer.deserialize(runstate.xstats, data['xstats'])
-        self.timer_serializer.deserialize(runstate.timer, data['timer'])
-
-        data_keys = data['running_averages'].keys()
-        obj_keys = runstate.running_averages.keys()
-        if set(data_keys) != set(obj_keys):
-            raise RuntimeError()
-        for k, running_average in runstate.running_averages.items():
-            self.running_average_serializer.deserialize(
-                running_average,
-                data['running_averages'][k],
-            )
-
-        data_keys = data['dispensers'].keys()
-        obj_keys = runstate.dispensers.keys()
-        if set(data_keys) != set(obj_keys):
-            raise RuntimeError()
-        for k, dispenser in runstate.dispensers.items():
-            self.dispenser_serializer.deserialize(
-                dispenser,
-                data['dispensers'][k],
-            )
+class CheckpointMetadata(NamedTuple):
+    config: dict
+    wandb_run_id: str
 
 
-def setup() -> RunState:
+class CheckpointData(NamedTuple):
+    algo_state_dict: dict
+    datalogger: DataLogger
+    timer: Timer
+    xstats: XStats
+    averages: RunstateAverages
+    dispensers: RunstateDispensers
+
+
+class Checkpoint(NamedTuple):
+    metadata: CheckpointMetadata
+    data: CheckpointData
+
+
+def make_runstate(checkpoint: Checkpoint | None) -> Runstate:
     config = get_config()
 
     table = str.maketrans({'-': '_'})
@@ -292,124 +282,78 @@ def setup() -> RunState:
         config.env,
         latent_type=latent_type,
         max_episode_timesteps=config.max_episode_timesteps,
+        gv_representation=config.gv_representation,
     )
+
+    def actor_optimizer_factory(
+        parameters: Iterable[nn.Parameter],
+    ) -> torch.optim.Optimizer:
+        return torch.optim.Adam(
+            parameters,
+            lr=config.optim_lr_actor,
+            eps=config.optim_eps_actor,
+        )
+
+    def critic_optimizer_factory(
+        parameters: Iterable[nn.Parameter],
+    ) -> torch.optim.Optimizer:
+        return torch.optim.Adam(
+            parameters,
+            lr=config.optim_lr_critic,
+            eps=config.optim_eps_critic,
+        )
+
+    model_factory = make_model_factory(env)
+    model_factory.history_model = config.history_model
+    model_factory.attention_num_heads = config._get('attention_num_heads')
+    model_factory.history_model_memory_size = config.history_model_memory_size
 
     algo = make_a2c_algorithm(
         config.algo,
-        env,
-        truncated_histories_n=config.truncated_histories_n,
+        model_factory,
+        actor_optimizer_factory=actor_optimizer_factory,
+        critic_optimizer_factory=critic_optimizer_factory,
+        max_gradient_norm=config.optim_max_norm,
     )
-
-    optimizer_actor = torch.optim.Adam(
-        algo.models.parameters(),
-        lr=config.optim_lr_actor,
-        eps=config.optim_eps_actor,
-    )
-    optimizer_critic = torch.optim.Adam(
-        algo.models.parameters(),
-        lr=config.optim_lr_critic,
-        eps=config.optim_eps_critic,
-    )
-
-    wandb_logger = WandbLogger()
-
-    xstats = XStats()
-    timer = Timer()
-
-    running_averages = {
-        'avg_target_returns': InfiniteRunningAverage(),
-        'avg_behavior_returns': InfiniteRunningAverage(),
-        'avg100_behavior_returns': WindowRunningAverage(100),
-    }
-
-    wandb_log_period = config.max_simulation_timesteps // config.num_wandb_logs
-    dispensers = {
-        'target_update_dispenser': StepDispenser(config.target_update_period),
-        'wandb_log_dispenser': StepDispenser(wandb_log_period),
-    }
-
-    return RunState(
-        env,
-        algo,
-        optimizer_actor,
-        optimizer_critic,
-        wandb_logger,
-        xstats,
-        timer,
-        running_averages,
-        dispensers,
-    )
-
-
-def save_checkpoint(runstate: RunState):
-    """saves a checkpoint with the current runstate
-
-    NOTE:  must be called within an active wandb.init context manager
-    """
-    config = get_config()
-
-    if config.checkpoint is not None:
-        assert wandb.run is not None
-
-        logger.info('checkpointing...')
-        runstate_serializer = RunStateSerializer()
-        checkpoint = {
-            'metadata': {
-                'config': config._as_dict(),
-                'wandb_id': wandb.run.id,
-            },
-            'data': runstate_serializer.serialize(runstate),
-        }
-        save_data(config.checkpoint, checkpoint)
-        logger.info('checkpointing DONE')
-
-
-def run(runstate: RunState) -> bool:
-    config = get_config()
-    logger.info('run %s %s', config.env_label, config.algo_label)
-
-    (
-        env,
-        algo,
-        optimizer_actor,
-        optimizer_critic,
-        wandb_logger,
-        xstats,
-        timer,
-        running_averages,
-        dispensers,
-    ) = runstate
-
-    avg_target_returns = running_averages['avg_target_returns']
-    avg_behavior_returns = running_averages['avg_behavior_returns']
-    avg100_behavior_returns = running_averages['avg100_behavior_returns']
-    target_update_dispenser = dispensers['target_update_dispenser']
-    wandb_log_dispenser = dispensers['wandb_log_dispenser']
 
     device = get_device(config.device)
-    algo.to(device)
+    algo.models.to(device)
 
-    # reproducibility
-    if config.seed is not None:
-        random.seed(config.seed)
-        np.random.seed(config.seed)
-        torch.manual_seed(config.seed)
-        reset_gv_rng(config.seed)
-        env.seed(config.seed)
+    datalogger = WandbLogger()
 
-    if config.deterministic:
-        torch.use_deterministic_algorithms(True)
+    timer = Timer()
+    xstats = XStats()
 
-    # initialize return type
-    q_estimator = q_estimator_factory(
-        config.q_estimator,
-        n=config.q_estimator_n,
-        lambda_=config.q_estimator_lambda,
+    averages = RunstateAverages(
+        target=InfiniteRunningAverage(),
+        behavior=InfiniteRunningAverage(),
+        behavior100=WindowRunningAverage(100),
     )
 
-    behavior_policy = algo.behavior_policy()
-    evaluation_policy = algo.evaluation_policy()
-    evaluation_policy.epsilon = config.evaluation_epsilon
+    datalog_period = config.max_simulation_timesteps // config.num_data_logs
+    dispensers = RunstateDispensers(
+        target_update=Dispenser(0, config.target_update_period),
+        datalog=Dispenser(0, datalog_period),
+        checkpoint=TimeDispenser(config.checkpoint_period),
+    )
+    dispensers.checkpoint.dispense()  # consume first checkpoint dispense
+
+    policy = algo.actor_critic_model.actor_model.policy()
+
+    episodes_factories = RunstateEpisodesFactories(
+        behavior_factory=functools.partial(
+            sample_episodes,
+            env,
+            policy,
+            num_episodes=config.simulation_num_episodes,
+        ),
+        evaluation_factory=functools.partial(
+            sample_episodes,
+            env,
+            policy,
+            num_episodes=config.evaluation_num_episodes,
+        ),
+    )
 
     negentropy_schedule = make_schedule(
         config.negentropy_schedule,
@@ -418,190 +362,427 @@ def run(runstate: RunState) -> bool:
         nsteps=config.negentropy_nsteps,
         halflife=config.negentropy_halflife,
     )
-    weight_negentropy = negentropy_schedule(xstats.simulation_timesteps)
 
-    # setup timeout dispenser
-    timeout = TimestampDispenser(config.timeout_timestamp)
-    timeout = timeout_dispenser.dispense()
+    q_estimator = q_estimator_factory(
+        config.q_estimator,
+        n=config.q_estimator_n,
+        lambda_=config.q_estimator_lambda,
+    )
 
-    checkpoint_dispenser = TimePeriodDispenser(config.checkpoint_period)
-    checkpoint_dispenser.dispense()  # burn first dispense
+    if checkpoint is not None:
+        algo.load_state_dict(checkpoint.data.algo_state_dict)
+        datalogger = checkpoint.data.datalogger
+        timer = checkpoint.data.timer
+        xstats = checkpoint.data.xstats
+        averages = checkpoint.data.averages
+        dispensers = checkpoint.data.dispensers
 
-    # main learning loop
-    wandb.watch(algo.models)
-    while xstats.simulation_timesteps < config.max_simulation_timesteps:
-        timeout = timeout_dispenser.dispense()
-        if timeout:
-            logger.info('timeout dispenser triggered, interrupting')
-            save_checkpoint(runstate)
+    return Runstate(
+        # original runstate
+        env,
+        algo,
+        datalogger,
+        timer,
+        xstats,
+        averages,
+        dispensers,
+        # original loopstate
+        episodes_factories,
+        device,
+        negentropy_schedule,
+        q_estimator,
+    )
+
+
+def make_checkpoint(runstate: Runstate) -> Checkpoint:
+    config = get_config()
+
+    return Checkpoint(
+        CheckpointMetadata(
+            config._as_dict(),
+            config.wandb_run_id,
+        ),
+        CheckpointData(
+            runstate.algo.state_dict(),
+            runstate.datalogger,
+            runstate.timer,
+            runstate.xstats,
+            runstate.averages,
+            runstate.dispensers,
+        ),
+    )
+
+
+def save_checkpoint(runstate: Runstate):
+    config = get_config()
+
+    if config.checkpoint_path is None:
+        logger.info('no checkpoint path available;  skipping checkpoint')
+        return
+
+    checkpoint = make_checkpoint(runstate)
+    save_data(config.checkpoint_path, checkpoint)
+
+
+def save_model(model: ActorCriticModel):
+    config = get_config()
+
+    data = {
+        'metadata': {'config': config._as_dict()},
+        'data': {'model.state_dict': model.state_dict()},
+    }
+    save_data(config.model_path, data)
+
+
+def run(runstate: Runstate) -> Runflags:
+    config = get_config()
+    logger.info('run %s %s', config.env_label, config.algo_label)
+
+    # TODO somehow integrate reproducibility stuff into the checkpoint
+    if config.seed is not None:
+        random.seed(config.seed)
+        np.random.seed(config.seed)
+        torch.manual_seed(config.seed)
+        reset_gv_rng(config.seed)
+        runstate.env.seed(config.seed)
+
+    if config.deterministic:
+        torch.use_deterministic_algorithms(True)
+
+    controlflow = Controlflow()
+    runflags = Runflags()
+
+    setup_interruption_handling(runflags)
+
+    wandb.watch(runstate.algo.actor_critic_model)
+    while True:
+        update_runflags(runstate, runflags)
+
+        if runflags.stop_run():
             break
 
-        if checkpoint_dispenser.dispense():
+        run_epoch(runstate, controlflow)
+
+        if runstate.dispensers.checkpoint.dispense():
             save_checkpoint(runstate)
 
-        # evaluate policy
-        algo.models.eval()
+    save_checkpoint(runstate)
 
-        if config.evaluation and xstats.epoch % config.evaluation_period == 0:
-            with torch.inference_mode():
-                evalstats = evaluate(
-                    env,
-                    evaluation_policy,
-                    discount=config.evaluation_discount,
-                    num_episodes=config.evaluation_num_episodes,
-                )
+    if runflags.done and config.save_model:
+        save_model(runstate.algo.actor_critic_model)
 
-                avg_target_returns.extend(evalstats.returns.tolist())
-                logger.info(
-                    'EVALUATE epoch %d simulation_timestep %d return % .3f',
-                    xstats.epoch,
-                    xstats.simulation_timesteps,
-                    evalstats.returns.mean(),
-                )
-                wandb_logger.log(
-                    {
-                        **xstats.asdict(),
-                        'hours': timer.hours,
-                        'diagnostics/target_mean_episode_length': evalstats.lengths.mean(),
-                        'performance/target_mean_return': evalstats.returns.mean(),
-                        'performance/avg_target_mean_return': avg_target_returns.value(),
-                    }
-                )
+    return runflags
 
-        episodes = sample_episodes(
-            env,
-            behavior_policy,
-            num_episodes=config.simulation_num_episodes,
+
+def setup_interruption_handling(runflags: Runflags):
+    def handle_interrupt(signum, _):
+        logger.info(f'handling signal {signal.Signals(signum)!r}')
+        runflags.interrupt = True
+
+    signal.signal(signal.SIGINT, handle_interrupt)
+    signal.signal(signal.SIGTERM, handle_interrupt)
+
+
+def update_runflags(runstate: Runstate, runflags: Runflags):
+    config = get_config()
+
+    runflags.done = (
+        runstate.xstats.simulation_timesteps >= config.max_simulation_timesteps
+    )
+    runflags.timeout = timestamp_is_past(config.timeout_timestamp)
+
+
+def update_controlflow(runstate: Runstate, controlflow: Controlflow):
+    config = get_config()
+
+    log_data = runstate.dispensers.datalog.dispense(
+        runstate.xstats.simulation_timesteps
+    )
+    update_target = runstate.dispensers.target_update.dispense(
+        runstate.xstats.simulation_timesteps
+    )
+    evaluate = runstate.xstats.epoch % config.evaluation_period == 0
+
+    controlflow.log_data = log_data
+    controlflow.update_target_parameters = update_target
+    controlflow.evaluate = evaluate and config.evaluation
+    controlflow.save_modelseq = log_data and config.save_modelseq
+
+
+def log_xstats(runstate: Runstate):
+    runstate.datalogger.log(
+        {
+            'runstate.xstats.epoch': runstate.xstats.epoch,
+            'runstate.xstats.simulation_episodes': runstate.xstats.simulation_episodes,
+            'runstate.xstats.simulation_timesteps': runstate.xstats.simulation_timesteps,
+            'runstate.xstats.training_episodes': runstate.xstats.training_episodes,
+            'runstate.xstats.training_timesteps': runstate.xstats.training_timesteps,
+            'runstate.xstats.optimizer_steps': runstate.xstats.optimizer_steps,
+            'hours': runstate.timer.hours,
+        },
+        commit=False,
+    )
+
+
+def run_epoch(runstate: Runstate, controlflow: Controlflow):
+    update_controlflow(runstate, controlflow)
+
+    if controlflow.log_data:
+        log_xstats(runstate)
+
+    if controlflow.evaluate:
+        run_evaluation(runstate)
+
+    episodes = run_simulation(runstate, controlflow)
+
+    if controlflow.update_target_parameters:
+        runstate.algo.update_target_parameters()
+
+    run_training(runstate, controlflow, episodes)
+
+    if controlflow.save_modelseq:
+        save_modelseq(
+            runstate.xstats.simulation_timesteps,
+            runstate.algo.actor_critic_model,
         )
 
-        mean_length = sum(map(len, episodes)) / len(episodes)
-        returns = evaluate_returns(
-            episodes, discount=config.evaluation_discount
-        )
-        avg_behavior_returns.extend(returns.tolist())
-        avg100_behavior_returns.extend(returns.tolist())
+    update_xstats_epoch(runstate.xstats)
 
-        wandb_log = wandb_log_dispenser.dispense(xstats.simulation_timesteps)
+    if controlflow.log_data:
+        runstate.datalogger.commit()
 
-        if wandb_log:
-            logger.info(
-                'behavior log - simulation_step %d return=% .3f avg100=% .3f',
-                xstats.simulation_timesteps,
-                returns.mean(),
-                avg100_behavior_returns.value(),
-            )
-            wandb_logger.log(
-                {
-                    **xstats.asdict(),
-                    'hours': timer.hours,
-                    'diagnostics/behavior_mean_episode_length': mean_length,
-                    'performance/behavior_mean_return': returns.mean(),
-                    'performance/avg_behavior_mean_return': avg_behavior_returns.value(),
-                    'performance/avg100_behavior_mean_return': avg100_behavior_returns.value(),
-                }
-            )
 
-        # storing torch data directly
-        episodes = [episode.torch().to(device) for episode in episodes]
-        xstats.simulation_episodes += len(episodes)
-        xstats.simulation_timesteps += sum(len(episode) for episode in episodes)
-        weight_negentropy = negentropy_schedule(xstats.simulation_timesteps)
+def run_evaluation(runstate: Runstate):
+    runstate.algo.actor_critic_model.eval()
 
-        # target model update
-        if target_update_dispenser.dispense(xstats.simulation_timesteps):
-            # Update the target network
-            algo.target_models.load_state_dict(algo.models.state_dict())
+    with torch.inference_mode():
+        episodes = runstate.episodes_factories.evaluation_factory()
 
-        algo.models.train()
+    runstate.algo.actor_critic_model.train()
 
-        # critic
-        optimizer_critic.zero_grad()
-        losses = [
-            algo.critic_loss(
+    log_evaluation(runstate, episodes)
+
+
+def log_evaluation(runstate: Runstate, episodes: Sequence[Episode]):
+    config = get_config()
+
+    evalstats = evaluate_episodes(episodes, discount=config.evaluation_discount)
+    runstate.averages.target.extend(evalstats.returns.tolist())
+
+    logger.info(
+        '%s - EVALUATE - epoch %d simulation_timestep %d return %.3f',
+        runstate.timer,
+        runstate.xstats.epoch,
+        runstate.xstats.simulation_timesteps,
+        evalstats.returns.mean(),
+    )
+
+    runstate.datalogger.log(
+        {
+            'diagnostics/target_mean_episode_length': evalstats.lengths.mean(),
+            'performance/target_mean_return': evalstats.returns.mean(),
+            'performance/avg_target_mean_return': runstate.averages.target.value(),
+        },
+        commit=False,
+    )
+
+
+def run_simulation(
+    runstate: Runstate,
+    controlflow: Controlflow,
+) -> list[Episode]:
+    episodes = runstate.episodes_factories.behavior_factory()
+
+    if controlflow.log_data:
+        log_simulation(runstate, episodes)
+
+    update_xstats_simulation(runstate.xstats, episodes)
+
+    return episodes
+
+
+def log_simulation(runstate: Runstate, episodes: Sequence[Episode]):
+    config = get_config()
+
+    evalstats = evaluate_episodes(episodes, discount=config.evaluation_discount)
+    runstate.averages.behavior.extend(evalstats.returns.tolist())
+    runstate.averages.behavior100.extend(evalstats.returns.tolist())
+
+    logger.info(
+        '%s - BEHAVIOR - epoch %d simulation_timestep %d return %.3f avg100 %.3f',
+        runstate.timer,
+        runstate.xstats.epoch,
+        runstate.xstats.simulation_timesteps,
+        evalstats.returns.mean(),
+        runstate.averages.behavior100.value(),
+    )
+
+    runstate.datalogger.log(
+        {
+            'diagnostics/behavior_mean_episode_length': evalstats.lengths.mean(),
+            'performance/behavior_mean_return': evalstats.returns.mean(),
+            'performance/avg_behavior_mean_return': runstate.averages.behavior.value(),
+            'performance/avg100_behavior_mean_return': runstate.averages.behavior100.value(),
+        },
+        commit=False,
+    )
+
+
+class TrainingData(NamedTuple):
+    negentropy_weight: float
+    losses: LossDict
+    gradient_norms: GradientNormDict
+
+
+def run_training(
+    runstate: Runstate,
+    controlflow: Controlflow,
+    episodes: list[Episode],
+):
+    config = get_config()
+
+    episodes = [episode.torch().to(runstate.device) for episode in episodes]
+    losses = average_losses(
+        [
+            runstate.algo.compute_losses(
                 episode,
                 discount=config.training_discount,
-                q_estimator=q_estimator,
+                q_estimator=runstate.q_estimator,
             )
             for episode in episodes
         ]
-        critic_loss = average(losses)
-        critic_loss.backward()
-        critic_gradient_norm = nn.utils.clip_grad.clip_grad_norm_(
-            algo.models.parameters(), max_norm=config.optim_max_norm
+    )
+    negentropy_weight = runstate.negentropy_schedule(
+        runstate.xstats.simulation_timesteps
+    )
+    objectives = {
+        'actor': losses['policy'] + negentropy_weight * losses['negentropy'],
+        'critic': losses['critic'],
+    }
+    gradient_norms = runstate.algo.trainer.gradient_step(objectives)
+
+    if controlflow.log_data:
+        log_training(
+            runstate,
+            TrainingData(
+                negentropy_weight,
+                losses,
+                gradient_norms,
+            ),
         )
-        optimizer_critic.step()
 
-        # actor
-        optimizer_actor.zero_grad()
-        losses = [
-            algo.actor_losses(
-                episode,
-                discount=config.training_discount,
-                q_estimator=q_estimator,
-            )
-            for episode in episodes
-        ]
+    update_xstats_training(runstate.xstats, episodes)
+    update_xstats_optimizer(runstate.xstats)
 
-        actor_losses, negentropy_losses = zip(*losses)
-        actor_loss = average(actor_losses)
-        negentropy_loss = average(negentropy_losses)
 
-        loss = actor_loss + weight_negentropy * negentropy_loss
-        loss.backward()
-        actor_gradient_norm = nn.utils.clip_grad.clip_grad_norm_(
-            algo.models.parameters(), max_norm=config.optim_max_norm
-        )
-        optimizer_actor.step()
+def log_training(runstate: Runstate, training_data: TrainingData):
+    losses_string = ' '.join(
+        f'{k}-loss {loss:.3f}' for k, loss in training_data.losses.items()
+    )
+    logger.info(
+        '%s - TRAINING - epoch %d simulation_timestep %d negentropy-weight %.3f %s',
+        runstate.timer,
+        runstate.xstats.epoch,
+        runstate.xstats.simulation_timesteps,
+        training_data.negentropy_weight,
+        losses_string,
+    )
 
-        if wandb_log:
-            logger.info(
-                'training log - simulation_step %d losses actor=% .3f critic=% .3f negentropy=% .3f',
-                xstats.simulation_timesteps,
-                actor_loss,
-                critic_loss,
-                negentropy_loss,
-            )
-            wandb_logger.log(
-                {
-                    **xstats.asdict(),
-                    'hours': timer.hours,
-                    'training/losses/actor': actor_loss,
-                    'training/losses/critic': critic_loss,
-                    'training/losses/negentropy': negentropy_loss,
-                    'training/weights/negentropy': weight_negentropy,
-                    'training/gradient_norms/actor': actor_gradient_norm,
-                    'training/gradient_norms/critic': critic_gradient_norm,
-                }
-            )
+    losses_logdata = {
+        f'training/losses/{key}': loss
+        for key, loss in training_data.losses.items()
+    }
+    gradient_norms_logdata = {
+        f'training/gradient_norms/{key}': gradient_norm
+        for key, gradient_norm in training_data.gradient_norms.items()
+    }
+    runstate.datalogger.log(
+        {
+            **losses_logdata,
+            'training/weights/negentropy': training_data.negentropy_weight,
+            **gradient_norms_logdata,
+        },
+        commit=False,
+    )
 
-            if config.save_modelseq and config.modelseq_filename is not None:
-                data = {
-                    'metadata': {'config': config._as_dict()},
-                    'data': {
-                        'timestep': xstats.simulation_timesteps,
-                        'model.state_dict': algo.models.state_dict(),
-                    },
-                }
-                filename = config.modelseq_filename.format(
-                    xstats.simulation_timesteps
-                )
-                save_data(filename, data)
 
-        xstats.epoch += 1
-        xstats.optimizer_steps += 1
-        xstats.training_episodes += len(episodes)
-        xstats.training_timesteps += sum(len(episode) for episode in episodes)
+def save_modelseq(timestep: int, model: ActorCriticModel):
+    config = get_config()
+    data = {
+        'metadata': {'config': config._as_dict()},
+        'data': {
+            'timestep': timestep,
+            'model.state_dict': model.state_dict(),
+        },
+    }
+    filename = config.modelseq_path_template.format(timestep)
+    save_data(filename, data)
 
-    done = not timeout
 
-    if done and config.save_model and config.model_filename is not None:
-        data = {
-            'metadata': {'config': config._as_dict()},
-            'data': {'models.state_dict': algo.models.state_dict()},
-        }
-        save_data(config.model_filename, data)
+def define_metrics():
+    wandb.define_metric('epoch')
+    wandb.define_metric('simulation_episodes')
+    wandb.define_metric('simulation_timesteps')
+    wandb.define_metric('training_episodes')
+    wandb.define_metric('training_timesteps')
+    wandb.define_metric('optimizer_steps')
 
-    return done
+    wandb.define_metric('hours')
+
+    wandb.define_metric(
+        'diagnostics/target_mean_episode_length',
+        step_metric='simulation_timesteps',
+    )
+    wandb.define_metric(
+        'performance/target_mean_return',
+        step_metric='simulation_timesteps',
+    )
+    wandb.define_metric(
+        'performance/avg_target_mean_return',
+        step_metric='simulation_timesteps',
+    )
+
+    wandb.define_metric(
+        'diagnostics/behavior_mean_episode_length',
+        step_metric='simulation_timesteps',
+    )
+    wandb.define_metric(
+        'performance/behavior_mean_return',
+        step_metric='simulation_timesteps',
+    )
+    wandb.define_metric(
+        'performance/avg_behavior_mean_return',
+        step_metric='simulation_timesteps',
+    )
+    wandb.define_metric(
+        'performance/avg100_behavior_mean_return',
+        step_metric='simulation_timesteps',
+    )
+
+    wandb.define_metric(
+        'training/losses/actor',
+        step_metric='simulation_timesteps',
+    )
+    wandb.define_metric(
+        'training/losses/critic',
+        step_metric='simulation_timesteps',
+    )
+    wandb.define_metric(
+        'training/losses/negentropy',
+        step_metric='simulation_timesteps',
+    )
+    wandb.define_metric(
+        'training/weights/negentropy',
+        step_metric='simulation_timesteps',
+    )
+    wandb.define_metric(
+        'training/gradient_norms/actor',
+        step_metric='simulation_timesteps',
+    )
+    wandb.define_metric(
+        'training/gradient_norms/critic',
+        step_metric='simulation_timesteps',
+    )
 
 
 def main():
@@ -615,43 +796,45 @@ def main():
         'config': args,
     }
 
+    checkpoint: Checkpoint | None
     try:
-        checkpoint = load_data(args.checkpoint)
+        checkpoint = load_data(args.checkpoint_path)
     except (TypeError, FileNotFoundError):
         checkpoint = None
     else:
+        assert checkpoint is not None
         wandb_kwargs.update(
             {
                 'resume': 'must',
-                'id': checkpoint['metadata']['wandb_id'],
+                'id': checkpoint.metadata.wandb_run_id,
             }
         )
 
-    with wandb.init(**wandb_kwargs):
-        config = get_config()
-        config._update(dict(wandb.config))
+    wandb.init(**wandb_kwargs)
+    define_metrics()
 
-        logger.info('setup of runstate...')
-        runstate = setup()
-        logger.info('setup DONE')
+    config = get_config()
+    config._update(dict(wandb.config))
+    assert wandb.run is not None
+    config._update({'wandb_run_id': wandb.run.id})
 
-        if checkpoint is not None:
-            if checkpoint['metadata']['config'] != config._as_dict():
-                raise RuntimeError(
-                    'checkpoint config inconsistent with program config'
-                )
+    if (
+        checkpoint is not None
+        and checkpoint.metadata.config != config._as_dict()
+    ):
+        raise RuntimeError('checkpoint config inconsistent with program config')
 
-            logger.debug('updating runstate from checkpoint')
-            runstate_serializer = RunStateSerializer()
-            runstate_serializer.deserialize(runstate, checkpoint['data'])
+    logger.info('making runstate')
+    runstate = make_runstate(checkpoint)
 
-        logger.info('run...')
-        done = run(runstate)
-        logger.info('run DONE')
+    logger.info('starting run')
+    runflags = run(runstate)
+    logger.info(f'stopping run with flags {runflags}')
 
-        save_checkpoint(runstate)
+    retvalue = int(not runflags.done)
+    logger.info(f'returning {retvalue}')
 
-    return int(not done)
+    return retvalue
 
 
 if __name__ == '__main__':
@@ -682,4 +865,4 @@ if __name__ == '__main__':
         }
     )
 
-    raise SystemExit(main())
+    sys.exit(main())

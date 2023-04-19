@@ -1,5 +1,5 @@
 from numbers import Number
-from typing import Dict, List, Tuple, Union, overload
+from typing import overload
 
 import numpy as np
 import torch
@@ -47,7 +47,7 @@ def numpy2torch(data: None) -> None:
 
 
 @overload
-def numpy2torch(data: Union[int, float, bool]) -> torch.Tensor:
+def numpy2torch(data: int | float | bool) -> torch.Tensor:
     ...
 
 
@@ -57,17 +57,17 @@ def numpy2torch(data: np.ndarray) -> torch.Tensor:
 
 
 @overload
-def numpy2torch(data: List[np.ndarray]) -> List[torch.Tensor]:
+def numpy2torch(data: list[np.ndarray]) -> list[torch.Tensor]:
     ...
 
 
 @overload
-def numpy2torch(data: Tuple[np.ndarray]) -> Tuple[torch.Tensor]:
+def numpy2torch(data: tuple[np.ndarray]) -> tuple[torch.Tensor]:
     ...
 
 
 @overload
-def numpy2torch(data: Dict[str, np.ndarray]) -> Dict[str, torch.Tensor]:
+def numpy2torch(data: dict[str, np.ndarray]) -> dict[str, torch.Tensor]:
     ...
 
 

@@ -4,33 +4,49 @@ export WANDB_MODE=dryrun
 export WANDB_CONSOLE=off
 export WANDB_SILENT=true
 
+algos=(
+  dqn
+  adqn
+  adqn-vr
+  adqn-state
+  adqn-state-vr
+  adqn-short
+  adqn-short-vr
+)
+
 envs=(
-  POMDP-heavenhell-episodic-v0
-  POMDP-shopping_5-episodic-v1
-  PO-pos-CartPole-v1
-  gv_yaml/gv_four_rooms.7x7.yaml
-  gv_yaml/gv_memory.5x5.yaml
-  "gv_yaml/gv_memory.5x5.yaml --latent-type GV-MEMORY"
-  "gv_yaml/gv_memory_four_rooms.7x7.yaml --latent-type GV-MEMORY"
+  # POMDP-heavenhell-episodic-v0
+  # POMDP-shopping_5-episodic-v1
+  # PO-pos-CartPole-v1
+  # gv_yaml/gv_four_rooms.7x7.yaml
+  # gv_yaml/gv_memory.5x5.yaml
+  # "gv_yaml/gv_memory.5x5.yaml --latent-type GV-MEMORY"
+  # "gv_yaml/gv_memory_four_rooms.7x7.yaml --latent-type GV-MEMORY"
   extra-dectiger-v0
   extra-cleaner-v0
   extra-car-flag-v0
 )
 
-algos=(
-  dqn
-  adqn
-  adqn-bootstrap
-  adqn-state
-  adqn-state-bootstrap
+envs=(
+  POMDP-heavenhell_2-episodic-v0
+  PO-pos-CartPole-v1
+  extra-dectiger-v0
+  extra-cleaner-v0
+  extra-car-flag-v0
+  gv_yaml/gv_four_rooms.7x7.yaml
 )
+
 
 args=(
   --episode-buffer-prepopulate-timesteps 100
   --max-simulation-timesteps 500
+  # --max-simulation-timesteps 5_000
+  # --max-simulation-timesteps 5_000_000
   --max-episode-timesteps 100
-  # --truncated-histories
+  --history-model attention
+  --attention-num-heads 1
   # --truncated-histories-n 10
+  --history-model-memory-size 10
   # --normalize-hs-features
   # --hs-features-dim 64
   # --gv-state-model-type cnn
