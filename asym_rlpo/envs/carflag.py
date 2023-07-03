@@ -4,7 +4,7 @@ import gym
 import gym.spaces
 import numpy as np
 from gym import spaces
-from gym.envs.classic_control import rendering as visualize
+# from gym.envs.classic_control import rendering as visualize
 from gym.envs.registration import register as gym_register
 from gym.utils import seeding
 
@@ -251,6 +251,7 @@ class CarEnv(gym.Env):
         return self._state, reward, done, {"is_success": reward > 0.0}
 
     def render(self, mode='human'):
+        raise NotImplementedError
         self._setup_view()
 
         pos = self._state[0]
