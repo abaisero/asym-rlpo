@@ -29,15 +29,16 @@ class HistoryFeaturesFunction(Protocol):
         ...
 
 
-def make_history_features_function(memory_size: int) -> HistoryFeaturesFunction:
-    if memory_size > 0:
-        return functools.partial(
-            compute_reactive_history_features,
-            memory_size=memory_size,
-        )
-
-    else:
+def make_history_features_function(
+    memory_size: int,
+) -> HistoryFeaturesFunction:
+    if memory_size <= 0:
         return compute_full_history_features
+
+    return functools.partial(
+        compute_reactive_history_features,
+        memory_size=memory_size,
+    )
 
 
 class HistoryModel(metaclass=abc.ABCMeta):
@@ -123,11 +124,11 @@ def make_history_integrator(
     *,
     memory_size: int,
 ) -> HistoryIntegrator:
-    if memory_size > 0:
-        return ReactiveHistoryIntegrator(
-            interaction_model,
-            sequence_model,
-            memory_size=memory_size,
-        )
+    if memory_size <= 0:
+        return FullHistoryIntegrator(interaction_model, sequence_model)
 
-    return FullHistoryIntegrator(interaction_model, sequence_model)
+    return ReactiveHistoryIntegrator(
+        interaction_model,
+        sequence_model,
+        memory_size=memory_size,
+    )

@@ -37,6 +37,7 @@ from asym_rlpo.runs.xstats import (
 from asym_rlpo.sampling import sample_episodes
 from asym_rlpo.types import GradientNormDict, LossDict
 from asym_rlpo.utils.aggregate import average_losses
+from asym_rlpo.utils.argparse import int_non_neg, int_pos, int_pow_2
 from asym_rlpo.utils.checkpointing import load_data, save_data
 from asym_rlpo.utils.config import get_config
 from asym_rlpo.utils.device import get_device
@@ -62,7 +63,7 @@ def parse_args():
     parser.add_argument('--wandb-offline', action='store_true')
 
     # data-logging
-    parser.add_argument('--num-data-logs', type=int, default=200)
+    parser.add_argument('--num-data-logs', type=int_pos, default=200)
 
     # algorithm and environment
     parser.add_argument('env')
@@ -75,13 +76,14 @@ def parse_args():
     parser.add_argument('--algo-label', default=None)
 
     # truncated histories
-    # TODO rename into sequence model?
     parser.add_argument(
         '--history-model',
         choices=['rnn', 'gru', 'attention'],
         default='gru',
     )
-    parser.add_argument('--history-model-memory-size', type=int, default=0)
+    parser.add_argument(
+        '--history-model-memory-size', type=int_non_neg, default=0
+    )
 
     # reproducibility
     parser.add_argument('--seed', type=int, default=None)
@@ -89,22 +91,22 @@ def parse_args():
 
     # general
     parser.add_argument(
-        '--max-simulation-timesteps', type=int, default=2_000_000
+        '--max-simulation-timesteps', type=int_pos, default=2_000_000
     )
-    parser.add_argument('--max-episode-timesteps', type=int, default=1_000)
-    parser.add_argument('--simulation-num-episodes', type=int, default=1)
+    parser.add_argument('--max-episode-timesteps', type=int_pos, default=1_000)
+    parser.add_argument('--simulation-num-episodes', type=int_pos, default=1)
 
     # evaluation
     parser.add_argument('--evaluation', action='store_true')
-    parser.add_argument('--evaluation-period', type=int, default=10)
-    parser.add_argument('--evaluation-num-episodes', type=int, default=1)
+    parser.add_argument('--evaluation-period', type=int_pos, default=10)
+    parser.add_argument('--evaluation-num-episodes', type=int_pos, default=1)
 
     # discounts
     parser.add_argument('--evaluation-discount', type=float, default=1.0)
     parser.add_argument('--training-discount', type=float, default=0.99)
 
     # target
-    parser.add_argument('--target-update-period', type=int, default=10_000)
+    parser.add_argument('--target-update-period', type=int_pos, default=10_000)
 
     # q-estimator
     parser.add_argument(
@@ -112,7 +114,7 @@ def parse_args():
         choices=['mc', 'td0', 'td-n', 'td-lambda'],
         default='td0',
     )
-    parser.add_argument('--q-estimator-n', type=int, default=None)
+    parser.add_argument('--q-estimator-n', type=int_pos, default=None)
     parser.add_argument('--q-estimator-lambda', type=float, default=None)
 
     # negentropy schedule
@@ -120,15 +122,15 @@ def parse_args():
     # linear
     parser.add_argument('--negentropy-value-from', type=float, default=1.0)
     parser.add_argument('--negentropy-value-to', type=float, default=0.01)
-    parser.add_argument('--negentropy-nsteps', type=int, default=2_000_000)
+    parser.add_argument('--negentropy-nsteps', type=int_pos, default=2_000_000)
     # exponential
-    parser.add_argument('--negentropy-halflife', type=int, default=500_000)
+    parser.add_argument('--negentropy-halflife', type=int_pos, default=500_000)
 
     # epsilon schedule
     parser.add_argument('--epsilon-schedule', default='linear')
     parser.add_argument('--epsilon-value-from', type=float, default=1.0)
     parser.add_argument('--epsilon-value-to', type=float, default=0.1)
-    parser.add_argument('--epsilon-nsteps', type=int, default=1_000_000)
+    parser.add_argument('--epsilon-nsteps', type=int_pos, default=1_000_000)
 
     # optimization
     parser.add_argument('--optim-lr-actor', type=float, default=1e-4)
@@ -141,19 +143,14 @@ def parse_args():
     parser.add_argument('--device', default='auto')
 
     # temporary / development
-    parser.add_argument('--hs-features-dim', type=int, default=0)
+    parser.add_argument('--hs-features-dim', type=int_non_neg, default=0)
     parser.add_argument('--normalize-hs-features', action='store_true')
 
     # latent observation
     parser.add_argument('--latent-type', default='state')
 
     # representation options
-    parser.add_argument(
-        '--attention-num-heads',
-        choices=[2**k for k in range(10)],
-        type=int,
-        default=2,
-    )
+    parser.add_argument('--attention-num-heads', type=int_pow_2, default=2)
 
     # gv models
     parser.add_argument('--gv-representation', default='compact')
@@ -165,7 +162,7 @@ def parse_args():
     )
     parser.add_argument(
         '--gv-observation-representation-layers',
-        type=int,
+        type=int_non_neg,
         default=0,
     )
 
@@ -176,7 +173,7 @@ def parse_args():
     )
     parser.add_argument(
         '--gv-state-representation-layers',
-        type=int,
+        type=int_non_neg,
         default=0,
     )
 
@@ -184,7 +181,7 @@ def parse_args():
     parser.add_argument('--run-path', default=None)
 
     parser.add_argument('--checkpoint', default=None)
-    parser.add_argument('--checkpoint-period', type=int, default=10 * 60)
+    parser.add_argument('--checkpoint-period', type=int_pos, default=10 * 60)
 
     parser.add_argument('--timeout-timestamp', type=float, default=float('inf'))
 

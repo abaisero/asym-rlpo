@@ -12,7 +12,7 @@ from asym_rlpo.algorithms.algorithm import ValueBasedAlgorithm
 from asym_rlpo.algorithms.dqn import DQN
 from asym_rlpo.algorithms.mr_a2c import MemoryReactive_A2C
 from asym_rlpo.algorithms.trainer import Trainer
-from asym_rlpo.models.actor import MemoryReactive_ActorModel, ActorModel
+from asym_rlpo.models.actor import MemoryReactive_ActorModel
 from asym_rlpo.models.actor_critic import (
     ActorCriticModel,
     MemoryReactive_ActorCriticModel,
