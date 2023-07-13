@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import torch
 from torch.nn.utils.clip_grad import clip_grad_norm_
 
 from asym_rlpo.types import (
@@ -8,7 +7,7 @@ from asym_rlpo.types import (
     LossDict,
     OptimizerDict,
     OptimizerFactory,
-    ParametersDict,
+    ParametersGeneratorsDict,
 )
 
 
@@ -16,36 +15,30 @@ class Trainer:
     def __init__(
         self,
         optimizers: OptimizerDict,
-        parameters: ParametersDict,
+        parameters_generators: ParametersGeneratorsDict,
         *,
         max_gradient_norm: float,
     ):
         super().__init__()
         self.optimizers = optimizers
-        self.parameters = parameters
+        self.parameters_generators = parameters_generators
         self.max_gradient_norm = max_gradient_norm
 
     @staticmethod
     def from_factories(
         optimizer_factories: dict[str, OptimizerFactory],
-        parameters: ParametersDict,
+        parameters_generators: ParametersGeneratorsDict,
         max_gradient_norm: float,
     ) -> Trainer:
         optimizers = {
-            k: optimizer_factory(parameters[k])
+            k: optimizer_factory(parameters_generators[k]())
             for k, optimizer_factory in optimizer_factories.items()
         }
         return Trainer(
             optimizers,
-            parameters,
+            parameters_generators,
             max_gradient_norm=max_gradient_norm,
         )
-
-    def __getitem__(self, key: str) -> torch.optim.Optimizer:
-        return self.optimizers[key]
-
-    def __getattr__(self, name: str) -> torch.optim.Optimizer:
-        return self.optimizers[name]
 
     def state_dict(self) -> dict:
         return {
@@ -67,10 +60,13 @@ class Trainer:
         gradient_norms = {}
 
         for k, optimizer in self.optimizers.items():
+            parameters_generator = self.parameters_generators[k]
+            parameters = parameters_generator()
+
             optimizer.zero_grad()
             losses[k].backward()
             gradient_norms[k] = clip_grad_norm_(
-                self.parameters[k],
+                parameters,
                 max_norm=self.max_gradient_norm,
             )
             optimizer.step()

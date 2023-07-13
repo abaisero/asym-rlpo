@@ -126,8 +126,8 @@ def make_mr_a2c_algorithm(
             'critic': critic_optimizer_factory,
         },
         {
-            'actor': actor_critic_model.actor_model.parameters(),
-            'critic': actor_critic_model.critic_model.parameters(),
+            'actor': actor_critic_model.actor_model.parameters,
+            'critic': actor_critic_model.critic_model.parameters,
         },
         max_gradient_norm=max_gradient_norm,
     )
@@ -156,8 +156,8 @@ def make_a2c_algorithm(
             'critic': critic_optimizer_factory,
         },
         {
-            'actor': actor_critic_model.actor_model.parameters(),
-            'critic': actor_critic_model.critic_model.parameters(),
+            'actor': actor_critic_model.actor_model.parameters,
+            'critic': actor_critic_model.critic_model.parameters,
         },
         max_gradient_norm=max_gradient_norm,
     )
@@ -178,7 +178,7 @@ def make_dqn_algorithm(
 
         trainer = Trainer.from_factories(
             {'qha': optimizer_factory},
-            {'qha': qha_model.parameters()},
+            {'qha': qha_model.parameters},
             max_gradient_norm=max_gradient_norm,
         )
 
@@ -200,8 +200,8 @@ def make_dqn_algorithm(
                 'qhza': optimizer_factory,
             },
             {
-                'qha': qha_model.parameters(),
-                'qhza': qhza_model.parameters(),
+                'qha': qha_model.parameters,
+                'qhza': qhza_model.parameters,
             },
             max_gradient_norm=max_gradient_norm,
         )
@@ -226,8 +226,8 @@ def make_dqn_algorithm(
                 'qhza': optimizer_factory,
             },
             {
-                'qha': qha_model.parameters(),
-                'qhza': qhza_model.parameters(),
+                'qha': qha_model.parameters,
+                'qhza': qhza_model.parameters,
             },
             max_gradient_norm=max_gradient_norm,
         )
@@ -252,8 +252,8 @@ def make_dqn_algorithm(
                 'qza': optimizer_factory,
             },
             {
-                'qha': qha_model.parameters(),
-                'qza': qza_model.parameters(),
+                'qha': qha_model.parameters,
+                'qza': qza_model.parameters,
             },
             max_gradient_norm=max_gradient_norm,
         )
@@ -278,8 +278,8 @@ def make_dqn_algorithm(
                 'qza': optimizer_factory,
             },
             {
-                'qha': qha_model.parameters(),
-                'qza': qza_model.parameters(),
+                'qha': qha_model.parameters,
+                'qza': qza_model.parameters,
             },
             max_gradient_norm=max_gradient_norm,
         )
@@ -304,8 +304,8 @@ def make_dqn_algorithm(
                 'qhza': optimizer_factory,
             },
             {
-                'qha': qha_model.parameters(),
-                'qhza': qhza_model.parameters(),
+                'qha': qha_model.parameters,
+                'qhza': qhza_model.parameters,
             },
             max_gradient_norm=max_gradient_norm,
         )
@@ -330,8 +330,8 @@ def make_dqn_algorithm(
                 'qhza': optimizer_factory,
             },
             {
-                'qha': qha_model.parameters(),
-                'qhza': qhza_model.parameters(),
+                'qha': qha_model.parameters,
+                'qhza': qhza_model.parameters,
             },
             max_gradient_norm=max_gradient_norm,
         )

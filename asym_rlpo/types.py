@@ -13,7 +13,8 @@ OptimizerFactory: TypeAlias = Callable[
 ]
 OptimizerDict: TypeAlias = dict[str, torch.optim.Optimizer]
 LossDict: TypeAlias = dict[str, torch.Tensor]
-ParametersDict: TypeAlias = dict
+ParametersGenerator: TypeAlias = Callable[[], Iterable[nn.Parameter]]
+ParametersGeneratorsDict: TypeAlias = dict[str, ParametersGenerator]
 GradientNormDict: TypeAlias = dict[str, torch.Tensor]
 
 CategoricalFeatures: TypeAlias = torch.Tensor
