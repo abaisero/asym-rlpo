@@ -31,10 +31,15 @@ class A2C(Algorithm):
         self.actor_critic_model = actor_critic_model
         self.target_critic_model = target_critic_model
 
-    def update_target_parameters(self):
-        self.target_critic_model.load_state_dict(
-            self.actor_critic_model.critic_model.state_dict()
-        )
+    def target_pairs(
+        self,
+    ) -> list[tuple[CriticModel, CriticModel]]:
+        return [
+            (
+                self.target_critic_model,
+                self.actor_critic_model.critic_model,
+            )
+        ]
 
     def compute_losses(
         self,

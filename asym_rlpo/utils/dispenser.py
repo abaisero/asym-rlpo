@@ -5,6 +5,7 @@ from time import time
 
 class Dispenser:
     """Dispenses `True` no more than once every `period`."""
+
     def __init__(self, value: float, period: float):
         self.__next_value = value
         self.__period = period
@@ -20,6 +21,7 @@ class Dispenser:
 
 class TimeDispenser:
     """Dispenses `True` no more than once every `period` seconds."""
+
     def __init__(self, period: float):
         self.__dispenser = Dispenser(time(), period)
 

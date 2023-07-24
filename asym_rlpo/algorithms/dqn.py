@@ -30,8 +30,8 @@ class DQN(ValueBasedAlgorithm):
         self.qha_model = qha_model
         self.target_qha_model = target_qha_model
 
-    def update_target_parameters(self):
-        self.target_qha_model.load_state_dict(self.qha_model.state_dict())
+    def target_pairs(self) -> list[tuple[QhaModel, QhaModel]]:
+        return [(self.target_qha_model, self.qha_model)]
 
     def compute_losses(self, episode: Episode, *, discount: float) -> LossDict:
         qha_values = self.qha_model.values(episode)
