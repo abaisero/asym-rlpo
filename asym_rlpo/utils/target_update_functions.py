@@ -38,7 +38,7 @@ def make_target_update_function(
     if name == 'full':
         return full_target_update
 
-    if name == 'full':
+    if name == 'polyak':
         if tau is None:
             raise ValueError(
                 'target update `polyak` requires non-None tau parameter'
