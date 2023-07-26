@@ -618,6 +618,7 @@ def run_epoch(runstate: Runstate, controlflow: Controlflow):
     episodes = [episode.torch() for episode in episodes]
     runstate.episode_buffer.append_episodes(episodes)
 
+    # TODO probably makes more sense to move this into run_training_step for polyak
     if controlflow.update_target_parameters:
         runstate.target_updater(runstate.algo.target_pairs())
 
