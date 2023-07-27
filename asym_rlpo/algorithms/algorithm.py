@@ -8,6 +8,7 @@ from asym_rlpo.algorithms.trainer import Trainer
 from asym_rlpo.data import Episode
 from asym_rlpo.models.qmodel import QhaModel
 from asym_rlpo.types import LossDict
+from asym_rlpo.utils.target_update_functions import TargetPair
 
 
 class Algorithm(metaclass=abc.ABCMeta):
@@ -27,7 +28,7 @@ class Algorithm(metaclass=abc.ABCMeta):
         self.trainer.load_state_dict(state_dict['trainer'])
 
     @abc.abstractmethod
-    def update_target_parameters(self):
+    def target_pairs(self) -> list[TargetPair]:
         assert False
 
 

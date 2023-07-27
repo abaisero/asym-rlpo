@@ -47,6 +47,10 @@ from asym_rlpo.utils.running_average import (
     WindowRunningAverage,
 )
 from asym_rlpo.utils.scheduling import Schedule, make_schedule
+from asym_rlpo.utils.target_update_functions import (
+    TargetUpdater,
+    make_target_updater,
+)
 from asym_rlpo.utils.timer import Timer, timestamp_is_past
 
 logger = logging.getLogger(__name__)
@@ -106,7 +110,13 @@ def parse_args():
     parser.add_argument('--training-discount', type=float, default=0.99)
 
     # target
-    parser.add_argument('--target-update-period', type=int_pos, default=10_000)
+    parser.add_argument(
+        '--target-update-function', choices=['full', 'polyak'], default='full'
+    )
+    parser.add_argument(
+        '--target-update-full-period', type=int_pos, default=10_000
+    )
+    parser.add_argument('--target-update-polyak-tau', type=float, default=0.001)
 
     # q-estimator
     parser.add_argument(
@@ -258,6 +268,7 @@ class Runstate(NamedTuple):
     xstats: XStats
     averages: RunstateAverages
     dispensers: RunstateDispensers
+    target_updater: TargetUpdater
     # original loopstate
     episodes_factories: RunstateEpisodesFactories
     device: torch.device
@@ -342,9 +353,18 @@ def make_runstate(checkpoint: Checkpoint | None) -> Runstate:
         behavior100=WindowRunningAverage(100),
     )
 
+    def make_target_update_dispenser():
+        if config.target_update_function == 'full':
+            return Dispenser(0, config.target_update_full_period)
+
+        if config.target_update_function == 'polyak':
+            return Dispenser(0, 0)
+
+        assert False
+
     datalog_period = config.max_simulation_timesteps // config.num_data_logs
     dispensers = RunstateDispensers(
-        target_update=Dispenser(0, config.target_update_period),
+        target_update=make_target_update_dispenser(),
         datalog=Dispenser(0, datalog_period),
         checkpoint=TimeDispenser(config.checkpoint_period),
     )
@@ -391,6 +411,11 @@ def make_runstate(checkpoint: Checkpoint | None) -> Runstate:
         nsteps=config.epsilon_nsteps,
     )
 
+    target_updater = make_target_updater(
+        config.target_update_function,
+        tau=config.target_update_polyak_tau,
+    )
+
     if checkpoint is not None:
         algo.load_state_dict(checkpoint.data.algo_state_dict)
         datalogger = checkpoint.data.datalogger
@@ -409,6 +434,7 @@ def make_runstate(checkpoint: Checkpoint | None) -> Runstate:
         xstats,
         averages,
         dispensers,
+        target_updater,
         # original loopstate
         episodes_factories,
         device,
@@ -560,7 +586,7 @@ def run_epoch(runstate: Runstate, controlflow: Controlflow):
     episodes = run_simulation(runstate, controlflow)
 
     if controlflow.update_target_parameters:
-        runstate.algo.update_target_parameters()
+        runstate.target_updater(runstate.algo.target_pairs())
 
     run_training(runstate, controlflow, episodes)
 
