@@ -74,14 +74,14 @@ class MemoryReactive_A2C(Algorithm):
         action_nlls = -action_logits.gather(
             1, episode.actions.unsqueeze(-1)
         ).squeeze(-1)
-        policy_loss = (discounts * advantages * action_nlls).sum()
+        policy_loss = (discounts * advantages * action_nlls).mean()
 
         # negentropy loss
         action_dists = torch.distributions.Categorical(logits=action_logits)
-        negentropy_loss = -action_dists.entropy().sum()
+        negentropy_loss = -action_dists.entropy().mean()
 
         # critic loss
-        critic_loss = F.mse_loss(v_values, target_q_values, reduction='sum')
+        critic_loss = F.mse_loss(v_values, target_q_values, reduction='mean')
 
         return {
             'policy': policy_loss,
