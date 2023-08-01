@@ -1,3 +1,5 @@
+import gym.spaces
+
 from asym_rlpo.envs import LatentType
 from asym_rlpo.models.empty import EmptyModel
 from asym_rlpo.models.factory import ModelFactory
@@ -27,15 +29,19 @@ class GVModelFactory(ModelFactory):
         config = get_config()
 
         if self.env.latent_type is LatentType.GV_MEMORY:
+            assert isinstance(self.env.latent_space, gym.spaces.Box)
             return GV_Memory_Model(self.env.latent_space, embedding_size=64)
+
+        assert isinstance(self.env.latent_space, gym.spaces.Dict)
+        assert config.gv_state_submodels is not None and (
+            len(config.gv_state_submodels)
+            == len(set(config.gv_state_submodels))
+            > 0
+        )
 
         return GV_Model(
             self.env.latent_space,
-            [
-                f'agent-grid-{config.gv_state_grid_model_type}',
-                'agent',
-                'item',
-            ],
+            config.gv_state_submodels,
             embedding_size=1,
             layers=[512] * config.gv_state_representation_layers,
         )
@@ -46,9 +52,16 @@ class GVModelFactory(ModelFactory):
     def make_observation_model(self) -> Model:
         config = get_config()
 
+        assert isinstance(self.env.observation_space, gym.spaces.Dict)
+        assert config.gv_observation_submodels is not None and (
+            len(config.gv_observation_submodels)
+            == len(set(config.gv_observation_submodels))
+            > 0
+        )
+
         return GV_Model(
             self.env.observation_space,
-            [f'grid-{config.gv_state_grid_model_type}', 'item'],
+            config.gv_observation_submodels,
             embedding_size=8,
             layers=[512] * config.gv_observation_representation_layers,
         )

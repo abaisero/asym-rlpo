@@ -171,9 +171,16 @@ def parse_args():
     parser.add_argument('--gv-representation', default='compact')
 
     parser.add_argument(
-        '--gv-observation-grid-model-type',
-        choices=['cnn', 'fc'],
-        default='fc',
+        '--gv-observation-submodels',
+        nargs='+',
+        choices=[
+            'agent',
+            'item',
+            'grid-cnn',
+            'grid-fc',
+            'agent-grid-cnn',
+            'agent-grid-fc',
+        ],
     )
     parser.add_argument(
         '--gv-observation-representation-layers',
@@ -182,9 +189,16 @@ def parse_args():
     )
 
     parser.add_argument(
-        '--gv-state-grid-model-type',
-        choices=['cnn', 'fc'],
-        default='fc',
+        '--gv-state-submodels',
+        nargs='+',
+        choices=[
+            'agent',
+            'item',
+            'grid-cnn',
+            'grid-fc',
+            'agent-grid-cnn',
+            'agent-grid-fc',
+        ],
     )
     parser.add_argument(
         '--gv-state-representation-layers',

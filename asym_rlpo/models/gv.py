@@ -54,7 +54,7 @@ class GV_Model(Model):
             space['item'].high.max() + 1,
         )
         self.embedding_model = EmbeddingModel(num_embeddings, embedding_size)
-        gv_models = [self._make_gv_model(name) for name in names]
+        gv_models = [self._make_gv_submodel(name) for name in names]
         self.cat_model = CatModel(gv_models)
         self.fc_model: nn.Module
 
@@ -75,7 +75,7 @@ class GV_Model(Model):
     def forward(self, inputs: GV_State):
         return self.fc_model(self.cat_model(inputs))
 
-    def _make_gv_model(self, name: str):
+    def _make_gv_submodel(self, name: str):
         if name == 'agent':
             if 'agent' not in self.space.spaces:
                 raise KeyError('space does not contain `agent` key')
