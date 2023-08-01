@@ -211,6 +211,7 @@ def parse_args():
 
     parser.add_argument('--checkpoint', default=None)
     parser.add_argument('--checkpoint-period', type=int_pos, default=10 * 60)
+    parser.add_argument('--check-checkpoint-consistency', action='store_true')
 
     parser.add_argument('--timeout-timestamp', type=float, default=float('inf'))
 
@@ -918,6 +919,7 @@ def main():
 
     if (
         checkpoint is not None
+        and config.check_checkpoint_consistency
         and checkpoint.metadata.config != config._as_dict()
     ):
         raise RuntimeError('checkpoint config inconsistent with program config')
