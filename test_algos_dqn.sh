@@ -42,9 +42,10 @@ args=(
   # --hs-features-dim 64
   # --gv-state-model-type cnn
 
-  --gv-state-submodels agent-grid-fc agent item
+  --gv-cnn $PWD/hpsearch/mr-a2c/gv-cnn.v1.yaml
+  --gv-state-submodels agent-grid-cnn agent item
   --gv-state-representation-layers 2
-  --gv-observation-submodels grid-fc item
+  --gv-observation-submodels grid-cnn item
   --gv-observation-representation-layers 2
 )
 

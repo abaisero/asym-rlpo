@@ -1,6 +1,7 @@
 import gym.spaces
 
 from asym_rlpo.envs import LatentType
+from asym_rlpo.models.embedding import EmbeddingModel
 from asym_rlpo.models.empty import EmptyModel
 from asym_rlpo.models.factory import ModelFactory
 from asym_rlpo.models.gv import GV_Memory_Model, GV_Model
@@ -42,12 +43,13 @@ class GVModelFactory(ModelFactory):
         return GV_Model(
             self.env.latent_space,
             config.gv_state_submodels,
-            embedding_size=1,
-            layers=[512] * config.gv_state_representation_layers,
+            embedding_size=4,
+            layers=[64] * config.gv_state_representation_layers,
         )
 
     def make_action_model(self) -> Model:
-        return EmptyModel()
+        assert isinstance(self.env.action_space, gym.spaces.Discrete)
+        return EmbeddingModel(self.env.action_space.n, 64)
 
     def make_observation_model(self) -> Model:
         config = get_config()
@@ -62,8 +64,8 @@ class GVModelFactory(ModelFactory):
         return GV_Model(
             self.env.observation_space,
             config.gv_observation_submodels,
-            embedding_size=8,
-            layers=[512] * config.gv_observation_representation_layers,
+            embedding_size=4,
+            layers=[64] * config.gv_observation_representation_layers,
         )
 
     def make_history_model(self) -> HistoryModel:
