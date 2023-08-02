@@ -6,12 +6,15 @@ import gym
 import gym.spaces
 import torch
 import torch.nn as nn
+import yaml
 
 import asym_rlpo.generalized_torch as gtorch
 from asym_rlpo.models.cat import CatModel
 from asym_rlpo.models.embedding import EmbeddingModel
 from asym_rlpo.models.model import Model
 from asym_rlpo.modules.mlp import make_mlp
+from asym_rlpo.utils.cnn import make_cnn_from_filename
+from asym_rlpo.utils.config import get_config
 from asym_rlpo.utils.convert import numpy2torch
 
 # gridverse types
@@ -35,6 +38,12 @@ def _check_gv_state_space_keys(space: gym.Space) -> bool:
     for key in ['grid', 'agent_id_grid', 'agent', 'item']:
         if key not in space.spaces:
             raise KeyError(f'space does not contain {key=}')
+
+
+def make_cnn(channels: int) -> nn.Sequential:
+    config = get_config()
+
+    return make_cnn_from_filename(config.gv_cnn, channels)
 
 
 class GV_Model(Model):
@@ -121,18 +130,6 @@ class GV_Model(Model):
         raise ValueError(f'invalid gv model name {name}')
 
 
-def gv_cnn(in_channels):
-    """Gridverse convolutional network shared by the observation/state models."""
-    return nn.Sequential(
-        nn.Conv2d(in_channels, 32, kernel_size=3, padding=1),
-        nn.ReLU(),
-        nn.Conv2d(32, 64, kernel_size=3, padding=1),
-        nn.ReLU(),
-        nn.Conv2d(64, 64, kernel_size=3, padding=1),
-        nn.ReLU(),
-    )
-
-
 def batchify(gv_type: GV_Observation | GV_State):
     """Adds a batch axis to every subcomponent of a gridverse state or observation."""
     return gtorch.unsqueeze(gv_type, 0)
@@ -194,7 +191,7 @@ class GV_Grid_CNN_Model(Model):
 
         grid_channels = space.spaces['grid'].shape[-1]
         in_channels = grid_channels * embedding_model.dim
-        self.cnn = gv_cnn(in_channels)
+        self.cnn_model = make_cnn(in_channels)
 
     @cached_property
     def dim(self):
@@ -207,7 +204,7 @@ class GV_Grid_CNN_Model(Model):
         grid = self.embedding_model(grid).flatten(start_dim=-2)
 
         cnn_input = torch.transpose(grid, 1, 3)
-        cnn_output = self.cnn(cnn_input)
+        cnn_output = self.cnn_model(cnn_input)
         cnn_output = cnn_output.flatten(start_dim=1)
 
         return cnn_output
@@ -232,7 +229,7 @@ class GV_AgentGrid_CNN_Model(Model):
         grid_channels = space.spaces['grid'].shape[-1]
         # adding one for agent_id_grid
         in_channels = grid_channels * embedding_model.dim + 1
-        self.cnn = gv_cnn(in_channels)
+        self.cnn_model = make_cnn(in_channels)
 
     @cached_property
     def dim(self):
@@ -248,7 +245,7 @@ class GV_AgentGrid_CNN_Model(Model):
         agent_id_grid = agent_id_grid.unsqueeze(-1)
         cnn_input = torch.cat([grid, agent_id_grid], dim=-1)
         cnn_input = torch.transpose(cnn_input, 1, 3)
-        cnn_output = self.cnn(cnn_input)
+        cnn_output = self.cnn_model(cnn_input)
         cnn_output = cnn_output.flatten(start_dim=1)
 
         return cnn_output

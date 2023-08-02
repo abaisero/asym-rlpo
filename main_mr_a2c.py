@@ -164,6 +164,7 @@ def parse_args():
 
     # gv models
     parser.add_argument('--gv-representation', default='compact')
+    parser.add_argument('--gv-cnn', default=None)
 
     parser.add_argument(
         '--gv-observation-submodels',
