@@ -156,6 +156,8 @@ def parse_args():
 
     # gv models
     parser.add_argument('--gv-representation', default='compact')
+    parser.add_argument('--gv-ignore-color-channel', action='store_true')
+    parser.add_argument('--gv-ignore-state-channel', action='store_true')
     parser.add_argument('--gv-cnn', default=None)
 
     parser.add_argument(
@@ -826,6 +828,7 @@ def define_metrics():
 
 def main():
     args = parse_args()
+
     wandb_kwargs = {
         'project': args.wandb_project,
         'entity': args.wandb_entity,
