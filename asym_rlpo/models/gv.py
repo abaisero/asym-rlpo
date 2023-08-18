@@ -85,6 +85,18 @@ class GV_Model(Model):
         return self.fc_model(self.cat_model(inputs))
 
     def _make_gv_submodel(self, name: str):
+        config = get_config()
+
+        assert self.space.spaces['grid'].shape[-1] == 3
+
+        channels = [0, 1, 2]
+
+        if config.gv_ignore_color_channel:
+            channels.remove(1)
+
+        if config.gv_ignore_state_channel:
+            channels.remove(2)
+
         if name == 'agent':
             if 'agent' not in self.space.spaces:
                 raise KeyError('space does not contain `agent` key')
@@ -95,19 +107,27 @@ class GV_Model(Model):
             if 'item' not in self.space.spaces:
                 raise KeyError('space does not contain `item` key')
 
-            return GV_Item_Model(self.space, self.embedding_model)
+            return GV_Item_Model(self.space, self.embedding_model, channels)
 
         if name == 'grid-cnn':
             if 'grid' not in self.space.spaces:
                 raise KeyError('space does not contain `grid` key')
 
-            return GV_Grid_CNN_Model(self.space, self.embedding_model)
+            return GV_Grid_CNN_Model(
+                self.space,
+                self.embedding_model,
+                channels,
+            )
 
         if name == 'grid-fc':
             if 'grid' not in self.space.spaces:
                 raise KeyError('space does not contain `grid` key')
 
-            return GV_Grid_FC_Model(self.space, self.embedding_model)
+            return GV_Grid_FC_Model(
+                self.space,
+                self.embedding_model,
+                channels,
+            )
 
         if name == 'agent-grid-cnn':
             if 'grid' not in self.space.spaces:
@@ -116,7 +136,11 @@ class GV_Model(Model):
             if 'agent_id_grid' not in self.space.spaces:
                 raise KeyError('space does not contain `agent_id_grid` key')
 
-            return GV_AgentGrid_CNN_Model(self.space, self.embedding_model)
+            return GV_AgentGrid_CNN_Model(
+                self.space,
+                self.embedding_model,
+                channels,
+            )
 
         if name == 'agent-grid-fc':
             if 'grid' not in self.space.spaces:
@@ -125,7 +149,11 @@ class GV_Model(Model):
             if 'agent_id_grid' not in self.space.spaces:
                 raise KeyError('space does not contain `agent_id_grid` key')
 
-            return GV_AgentGrid_FC_Model(self.space, self.embedding_model)
+            return GV_AgentGrid_FC_Model(
+                self.space,
+                self.embedding_model,
+                channels,
+            )
 
         raise ValueError(f'invalid gv model name {name}')
 
@@ -158,6 +186,7 @@ class GV_Item_Model(Model):
         self,
         space: gym.spaces.Dict,
         embedding_model: EmbeddingModel,
+        channels: list[int],
     ):
         super().__init__()
         if 'item' not in space.spaces:
@@ -165,6 +194,7 @@ class GV_Item_Model(Model):
 
         self.space = space
         self.embedding_model = embedding_model
+        self.channels = channels
 
     @property
     def dim(self):
@@ -173,6 +203,7 @@ class GV_Item_Model(Model):
 
     def forward(self, inputs: GV_Observation):
         item = inputs['item']
+        item[..., self.channels]
         return self.embedding_model(item).flatten(start_dim=-2)
 
 
@@ -181,6 +212,7 @@ class GV_Grid_CNN_Model(Model):
         self,
         space: gym.spaces.Dict,
         embedding_model: EmbeddingModel,
+        channels: list[int],
     ):
         super().__init__()
         if 'grid' not in space.spaces:
@@ -188,9 +220,9 @@ class GV_Grid_CNN_Model(Model):
 
         self.space = space
         self.embedding_model = embedding_model
+        self.channels = channels
 
-        grid_channels = space.spaces['grid'].shape[-1]
-        in_channels = grid_channels * embedding_model.dim
+        in_channels = len(channels) * embedding_model.dim
         self.cnn_model = make_cnn(in_channels)
 
     @cached_property
@@ -201,6 +233,7 @@ class GV_Grid_CNN_Model(Model):
 
     def forward(self, inputs: GV_Observation):
         grid = inputs['grid']
+        grid = grid[..., self.channels]
         grid = self.embedding_model(grid).flatten(start_dim=-2)
 
         cnn_input = torch.transpose(grid, 1, 3)
@@ -215,6 +248,7 @@ class GV_AgentGrid_CNN_Model(Model):
         self,
         space: gym.spaces.Dict,
         embedding_model: EmbeddingModel,
+        channels: list[int],
     ):
         super().__init__()
         if 'grid' not in space.spaces:
@@ -225,10 +259,10 @@ class GV_AgentGrid_CNN_Model(Model):
 
         self.space = space
         self.embedding_model = embedding_model
+        self.channels = channels
 
-        grid_channels = space.spaces['grid'].shape[-1]
         # adding one for agent_id_grid
-        in_channels = grid_channels * embedding_model.dim + 1
+        in_channels = len(channels) * embedding_model.dim + 1
         self.cnn_model = make_cnn(in_channels)
 
     @cached_property
@@ -239,6 +273,7 @@ class GV_AgentGrid_CNN_Model(Model):
 
     def forward(self, inputs: GV_Observation):
         grid = inputs['grid']
+        grid = grid[..., self.channels]
         agent_id_grid = inputs['agent_id_grid']
 
         grid = self.embedding_model(grid).flatten(start_dim=-2)
@@ -256,6 +291,7 @@ class GV_Grid_FC_Model(Model):
         self,
         space: gym.spaces.Dict,
         embedding_model: EmbeddingModel,
+        channels: list[int],
     ):
         super().__init__()
         if 'grid' not in space.spaces:
@@ -263,6 +299,10 @@ class GV_Grid_FC_Model(Model):
 
         self.space = space
         self.embedding_model = embedding_model
+        self.channels = channels
+
+        in_channels = len(channels) * embedding_model.dim
+        self.cnn_model = make_cnn(in_channels)
 
     @property
     def dim(self):
@@ -271,6 +311,7 @@ class GV_Grid_FC_Model(Model):
 
     def forward(self, inputs: GV_Observation):
         grid = inputs['grid']
+        grid = grid[..., self.channels]
         return self.embedding_model(grid).flatten(start_dim=-4)
 
 
@@ -279,6 +320,7 @@ class GV_AgentGrid_FC_Model(Model):
         self,
         space: gym.spaces.Dict,
         embedding_model: EmbeddingModel,
+        channels: list[int],
     ):
         super().__init__()
         if 'grid' not in space.spaces:
@@ -289,6 +331,7 @@ class GV_AgentGrid_FC_Model(Model):
 
         self.space = space
         self.embedding_model = embedding_model
+        self.channels = channels
 
     @property
     def dim(self):
@@ -298,6 +341,7 @@ class GV_AgentGrid_FC_Model(Model):
 
     def forward(self, inputs: GV_Observation):
         grid = inputs['grid']
+        grid = grid[..., self.channels]
         agent_id_grid = inputs['agent_id_grid']
 
         grid = self.embedding_model(grid).flatten(start_dim=-4)
