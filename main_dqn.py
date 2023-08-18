@@ -70,6 +70,15 @@ def parse_args():
     parser.add_argument('--wandb-tag', action='append', dest='wandb_tags')
     parser.add_argument('--wandb-offline', action='store_true')
 
+    # custom meta groups
+    parser.add_argument(
+        '--wandb-metagroup',
+        nargs=2,
+        action='append',
+        dest='wandb_metagroups',
+        default=[],
+    )
+
     # data-logging
     parser.add_argument('--num-data-logs', type=int_pos, default=200)
 
@@ -237,6 +246,9 @@ def parse_args():
         args.modelseq_path_template = (
             f'{args.run_path}/modelseq/modelseq.{{}}.pkl'
         )
+
+    for name, value in args.wandb_metagroups:
+        setattr(args, f'wandb_metagroup_{name}', value)
 
     return args
 
