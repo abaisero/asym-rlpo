@@ -74,14 +74,14 @@ class A2C(Algorithm):
         action_nlls = -action_logits.gather(
             1, episode.actions.unsqueeze(-1)
         ).squeeze(-1)
-        policy_loss = (discounts * advantages * action_nlls).mean()
+        policy_loss = (discounts * advantages * action_nlls).sum()
 
         # negentropy loss
         action_dists = torch.distributions.Categorical(logits=action_logits)
-        negentropy_loss = -action_dists.entropy().mean()
+        negentropy_loss = -action_dists.entropy().sum()
 
         # critic loss
-        critic_loss = F.mse_loss(v_values, target_q_values, reduction='mean')
+        critic_loss = F.mse_loss(v_values, target_q_values, reduction='sum')
 
         return {
             'policy': policy_loss,
