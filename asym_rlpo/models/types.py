@@ -1,7 +1,13 @@
 import enum
+from collections.abc import Callable
 from typing import TypeAlias
 
 import torch.nn as nn
+
+from asym_rlpo.envs import Environment
+from asym_rlpo.models.model import Model
+
+ModelMaker: TypeAlias = Callable[[Environment], Model]
 
 PolicyModule: TypeAlias = nn.Module
 VModule: TypeAlias = nn.Module

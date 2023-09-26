@@ -12,18 +12,22 @@ from asym_rlpo.envs.env import (
     Environment,
     EnvironmentType,
     Latent,
-    LatentType,
     Observation,
     State,
 )
 from asym_rlpo.envs.wrappers import IndexWrapper
 
 
-def make_gym_env(id: str, *, latent_type: LatentType) -> Environment:
+def make_gym_env(id: str, *, latent_type: str) -> Environment:
     """makes a stateful gym environment or converts a fully observable openai environment into a partially observable openai environment"""
 
-    if latent_type is not LatentType.STATE:
-        raise ValueError(f'Invalid latent type {latent_type} for gym envs')
+    heavenhell_latent = (
+        re.fullmatch(r'POMDP-heavenhell_\d+-episodic-v0', id)
+        and latent_type == 'heaven'
+    )
+
+    if latent_type != 'state' and not heavenhell_latent:
+        raise ValueError(f'Invalid latent type {latent_type} for gym env id {id}')
 
     try:
         return make_po_gym_env(id)
@@ -38,6 +42,9 @@ def make_gym_env(id: str, *, latent_type: LatentType) -> Environment:
 
         else:
             if isinstance(gym_env.unwrapped, gym_pomdps.POMDP):
+                if heavenhell_latent:
+                    return HeavenHellGymEnvironment(gym_env, EnvironmentType.FLAT)
+
                 return GymEnvironment(gym_env, EnvironmentType.FLAT)
 
             if re.fullmatch(r'extra-dectiger-v\d+', gym_env.spec.id):
@@ -140,7 +147,7 @@ class StatefulGymEnv(Protocol):
     def step(self, action) -> tuple[Observation, float, bool, dict]:
         ...
 
-    def render(self, mode="human"):
+    def render(self, mode='human'):
         ...
 
 
@@ -150,10 +157,17 @@ class GymEnvironment(Environment):
     def __init__(self, env: StatefulGymEnv, type: EnvironmentType):
         self._env = env
         self.type = type
-        self.latent_type = LatentType.STATE
+        self.latent_type = 'state'
         self.action_space: gym.spaces.Discrete = env.action_space
         self.observation_space: gym.spaces.Space = env.observation_space
-        self.latent_space: gym.spaces.Space = env.state_space
+        self.state_space: gym.spaces.Space = env.state_space
+        self.latent_space: gym.spaces.Space = self._make_latent_space()
+
+    def _make_latent_space(self) -> gym.spaces.Space:
+        return self.state_space
+
+    def _map_latent(self, state: State) -> Latent:
+        return state
 
     def seed(self, seed: int | None = None) -> None:
         self._env.seed(seed)
@@ -163,13 +177,32 @@ class GymEnvironment(Environment):
 
     def reset(self) -> tuple[Observation, Latent]:
         observation = self._env.reset()
-        latent = self._env.state
+        latent = self._map_latent(self._env.state)
         return observation, latent
 
     def step(self, action: Action) -> tuple[Observation, Latent, float, bool]:
         observation, reward, done, _ = self._env.step(action)
-        latent = self._env.state
+        latent = self._map_latent(self._env.state)
         return observation, latent, reward, done
 
     def render(self) -> None:
         self._env.render()
+
+
+class HeavenHellGymEnvironment(GymEnvironment):
+    def __init__(self, env: StatefulGymEnv, type: EnvironmentType):
+        super().__init__(env, type)
+        self.latent_type = 'heaven'
+
+    def _make_latent_space(self) -> gym.spaces.Discrete:
+        return gym.spaces.Discrete(2)
+
+    def _map_latent(self, state: State) -> Latent:
+        if state == -1:
+            return -1
+
+        assert isinstance(self.state_space, gym.spaces.Discrete)
+        heaven_right = state >= self.state_space.n // 2
+        latent = int(heaven_right)
+        print(f'state {state} latent {latent}')
+        return latent

@@ -27,7 +27,7 @@ from asym_rlpo.data import (
 )
 from asym_rlpo.data_logging.logger import DataLogger
 from asym_rlpo.data_logging.wandb_logger import WandbLogger
-from asym_rlpo.envs import Environment, LatentType, make_env
+from asym_rlpo.envs import Environment, make_env
 from asym_rlpo.evaluation import evaluate_episodes
 from asym_rlpo.models import make_model_factory
 from asym_rlpo.policies import Policy, RandomPolicy
@@ -176,7 +176,9 @@ def parse_args():
     parser.add_argument('--normalize-hs-features', action='store_true')
 
     # latent observation
-    parser.add_argument('--latent-type', default='state')
+    parser.add_argument(
+        '--latent-type', default='state', choices=['state', 'heaven', 'beacon-color']
+    )
 
     # representation options
     parser.add_argument('--attention-num-heads', type=int_pow_2, default=2)
@@ -341,11 +343,9 @@ class Checkpoint(NamedTuple):
 def make_runstate(checkpoint: Checkpoint | None) -> Runstate:
     config = get_config()
 
-    table = str.maketrans({'-': '_'})
-    latent_type = LatentType[config.latent_type.upper().translate(table)]
     env = make_env(
         config.env,
-        latent_type=latent_type,
+        latent_type=config.latent_type,
         max_episode_timesteps=config.max_episode_timesteps,
         gv_representation=config.gv_representation,
     )

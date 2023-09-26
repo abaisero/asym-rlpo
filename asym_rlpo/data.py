@@ -5,7 +5,7 @@ import random
 from collections import deque
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Generic, Protocol, TypeVar
+from typing import Generic, Protocol, TypeAlias, TypeVar
 
 import numpy as np
 import torch
@@ -16,30 +16,24 @@ from asym_rlpo.utils.convert import numpy2torch
 
 logger = logging.getLogger(__name__)
 
-TorchObservation = TypeVar(
-    'TorchObservation',
-    torch.Tensor,
-    dict[str, torch.Tensor],
-)
-TorchLatent = TypeVar(
-    'TorchLatent',
-    torch.Tensor,
-    dict[str, torch.Tensor],
-)
+TorchData: TypeAlias = torch.Tensor | dict[str, torch.Tensor]
+NPData: TypeAlias = np.ndarray | dict[str, np.ndarray]
+
+TorchObservation: TypeAlias = TorchData
+TorchLatent: TypeAlias = TorchData
+
+NPObservation: TypeAlias = NPData
+NPLatent: TypeAlias = NPData
 
 Observation = TypeVar(
     'Observation',
-    torch.Tensor,
-    dict[str, torch.Tensor],
-    np.ndarray,
-    dict[str, np.ndarray],
+    TorchData,
+    NPData,
 )
 Latent = TypeVar(
     'Latent',
-    torch.Tensor,
-    dict[str, torch.Tensor],
-    np.ndarray,
-    dict[str, np.ndarray],
+    TorchData,
+    NPData,
 )
 
 
@@ -72,22 +66,6 @@ class Episode(Generic[Observation, Latent]):
 
     def __len__(self):
         return len(self.actions)
-
-    def __getitem__(self, index) -> Interaction[Observation, Latent]:
-        return Interaction(
-            observation=(
-                {k: v[index] for k, v in self.observations.items()}
-                if isinstance(self.observations, dict)
-                else self.observations[index]
-            ),
-            latent=(
-                {k: v[index] for k, v in self.latents.items()}
-                if isinstance(self.latents, dict)
-                else self.latents[index]
-            ),
-            action=self.actions[index],
-            reward=self.rewards[index],
-        )
 
     @staticmethod
     def from_interactions(

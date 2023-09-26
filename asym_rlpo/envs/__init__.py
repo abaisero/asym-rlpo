@@ -1,13 +1,7 @@
 from asym_rlpo.envs.carflag import register as register_carflag
 from asym_rlpo.envs.cleaner import register as register_cleaner
 from asym_rlpo.envs.dectiger import register as register_dectiger
-from asym_rlpo.envs.env import (
-    Action,
-    Environment,
-    Latent,
-    LatentType,
-    Observation,
-)
+from asym_rlpo.envs.env import Action, Environment, Latent, Observation
 from asym_rlpo.envs.env_gv import make_gv_env
 from asym_rlpo.envs.env_gym import make_gym_env
 
@@ -19,7 +13,7 @@ register_dectiger()
 def make_env(
     id_or_path: str,
     *,
-    latent_type: LatentType,
+    latent_type: str,
     max_episode_timesteps: int | None = None,
     gv_representation: str = 'compact',
 ) -> Environment:

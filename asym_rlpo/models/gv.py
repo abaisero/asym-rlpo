@@ -6,7 +6,6 @@ import gym
 import gym.spaces
 import torch
 import torch.nn as nn
-import yaml
 
 import asym_rlpo.generalized_torch as gtorch
 from asym_rlpo.models.cat import CatModel
@@ -347,27 +346,3 @@ class GV_AgentGrid_FC_Model(Model):
         grid = self.embedding_model(grid).flatten(start_dim=-4)
         agent_id_grid = agent_id_grid.flatten(start_dim=-2)
         return torch.cat([grid, agent_id_grid], dim=-1)
-
-
-class GV_Memory_Model(Model):
-    def __init__(self, space: gym.spaces.Box, *, embedding_size: int):
-        if not isinstance(space, gym.spaces.Box):
-            raise TypeError(
-                f'Invalid space type; should be gym.spaces.Box, is {type(space)}'
-            )
-
-        if space.shape is None or len(space.shape) != 1:
-            raise ValueError(
-                f'Invalid space shape;  should have single dimension, has {space.shape}'
-            )
-
-        super().__init__()
-        num_embeddings = space.high.item() + 1
-        self.embedding_model = EmbeddingModel(num_embeddings, embedding_size)
-
-    @property
-    def dim(self):
-        return self.embedding_model.dim
-
-    def forward(self, inputs: torch.Tensor):
-        return self.embedding_model(inputs)

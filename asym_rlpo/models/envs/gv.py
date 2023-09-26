@@ -1,16 +1,16 @@
 import gym.spaces
 
-from asym_rlpo.envs import LatentType
+from asym_rlpo.envs import Environment
 from asym_rlpo.models.embedding import EmbeddingModel
-from asym_rlpo.models.empty import EmptyModel
 from asym_rlpo.models.factory import ModelFactory
-from asym_rlpo.models.gv import GV_Memory_Model, GV_Model
+from asym_rlpo.models.gv import GV_Model
 from asym_rlpo.models.history import HistoryModel, make_history_model
 from asym_rlpo.models.model import Model
 from asym_rlpo.models.sequence import make_sequence_model
-from asym_rlpo.models.types import PolicyModule, QModule, VModule
+from asym_rlpo.models.types import ModelMaker, PolicyModule, QModule, VModule
 from asym_rlpo.modules.mlp import make_mlp
 from asym_rlpo.utils.config import get_config
+from asym_rlpo.utils.registry import Registry
 
 
 def _make_qmodule(in_size, out_size) -> QModule:
@@ -25,27 +25,41 @@ def _make_policymodule(in_size, out_size) -> PolicyModule:
     return make_mlp([in_size, 512, out_size], ['relu', 'logsoftmax'])
 
 
+latent_model_registry: Registry[ModelMaker] = Registry()
+
+
+@latent_model_registry.decorated('state')
+def make_state_model(env: Environment):
+    config = get_config()
+
+    assert isinstance(env.latent_space, gym.spaces.Dict)
+    assert config.gv_state_submodels is not None and (
+        len(config.gv_state_submodels)
+        == len(set(config.gv_state_submodels))
+        > 0
+    )
+
+    return GV_Model(
+        env.latent_space,
+        config.gv_state_submodels,
+        embedding_size=4,
+        layers=[64] * config.gv_state_representation_layers,
+    )
+
+
+@latent_model_registry.decorated('beacon-color')
+def make_gv_beacon_color_model(env: Environment):
+    assert isinstance(env.latent_space, gym.spaces.Discrete)
+    return EmbeddingModel(env.latent_space.n, 64)
+
+    # assert isinstance(env.latent_space, gym.spaces.Box)
+    # return GV_Memory_Model(env.latent_space, embedding_size=64)
+
+
 class GVModelFactory(ModelFactory):
     def make_latent_model(self) -> Model:
-        config = get_config()
-
-        if self.env.latent_type is LatentType.GV_MEMORY:
-            assert isinstance(self.env.latent_space, gym.spaces.Box)
-            return GV_Memory_Model(self.env.latent_space, embedding_size=64)
-
-        assert isinstance(self.env.latent_space, gym.spaces.Dict)
-        assert config.gv_state_submodels is not None and (
-            len(config.gv_state_submodels)
-            == len(set(config.gv_state_submodels))
-            > 0
-        )
-
-        return GV_Model(
-            self.env.latent_space,
-            config.gv_state_submodels,
-            embedding_size=4,
-            layers=[64] * config.gv_state_representation_layers,
-        )
+        latent_model_maker = latent_model_registry[self.env.latent_type]
+        return latent_model_maker(self.env)
 
     def make_action_model(self) -> Model:
         assert isinstance(self.env.action_space, gym.spaces.Discrete)

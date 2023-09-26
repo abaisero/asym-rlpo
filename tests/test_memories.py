@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from asym_rlpo.envs import LatentType, make_env
+from asym_rlpo.envs import make_env
 from asym_rlpo.models import make_model_factory
 from asym_rlpo.models.actor import ActorModel
 from asym_rlpo.models.actor_critic import ActorCriticModel
@@ -23,7 +23,7 @@ from asym_rlpo.sampling import sample_episode
 def test_memory_model(history_model_name: str, memory_size: int):
     env = make_env(
         'PO-pos-CartPole-v1',
-        latent_type=LatentType.STATE,
+        latent_type='state',
         max_episode_timesteps=100,
     )
 

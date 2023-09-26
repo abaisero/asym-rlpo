@@ -5,7 +5,7 @@ export WANDB_CONSOLE=off
 export WANDB_SILENT=true
 
 algos=(
-  dqn
+  # dqn
   adqn
   adqn-vr
   adqn-state
@@ -18,14 +18,15 @@ envs=(
   # POMDP-heavenhell-episodic-v0
   # POMDP-shopping_5-episodic-v1
   # PO-pos-CartPole-v1
-  "gv-yaml/asym-rlpo/gv_four_rooms.7x7.yaml"
-  "gv-yaml/asym-rlpo/gv_four_rooms.7x7.yaml --gv-ignore-state-channel"
-  "gv-yaml/asym-rlpo/gv_four_rooms.7x7.yaml --gv-ignore-color-channel"
-  "gv-yaml/asym-rlpo/gv_four_rooms.7x7.yaml --gv-ignore-state-channel --gv-ignore-color-channel"
+  # "gv-yaml/asym-rlpo/gv_four_rooms.7x7.yaml"
+  # "gv-yaml/asym-rlpo/gv_four_rooms.7x7.yaml --gv-ignore-state-channel"
+  # "gv-yaml/asym-rlpo/gv_four_rooms.7x7.yaml --gv-ignore-color-channel"
+  # "gv-yaml/asym-rlpo/gv_four_rooms.7x7.yaml --gv-ignore-state-channel --gv-ignore-color-channel"
+  "gv-yaml/asym-rlpo/gv_memory_four_rooms.7x7.yaml --latent-type beacon-color"
   # gv-yaml/asym-rlpo/gv_memory.5x5.yaml
   # gv-yaml/asym-rlpo/gv_memory_four_rooms.7x7.yaml
-  # "gv-yaml/asym-rlpo/gv_memory.5x5.yaml --latent-type GV-MEMORY"
-  # "gv-yaml/asym-rlpo/gv_memory_four_rooms.7x7.yaml --latent-type GV-MEMORY"
+  # "gv-yaml/asym-rlpo/gv_memory.5x5.yaml --latent-type beacon-color"
+  # "gv-yaml/asym-rlpo/gv_memory_four_rooms.7x7.yaml --latent-type beacon-color"
   # extra-dectiger-v0
   # extra-cleaner-v0
   # extra-car-flag-v0

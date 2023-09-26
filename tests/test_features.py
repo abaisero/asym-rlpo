@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from asym_rlpo.envs import LatentType, make_env
+from asym_rlpo.envs import make_env
 from asym_rlpo.models import make_model_factory
 from asym_rlpo.models.history import (
     FullHistoryIntegrator,
@@ -26,7 +26,7 @@ def torch_isclose(x: torch.Tensor, y: torch.Tensor) -> bool:
 def test_full_history_integrator(history_model: str):
     env = make_env(
         'PO-pos-CartPole-v1',
-        latent_type=LatentType.STATE,
+        latent_type='state',
         max_episode_timesteps=100,
     )
     policy = RandomPolicy(env.action_space)
@@ -56,7 +56,7 @@ def test_truncated_history_integrators(
 ):
     env = make_env(
         'PO-pos-CartPole-v1',
-        latent_type=LatentType.STATE,
+        latent_type='state',
         max_episode_timesteps=100,
     )
     policy = RandomPolicy(env.action_space)
@@ -89,7 +89,7 @@ def test_history_integrators(
 ):
     env = make_env(
         'PO-pos-CartPole-v1',
-        latent_type=LatentType.STATE,
+        latent_type='state',
         max_episode_timesteps=100,
     )
     policy = RandomPolicy(env.action_space)

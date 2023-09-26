@@ -2,7 +2,7 @@ import itertools as itt
 
 import torch
 
-from asym_rlpo.envs import LatentType, make_env
+from asym_rlpo.envs import make_env
 from asym_rlpo.models import make_model_factory
 from asym_rlpo.policies import RandomPolicy
 from asym_rlpo.sampling import sample_episode
@@ -14,7 +14,7 @@ def test_compute_history_features():
     max_episode_timesteps = 100
     env = make_env(
         'PO-pos-CartPole-v1',
-        latent_type=LatentType.STATE,
+        latent_type='state',
         max_episode_timesteps=max_episode_timesteps,
     )
     policy = RandomPolicy(env.action_space)
@@ -34,8 +34,12 @@ def test_compute_history_features():
     model_factory.history_model_memory_size = 4
     history_models['react-4'] = model_factory.make_history_model()
 
-    history_models['react-2'].load_state_dict(history_models['full'].state_dict())
-    history_models['react-4'].load_state_dict(history_models['full'].state_dict())
+    history_models['react-2'].load_state_dict(
+        history_models['full'].state_dict()
+    )
+    history_models['react-4'].load_state_dict(
+        history_models['full'].state_dict()
+    )
 
     with torch.no_grad():
         history_features = {
