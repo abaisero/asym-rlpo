@@ -46,43 +46,53 @@ args=(
   # --hs-features-dim 64
   # --gv-state-model-type cnn
 
-  --gv-cnn $PWD/hpsearch/mr-a2c/gv-cnn.v1.yaml
+  --gv-cnn "$PWD/hpsearch/mr-a2c/gv-cnn.v1.yaml"
   --gv-state-submodels agent-grid-cnn
   --gv-state-representation-layers 0
   --gv-observation-submodels grid-cnn
   --gv-observation-representation-layers 0
 )
 
-warnings="-W ignore"
-# warnings=""
+silent=true
 
 if [[ "$1" == "-v" ]]; then
   shift
   echo "running with standard output"
   echo
-  silent=0
+  silent=false
 else
   echo "running without standard output"
   echo
-  silent=1
+  silent=true
 fi
-
-debug=""
 
 if [[ "$1" == "--debug" ]]; then
   shift
   echo "running with debugging"
   echo
   debug="-m ipdb -c continue"
-  silent=0
+  silent=false
 fi
+
+if [ "$silent" = true ]; then
+  outstream="/dev/null";
+else
+  outstream="/dev/stdout";
+fi
+
+warnings="-W ignore"
 
 for env in "${envs[@]}"; do
   for algo in "${algos[@]}"; do
-    cmd="python $warnings $debug ./main_dqn.py $env $algo ${args[@]} $@"
-    echo $cmd
-    [[ "$silent" -eq 1 ]] && $cmd > /dev/null || $cmd
-    [[ "$?" -eq 0 ]] && echo "SUCCESS" || echo "FAIL"
+    command="python $warnings $debug ./main_dqn.py $env $algo ${args[*]} $*"
+    echo "$command"
+
+    if $command >$outstream; then
+      echo "SUCCESS"
+    else
+      echo "FAIL"
+    fi
+
   done
 done
 
