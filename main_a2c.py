@@ -35,7 +35,12 @@ from asym_rlpo.runs.xstats import (
 from asym_rlpo.sampling import sample_episodes
 from asym_rlpo.types import GradientNormDict, LossDict
 from asym_rlpo.utils.aggregate import average_losses
-from asym_rlpo.utils.argparse import int_non_neg, int_pos, int_pow_2
+from asym_rlpo.utils.argparse import (
+    history_model_type,
+    int_non_neg,
+    int_pos,
+    int_pow_2,
+)
 from asym_rlpo.utils.checkpointing import load_data, save_data
 from asym_rlpo.utils.config import get_config
 from asym_rlpo.utils.device import get_device
@@ -94,7 +99,7 @@ def parse_args():
     # truncated histories
     parser.add_argument(
         '--history-model',
-        choices=['rnn', 'gru', 'attention'],
+        type=history_model_type,
         default='gru',
     )
     parser.add_argument(

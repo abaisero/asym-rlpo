@@ -127,6 +127,39 @@ class Attention_SequenceModel(SequenceModel[Attention_Hidden]):
         return output, source
 
 
+Stacked_Hidden: TypeAlias = tuple
+
+
+class Stacked_SequenceModel(SequenceModel[Stacked_Hidden]):
+    def __init__(self, models: list[SequenceModel]):
+        super().__init__()
+        self.models = models
+
+    @property
+    def dim(self) -> int:
+        return self.models[-1].dim
+
+    def forward(
+        self,
+        input: Features,
+        *,
+        hidden: Stacked_Hidden | None = None,
+    ) -> tuple[Features, Stacked_Hidden]:
+        output = input
+
+        if hidden is None:
+            hidden = tuple(None for _ in range(len(self.models)))
+
+        new_hidden = []
+        for model, h in zip(self.models, hidden):
+            output, h = model(output, hidden=h)
+            new_hidden.append(h)
+
+        new_hidden = tuple(new_hidden)
+
+        return output, new_hidden
+
+
 def make_sequence_model(
     name: str,
     in_features: int,
@@ -135,6 +168,19 @@ def make_sequence_model(
     attention_num_heads: int | None = None,
 ) -> SequenceModel:
     """sequence model factory"""
+
+    if ':' in name:
+        names = name.split(':')
+        models = [
+            make_sequence_model(
+                name,
+                in_features if i == 0 else out_features,
+                out_features,
+                attention_num_heads=attention_num_heads,
+            )
+            for i, name in enumerate(names)
+        ]
+        return Stacked_SequenceModel(models)
 
     if name == 'rnn':
         return RNN_SequenceModel(in_features, out_features)
