@@ -1,3 +1,5 @@
+from typing import Any
+
 import torch
 
 import asym_rlpo.generalized_torch as gtorch
@@ -28,7 +30,7 @@ class FullHistoryIntegrator(HistoryIntegrator):
         self.interaction_model = interaction_model
         self.sequence_model = sequence_model
         self.__features: Features
-        self.__hidden: torch.Tensor
+        self.__hidden: Any
 
     def reset(self, observation: TorchObservation):
         interaction_features = self.interaction_model(

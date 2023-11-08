@@ -32,7 +32,7 @@ args=(
   --max-episode-timesteps 100
   --simulation-num-episodes 2
 
-  --history-model rnn
+  --history-model rnn:attention
   # --history-model attention
   # --attention-num-heads 1
   # --truncated-histories-n 10

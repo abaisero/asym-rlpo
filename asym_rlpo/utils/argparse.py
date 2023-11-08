@@ -35,3 +35,9 @@ def int_pow_2(x: str) -> int:
         raise ValueError('Argument should be power of two')
 
     return x_int
+
+
+def history_model_type(argument: str) -> str:
+    choices = ['rnn', 'gru', 'attention']
+    assert all(x in choices for x in argument.split(':'))
+    return argument
