@@ -42,7 +42,7 @@ args=(
   # --normalize-hs-features
   # --hs-features-dim 64
 
-  --gv-cnn "$PWD/hpsearch/mr-a2c/gv-cnn.v1.yaml"
+  --gv-cnn "$PWD/gv-cnns/gv-cnn.v1.yaml"
   --gv-state-submodels agent-grid-cnn
   --gv-state-representation-layers 0
   --gv-observation-submodels grid-cnn

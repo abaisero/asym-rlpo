@@ -1,0 +1,15 @@
+- name: conv2d
+  channels: 16
+  kwargs:
+    kernel_size: 2
+- name: relu
+- name: conv2d
+  channels: 32
+  kwargs:
+    kernel_size: 2
+- name: relu
+- name: conv2d
+  channels: 64
+  kwargs:
+    kernel_size: 2
+- name: relu
