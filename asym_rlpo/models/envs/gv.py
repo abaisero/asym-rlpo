@@ -47,7 +47,7 @@ def make_state_model(env: Environment):
     )
 
 
-@latent_model_registry.decorated('beacon-color')
+@latent_model_registry.decorated('gv-beacon')
 def make_gv_beacon_color_model(env: Environment):
     assert isinstance(env.latent_space, gym.spaces.Discrete)
     return EmbeddingModel(env.latent_space.n, 64)

@@ -1,29 +1,33 @@
-import time
+from __future__ import annotations
 
 import gym
 import gym.spaces
 import numpy as np
 from gym import spaces
-# from gym.envs.classic_control import rendering as visualize
-from gym.envs.registration import register as gym_register
 from gym.utils import seeding
+
+from asym_rlpo.envs.env import StatefulEnvironment
+from asym_rlpo.envs.env_gym import StatefulGymEnv
+from asym_rlpo.envs.types import Action, EnvironmentType, Observation, State
+
+# from gym.envs.classic_control import rendering as visualize
+
 
 # CarEnv is from Hai;  Since it was not properly organized in a repo, I had to
 # just copy/paste it here.  CarEnvWrapper is my own code that fixes some
 # underlying issues.
 
 
-def register():
-    gym_register(
-        id='extra-car-flag-v0',
-        entry_point=lambda: CarEnvWrapper(CarEnv(), num_actions=7),
-    )
+def make_extra_carflag() -> CarflagStatefulEnvironment:
+    env = CarEnv()
+    env = CarEnvWrapper(env, num_actions=7)
+    return CarflagStatefulEnvironment(env)
 
 
 class CarEnv(gym.Env):
     def __init__(
         self,
-        prepare_high_obs_method="full",
+        prepare_high_obs_method='full',
         args=None,
         seed=0,
         rendering=False,
@@ -68,19 +72,19 @@ class CarEnv(gym.Env):
         self.state_dim = 3
         self.low_obs_dim = 2
 
-        self.name = "Car-Flag-POMDP"
+        self.name = 'Car-Flag-POMDP'
 
         # Configs for agent
         agent_params = {}
-        agent_params["subgoal_test_perc"] = 0.3
+        agent_params['subgoal_test_perc'] = 0.3
 
-        agent_params["random_action_perc"] = 0.2
-        agent_params["num_pre_training_episodes"] = -1
+        agent_params['random_action_perc'] = 0.2
+        agent_params['num_pre_training_episodes'] = -1
 
-        agent_params["atomic_noise"] = [0.1]
-        agent_params["subgoal_noise"] = [0.1, 0.1]
+        agent_params['atomic_noise'] = [0.1]
+        agent_params['subgoal_noise'] = [0.1, 0.1]
 
-        agent_params["num_exploration_episodes"] = 50
+        agent_params['num_exploration_episodes'] = 50
 
         self.agent_params = agent_params
         self.sim = None
@@ -248,7 +252,7 @@ class CarEnv(gym.Env):
             self.render()
 
         # return self._state, env_reward, done, {"is_success": reward > 0.0}
-        return self._state, reward, done, {"is_success": reward > 0.0}
+        return self._state, reward, done, {'is_success': reward > 0.0}
 
     def render(self, mode='human'):
         raise NotImplementedError
@@ -279,9 +283,7 @@ class CarEnv(gym.Env):
             self._draw_flags()
             self._draw_boundary()
 
-        self._state = np.array(
-            [self.np_random.uniform(low=-0.2, high=0.2), 0, 0.0]
-        )
+        self._state = np.array([self.np_random.uniform(low=-0.2, high=0.2), 0, 0.0])
         return np.array(self._state)
 
     def _height(self, xs):
@@ -356,9 +358,7 @@ class CarEnv(gym.Env):
 
     def _setup_view(self):
         if not self.setup_view:
-            self.viewer = visualize.Viewer(
-                self.screen_width, self.screen_height
-            )
+            self.viewer = visualize.Viewer(self.screen_width, self.screen_height)
             scale = self.scale
             xs = np.linspace(self.min_position, self.max_position, 100)
             ys = self._height(xs)
@@ -399,13 +399,9 @@ class CarEnv(gym.Env):
             if self.args is not None:
                 if self.n_layers in [2, 3]:
                     ################ Goal 1 ################
-                    car1 = visualize.FilledPolygon(
-                        [(l, b), (l, t), (r, t), (r, b)]
-                    )
+                    car1 = visualize.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
                     car1.set_color(1, 0.0, 0.0)
-                    car1.add_attr(
-                        visualize.Transform(translation=(0, clearance))
-                    )
+                    car1.add_attr(visualize.Transform(translation=(0, clearance)))
                     self.cartrans1 = visualize.Transform()
                     car1.add_attr(self.cartrans1)
                     self.viewer.add_geom(car1)
@@ -413,13 +409,9 @@ class CarEnv(gym.Env):
 
                 if self.n_layers in [3]:
                     ############### Goal 2 ###############
-                    car2 = visualize.FilledPolygon(
-                        [(l, b), (l, t), (r, t), (r, b)]
-                    )
+                    car2 = visualize.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
                     car2.set_color(0.0, 1, 0.0)
-                    car2.add_attr(
-                        visualize.Transform(translation=(0, clearance))
-                    )
+                    car2.add_attr(visualize.Transform(translation=(0, clearance)))
                     self.cartrans2 = visualize.Transform()
                     car2.add_attr(self.cartrans2)
                     self.viewer.add_geom(car2)
@@ -427,7 +419,7 @@ class CarEnv(gym.Env):
 
             self.setup_view = True
 
-    def display_subgoals(self, subgoals, mode="human"):
+    def display_subgoals(self, subgoals, mode='human'):
         self._setup_view()
 
         if self.show:
@@ -465,13 +457,9 @@ class CarEnvWrapper(gym.ActionWrapper):
     def __init__(self, env: gym.Env, *, num_actions: int):
         super().__init__(env)
 
-        self.state_space = gym.spaces.Box(
-            low=self.low_state, high=self.high_state
-        )
+        self.state_space = gym.spaces.Box(low=self.low_state, high=self.high_state)
         self.action_space = gym.spaces.Discrete(num_actions)
-        self.__actions = np.linspace(
-            self.min_action, self.max_action, num_actions
-        )
+        self.__actions = np.linspace(self.min_action, self.max_action, num_actions)
 
     def action(self, action):
         return self.__actions[action]
@@ -486,30 +474,37 @@ class CarEnvWrapper(gym.ActionWrapper):
         return state
 
 
-def main():
-    env = CarEnvWrapper(CarEnv(), num_actions=5)
-    observation = env.reset()
-    env.render()
-    print(f'state: {env.state}')
-    print(f'observation: {observation}')
+class CarflagStatefulEnvironment(StatefulEnvironment):
+    type = EnvironmentType.EXTRA_CARFLAG
 
-    while True:
-        action = env.action_space.sample()
-        print(f'action: {action}')
-        observation, reward, done, _ = env.step(action)
-        env.render()
-        print(f'state: {env.state}')
-        print(f'observation: {observation}')
-        print(f'reward: {reward}')
-        print(f'done: {done}')
+    def __init__(self, env: StatefulGymEnv):
+        super().__init__()
+        self._env = env
 
-        if done:
-            time.sleep(1)
-            observation = env.reset()
-            env.render()
-            print(f'state: {env.state}')
-            print(f'observation: {observation}')
+    @property
+    def state_space(self) -> gym.spaces.Space:
+        return self._env.state_space
 
+    @property
+    def action_space(self) -> gym.spaces.Discrete:
+        return self._env.action_space
 
-if __name__ == '__main__':
-    main()
+    @property
+    def observation_space(self) -> gym.spaces.Space:
+        return self._env.observation_space
+
+    def seed(self, seed: int | None = None) -> None:
+        self._env.seed(seed)
+
+    def reset(self) -> tuple[State, Observation]:
+        observation = self._env.reset()
+        state = self._env.state
+        return state, observation
+
+    def step(self, action: Action) -> tuple[State, Observation, float, bool]:
+        observation, reward, done, _ = self._env.step(action)
+        state = self._env.state
+        return state, observation, reward, done
+
+    def render(self) -> None:
+        self._env.render()

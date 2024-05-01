@@ -1,5 +1,5 @@
-from asym_rlpo.envs import Environment
-from asym_rlpo.envs.env import EnvironmentType
+from asym_rlpo.envs.env import Environment
+from asym_rlpo.envs.types import EnvironmentType
 from asym_rlpo.models.envs.carflag import CarFlagModelFactory
 from asym_rlpo.models.envs.cleaner import CleanerModelFactory
 from asym_rlpo.models.envs.dectiger import DecTigerModelFactory

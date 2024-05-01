@@ -9,57 +9,96 @@ import gym_pomdps
 
 from asym_rlpo.envs.env import (
     Action,
-    Environment,
     EnvironmentType,
     Latent,
+    LatentEnvironmentModule,
     Observation,
     State,
+    StatefulEnvironment,
+    StateLatentEnvironmentModule,
 )
 from asym_rlpo.envs.wrappers import IndexWrapper
 
 
-def make_gym_env(id: str, *, latent_type: str) -> Environment:
+def make_gym_env(
+    id: str,
+    *,
+    latent_type: str,
+) -> tuple[StatefulEnvironment, LatentEnvironmentModule]:
     """makes a stateful gym environment or converts a fully observable openai environment into a partially observable openai environment"""
 
-    heavenhell_latent = (
-        re.fullmatch(r'POMDP-heavenhell_\d+-episodic-v0', id)
-        and latent_type == 'heaven'
-    )
-
-    if latent_type != 'state' and not heavenhell_latent:
-        raise ValueError(f'Invalid latent type {latent_type} for gym env id {id}')
-
     try:
-        return make_po_gym_env(id)
+        gym_env = make_po_gym_env(id)
 
     except ValueError:
-        print('Loading using gym.make')
-        try:
-            gym_env = gym.make(id)
+        pass
+    else:
+        stateful_env = GymStatefulEnvironment(gym_env, EnvironmentType.OPENAI)
+        latent_env_module = make_gym_latent_env_module(stateful_env, latent_type)
+        return stateful_env, latent_env_module
 
-        except gym.error.Error as e:
-            raise ValueError from e
+    print('Loading using gym.make')
+    try:
+        gym_env = gym.make(id)
 
-        else:
-            if isinstance(gym_env.unwrapped, gym_pomdps.POMDP):
-                if heavenhell_latent:
-                    return HeavenHellGymEnvironment(gym_env, EnvironmentType.FLAT)
+    except gym.error.Error as e:
+        raise ValueError from e
 
-                return GymEnvironment(gym_env, EnvironmentType.FLAT)
+    else:
+        if isinstance(gym_env.unwrapped, gym_pomdps.POMDP):
+            stateful_env = GymStatefulEnvironment(gym_env, EnvironmentType.FLAT)
+            latent_env_module = make_gym_latent_env_module(
+                stateful_env, latent_type
+            )
+            return stateful_env, latent_env_module
 
-            if re.fullmatch(r'extra-dectiger-v\d+', gym_env.spec.id):
-                return GymEnvironment(gym_env, EnvironmentType.EXTRA_DECTIGER)
+        if re.fullmatch(r'extra-dectiger-v\d+', gym_env.spec.id):
+            stateful_env = GymStatefulEnvironment(
+                gym_env, EnvironmentType.EXTRA_DECTIGER
+            )
+            latent_env_module = make_gym_latent_env_module(
+                stateful_env, latent_type
+            )
+            return stateful_env, latent_env_module
 
-            if re.fullmatch(r'extra-cleaner-v\d+', gym_env.spec.id):
-                return GymEnvironment(gym_env, EnvironmentType.EXTRA_CLEANER)
+        if re.fullmatch(r'extra-cleaner-v\d+', gym_env.spec.id):
+            stateful_env = GymStatefulEnvironment(
+                gym_env, EnvironmentType.EXTRA_CLEANER
+            )
+            latent_env_module = make_gym_latent_env_module(
+                stateful_env, latent_type
+            )
+            return stateful_env, latent_env_module
 
-            if re.fullmatch(r'extra-car-flag-v\d+', gym_env.spec.id):
-                return GymEnvironment(gym_env, EnvironmentType.EXTRA_CARFLAG)
+        if re.fullmatch(r'extra-car-flag-v\d+', gym_env.spec.id):
+            stateful_env = GymStatefulEnvironment(
+                gym_env, EnvironmentType.EXTRA_CARFLAG
+            )
+            latent_env_module = make_gym_latent_env_module(
+                stateful_env, latent_type
+            )
+            return stateful_env, latent_env_module
 
-            return GymEnvironment(gym_env, EnvironmentType.OTHER)
+        stateful_env = GymStatefulEnvironment(gym_env, EnvironmentType.OTHER)
+        latent_env_module = make_gym_latent_env_module(stateful_env, latent_type)
+        return stateful_env, latent_env_module
 
 
-def make_po_gym_env(name: str) -> Environment:
+
+def make_gym_latent_env_module(
+    env: GymStatefulEnvironment,
+    latent_type: str,
+) -> LatentEnvironmentModule:
+    if latent_type == 'state':
+        return StateLatentEnvironmentModule(env)
+
+    if latent_type == 'hh-heaven':
+        return HeavenLatentEnvironmentModule(env)
+
+    raise ValueError(f'invalid latent type {latent_type}')
+
+
+def make_po_gym_env(name: str) -> StatefulGymEnv:
     """convert a fully observable openai environment into a partially observable openai environment"""
 
     pattern = r'^PO-([\w:.-]+)-([\w:.-]+)-v(\d+)$'
@@ -78,55 +117,35 @@ def make_po_gym_env(name: str) -> Environment:
     version = m[3]
     non_po_name = f'{env_name}-v{version}'
 
-    env: StatefulGymEnv
-
     if env_name == 'CartPole':
         indices_dict = {
             'pos': [0, 2],  # ignore velocities
             'vel': [1, 3],  # ignore positions
             'full': [0, 1, 2, 3],  # ignore nothing
         }
-
-        if po_type not in indices_dict.keys():
-            raise ValueError(f'invalid partial observability {po_type}')
-
-        gym_env = gym.make(non_po_name)
-        indices = indices_dict[po_type]
-        env = IndexWrapper(gym_env, indices)
-
     elif env_name == 'LunarLander':
         indices_dict = {
             'pos': [0, 1, 4, 6, 7],  # ignore velocities
             'vel': [2, 3, 5, 6, 7],  # ignore positions
             'full': [0, 1, 2, 3, 4, 5, 6, 7],  # ignore nothing
         }
-
-        if po_type not in indices_dict.keys():
-            raise ValueError(f'invalid partial observability {po_type}')
-
-        gym_env = gym.make(non_po_name)
-        indices = indices_dict[po_type]
-        env = IndexWrapper(gym_env, indices)
-
     elif env_name == 'Acrobot':
         indices_dict = {
             'pos': [0, 1, 2, 3],  # ignore velocities
             'vel': [4, 5],  # ignore positions
             'full': [0, 1, 2, 3, 4, 5],  # ignore nothing
         }
-
-        if po_type not in indices_dict.keys():
-            raise ValueError(f'invalid partial observability {po_type}')
-
-        gym_env = gym.make(non_po_name)
-        indices = indices_dict[po_type]
-
-        env = IndexWrapper(gym_env, indices)
-
     else:
         raise ValueError('invalid env name {env_name}')
 
-    return GymEnvironment(env, EnvironmentType.OPENAI)
+    gym_env = gym.make(non_po_name)
+
+    try:
+        indices = indices_dict[po_type]
+    except KeyError as e:
+        raise ValueError(f'invalid partial observability {po_type}') from e
+
+    return IndexWrapper(gym_env, indices)
 
 
 class StatefulGymEnv(Protocol):
@@ -151,58 +170,54 @@ class StatefulGymEnv(Protocol):
         ...
 
 
-class GymEnvironment(Environment):
+class GymStatefulEnvironment(StatefulEnvironment):
     """Converts gym.Env to the Environment protocol"""
+
+    state_space: gym.spaces.Space
+    action_space: gym.spaces.Discrete
+    observation_space: gym.spaces.Space
 
     def __init__(self, env: StatefulGymEnv, type: EnvironmentType):
         self._env = env
         self.type = type
-        self.latent_type = 'state'
-        self.action_space: gym.spaces.Discrete = env.action_space
-        self.observation_space: gym.spaces.Space = env.observation_space
-        self.state_space: gym.spaces.Space = env.state_space
-        self.latent_space: gym.spaces.Space = self._make_latent_space()
-
-    def _make_latent_space(self) -> gym.spaces.Space:
-        return self.state_space
-
-    def _map_latent(self, state: State) -> Latent:
-        return state
+        self.state_space = env.state_space
+        self.action_space = env.action_space
+        self.observation_space = env.observation_space
 
     def seed(self, seed: int | None = None) -> None:
         self._env.seed(seed)
+        self.state_space.seed(seed)
         self.action_space.seed(seed)
         self.observation_space.seed(seed)
-        self.latent_space.seed(seed)
 
-    def reset(self) -> tuple[Observation, Latent]:
+    def reset(self) -> tuple[State, Observation]:
         observation = self._env.reset()
-        latent = self._map_latent(self._env.state)
-        return observation, latent
+        state = self._env.state
+        return state, observation
 
     def step(self, action: Action) -> tuple[Observation, Latent, float, bool]:
         observation, reward, done, _ = self._env.step(action)
-        latent = self._map_latent(self._env.state)
-        return observation, latent, reward, done
+        state = self._env.state
+        return state, observation, reward, done
 
     def render(self) -> None:
         self._env.render()
 
 
-class HeavenHellGymEnvironment(GymEnvironment):
-    def __init__(self, env: StatefulGymEnv, type: EnvironmentType):
-        super().__init__(env, type)
-        self.latent_type = 'heaven'
+class HeavenLatentEnvironmentModule(LatentEnvironmentModule):
+    def __init__(self, env: GymStatefulEnvironment):
+        self._env = env
+        self.latent_type = 'hh-heaven'
+        self.latent_space = gym.spaces.Discrete(2)
 
-    def _make_latent_space(self) -> gym.spaces.Discrete:
-        return gym.spaces.Discrete(2)
+        assert isinstance(env.state_space, gym.spaces.Discrete)
+        self.heaven_right_threshold = env.state_space.n // 2
 
-    def _map_latent(self, state: State) -> Latent:
+    def __call__(self, state: State) -> Latent:
         if state == -1:
             return -1
 
-        assert isinstance(self.state_space, gym.spaces.Discrete)
-        heaven_right = state >= self.state_space.n // 2
+        heaven_right = state >= self.heaven_right_threshold
         latent = int(heaven_right)
         print(f'state {state} latent {latent}')
         return latent

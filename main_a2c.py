@@ -169,7 +169,7 @@ def parse_args():
 
     # latent observation
     parser.add_argument(
-        '--latent-type', default='state', choices=['state', 'heaven', 'beacon-color']
+        '--latent-type', default='state', choices=['state', 'hh-heaven', 'gv-beacon']
     )
 
     # representation options

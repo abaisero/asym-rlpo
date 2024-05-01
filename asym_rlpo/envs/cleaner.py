@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-import itertools as itt
-import time
-
 # import cv2
 import gym
+import gym.spaces
 import numpy as np
 from gym import spaces
-from gym.envs.registration import register as gym_register
 
 from asym_rlpo.envs.cleaner_maze.maze import Maze
+from asym_rlpo.envs.env import StatefulEnvironment
+from asym_rlpo.envs.env_gym import StatefulGymEnv
+from asym_rlpo.envs.types import Action, EnvironmentType, Observation, State
 from asym_rlpo.envs.wrappers import SingleAgentWrapper
 
 # EnvCleaner is from Lyu;  Since it was not properly organized in a repo, I had
@@ -17,11 +17,11 @@ from asym_rlpo.envs.wrappers import SingleAgentWrapper
 # underlying issues.
 
 
-def register():
-    gym_register(
-        id='extra-cleaner-v0',
-        entry_point=lambda: SingleAgentWrapper(EnvCleaner_Fix(EnvCleaner())),
-    )
+def make_extra_cleaner() -> CleanerStatefulEnvironment:
+    env = EnvCleaner()
+    env = EnvCleaner_Fix(env)
+    env = SingleAgentWrapper(env)
+    return CleanerStatefulEnvironment(env)
 
 
 class EnvCleaner(object):
@@ -49,14 +49,14 @@ class EnvCleaner(object):
     def generate_maze(self, seed):
         symbols = {
             # default symbols
-            "start": "S",
-            "end": "X",
-            "wall_v": "|",
-            "wall_h": "-",
-            "wall_c": "+",
-            "head": "#",
-            "tail": "o",
-            "empty": " ",
+            'start': 'S',
+            'end': 'X',
+            'wall_v': '|',
+            'wall_h': '-',
+            'wall_c': '+',
+            'head': '#',
+            'tail': 'o',
+            'empty': ' ',
         }
         maze_obj = Maze(
             int((self.map_size - 1) / 2),
@@ -79,47 +79,34 @@ class EnvCleaner(object):
             if action_list[i] == 0:  # up
                 # if can move
                 if (
-                    self.occupancy[self.agt_pos_list[i][0] - 1][
-                        self.agt_pos_list[i][1]
-                    ]
+                    self.occupancy[self.agt_pos_list[i][0] - 1][self.agt_pos_list[i][1]]
                     != 1
                 ):
                     self.agt_pos_list[i][0] = self.agt_pos_list[i][0] - 1
             if action_list[i] == 1:  # down
                 # if can move
                 if (
-                    self.occupancy[self.agt_pos_list[i][0] + 1][
-                        self.agt_pos_list[i][1]
-                    ]
+                    self.occupancy[self.agt_pos_list[i][0] + 1][self.agt_pos_list[i][1]]
                     != 1
                 ):
                     self.agt_pos_list[i][0] = self.agt_pos_list[i][0] + 1
             if action_list[i] == 2:  # left
                 # if can move
                 if (
-                    self.occupancy[self.agt_pos_list[i][0]][
-                        self.agt_pos_list[i][1] - 1
-                    ]
+                    self.occupancy[self.agt_pos_list[i][0]][self.agt_pos_list[i][1] - 1]
                     != 1
                 ):
                     self.agt_pos_list[i][1] = self.agt_pos_list[i][1] - 1
             if action_list[i] == 3:  # right
                 # if can move
                 if (
-                    self.occupancy[self.agt_pos_list[i][0]][
-                        self.agt_pos_list[i][1] + 1
-                    ]
+                    self.occupancy[self.agt_pos_list[i][0]][self.agt_pos_list[i][1] + 1]
                     != 1
                 ):
                     self.agt_pos_list[i][1] = self.agt_pos_list[i][1] + 1
             # if the spot is dirty
-            if (
-                self.occupancy[self.agt_pos_list[i][0]][self.agt_pos_list[i][1]]
-                == 2
-            ):
-                self.occupancy[self.agt_pos_list[i][0]][
-                    self.agt_pos_list[i][1]
-                ] = 0
+            if self.occupancy[self.agt_pos_list[i][0]][self.agt_pos_list[i][1]] == 2:
+                self.occupancy[self.agt_pos_list[i][0]][self.agt_pos_list[i][1]] = 0
                 reward = reward + 1
         return self.get_obs(), reward, self.i_step >= 200
 
@@ -193,11 +180,7 @@ class EnvCleaner(object):
         new_obs = np.ones((self.map_size * enlarge, self.map_size * enlarge, 3))
         for i in range(self.map_size):
             for j in range(self.map_size):
-                if (
-                    obs[i][j][0] == 0.0
-                    and obs[i][j][1] == 0.0
-                    and obs[i][j][2] == 0.0
-                ):
+                if obs[i][j][0] == 0.0 and obs[i][j][1] == 0.0 and obs[i][j][2] == 0.0:
                     cv2.rectangle(
                         new_obs,
                         (i * enlarge, j * enlarge),
@@ -205,11 +188,7 @@ class EnvCleaner(object):
                         (0, 0, 0),
                         -1,
                     )
-                if (
-                    obs[i][j][0] == 1.0
-                    and obs[i][j][1] == 0.0
-                    and obs[i][j][2] == 0.0
-                ):
+                if obs[i][j][0] == 1.0 and obs[i][j][1] == 0.0 and obs[i][j][2] == 0.0:
                     cv2.rectangle(
                         new_obs,
                         (i * enlarge, j * enlarge),
@@ -217,11 +196,7 @@ class EnvCleaner(object):
                         (0, 0, 255),
                         -1,
                     )
-                if (
-                    obs[i][j][0] == 0.0
-                    and obs[i][j][1] == 1.0
-                    and obs[i][j][2] == 0.0
-                ):
+                if obs[i][j][0] == 0.0 and obs[i][j][1] == 1.0 and obs[i][j][2] == 0.0:
                     cv2.rectangle(
                         new_obs,
                         (i * enlarge, j * enlarge),
@@ -229,12 +204,12 @@ class EnvCleaner(object):
                         (0, 255, 0),
                         -1,
                     )
-        cv2.imshow("image", new_obs)
+        cv2.imshow('image', new_obs)
         cv2.waitKey(10)
 
 
 class EnvCleaner_Fix(gym.Env):
-    def __init__(self, env: EnvClenaer):
+    def __init__(self, env: EnvCleaner):
         super().__init__()
 
         self.env = env
@@ -281,38 +256,37 @@ class EnvCleaner_Fix(gym.Env):
         return (observations, *ret, info)
 
 
-def main():
-    env = EnvCleaner()
-    env = EnvCleaner_Fix(env)
-    env = SingleAgentWrapper(env)
+class CleanerStatefulEnvironment(StatefulEnvironment):
+    type = EnvironmentType.EXTRA_CLEANER
 
-    while True:
-        observations = env.reset()
-        print(f'state: {env.state}')
-        assert env.state_space.contains(env.state)
-        print(f'observations: {observations}')
-        assert env.observation_space.contains(observations)
+    def __init__(self, env: StatefulGymEnv):
+        super().__init__()
+        self._env = env
 
-        for t in itt.count():
-            time.sleep(1)
-            print(f't: {t}')
+    @property
+    def state_space(self) -> gym.spaces.Space:
+        return self._env.state_space
 
-            actions = env.action_space.sample()
-            print(f'actions: {actions}')
-            assert env.action_space.contains(actions)
+    @property
+    def action_space(self) -> gym.spaces.Discrete:
+        return self._env.action_space
 
-            observations, rewards, done = env.step(actions)
-            print(f'state: {env.state}')
-            assert env.state_space.contains(env.state)
-            print(f'observations: {observations}')
-            assert env.observation_space.contains(observations)
-            print(f'rewards: {rewards}')
-            print(f'done: {done}')
+    @property
+    def observation_space(self) -> gym.spaces.Space:
+        return self._env.observation_space
 
-            if done:
-                time.sleep(1)
-                break
+    def seed(self, seed: int | None = None) -> None:
+        self._env.seed(seed)
 
+    def reset(self) -> tuple[State, Observation]:
+        observation = self._env.reset()
+        state = self._env.state
+        return state, observation
 
-if __name__ == '__main__':
-    main()
+    def step(self, action: Action) -> tuple[State, Observation, float, bool]:
+        observation, reward, done, _ = self._env.step(action)
+        state = self._env.state
+        return state, observation, reward, done
+
+    def render(self) -> None:
+        self._env.render()

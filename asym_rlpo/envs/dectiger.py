@@ -1,11 +1,13 @@
-import itertools as itt
-import time
+from __future__ import annotations
 
 import gym
+import gym.spaces
 import numpy as np
 from gym import Env, spaces
-from gym.envs.registration import register as gym_register
 
+from asym_rlpo.envs.env import StatefulEnvironment
+from asym_rlpo.envs.env_gym import StatefulGymEnv
+from asym_rlpo.envs.types import Action, EnvironmentType, Observation, State
 from asym_rlpo.envs.wrappers import SingleAgentWrapper
 
 # DecTiger is from Hai;  Since it was not properly organized in a repo, I had
@@ -40,16 +42,16 @@ Reward model:
 """
 
 
-def register():
-    gym_register(
-        id='extra-dectiger-v0',
-        entry_point=lambda: SingleAgentWrapper(DecTiger_Fix(DecTiger())),
-    )
+def make_extra_dectiger() -> DecTigerStatefulEnvironment:
+    env = DecTiger()
+    env = DecTiger_Fix(env)
+    env = SingleAgentWrapper(env)
+    return DecTigerStatefulEnvironment(env)
 
 
-ACTIONS = ("open-left", "open-right", "listen")
-STATES = ("tiger-left", "tiger-right")
-OBSERVAIONS = ("hear-left", "hear-right")
+ACTIONS = ('open-left', 'open-right', 'listen')
+STATES = ('tiger-left', 'tiger-right')
+OBSERVAIONS = ('hear-left', 'hear-right')
 JOINT_OBSERVATIONS_RIGHT = ((1, 1), (1, 0), (0, 1), (0, 0))
 JOINT_OBSERVATIONS_LEFT = ((0, 0), (1, 0), (0, 1), (1, 1))
 
@@ -85,9 +87,7 @@ class DecTiger(Env):
         a1, a2 = a
         if a1 == a2 == 2:  # both listen
             obs = (
-                JOINT_OBSERVATIONS_LEFT
-                if self.tiger == 0
-                else JOINT_OBSERVATIONS_RIGHT
+                JOINT_OBSERVATIONS_LEFT if self.tiger == 0 else JOINT_OBSERVATIONS_RIGHT
             )
             i = np.random.choice(4, p=(0.7225, 0.1275, 0.1275, 0.0225))
             o = obs[i]
@@ -140,37 +140,37 @@ class DecTiger_Fix(gym.Wrapper):
         return self.tiger
 
 
-def main():
-    env = DecTiger()
-    env = DecTiger_Fix(env)
-    env = SingleAgentWrapper(env)
+class DecTigerStatefulEnvironment(StatefulEnvironment):
 
-    while True:
-        observations = env.reset()
-        print(f'state: {env.state}')
-        assert env.state_space.contains(env.state)
-        print(f'observations: {observations}')
-        assert env.observation_space.contains(observations)
+    def __init__(self, env: StatefulGymEnv):
+        super().__init__()
+        self._env = env
+        self.type = EnvironmentType.EXTRA_DECTIGER
 
-        for t in itt.count():
-            print(f't: {t}')
+    @property
+    def state_space(self) -> gym.spaces.Space:
+        return self._env.state_space
 
-            actions = env.action_space.sample()
-            print(f'actions: {actions}')
-            assert env.action_space.contains(actions)
+    @property
+    def action_space(self) -> gym.spaces.Discrete:
+        return self._env.action_space
 
-            observations, rewards, done = env.step(actions)
-            print(f'state: {env.state}')
-            assert env.state_space.contains(env.state)
-            print(f'observations: {observations}')
-            assert env.observation_space.contains(observations)
-            print(f'rewards: {rewards}')
-            print(f'done: {done}')
+    @property
+    def observation_space(self) -> gym.spaces.Space:
+        return self._env.observation_space
 
-            if done:
-                time.sleep(1)
-                break
+    def seed(self, seed: int | None = None) -> None:
+        self._env.seed(seed)
 
+    def reset(self) -> tuple[State, Observation]:
+        observation = self._env.reset()
+        state = self._env.state
+        return state, observation
 
-if __name__ == '__main__':
-    main()
+    def step(self, action: Action) -> tuple[State, Observation, float, bool]:
+        observation, reward, done, _ = self._env.step(action)
+        state = self._env.state
+        return state, observation, reward, done
+
+    def render(self) -> None:
+        self._env.render()

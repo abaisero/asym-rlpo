@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from collections import Counter
-
 import gym
 import gym.spaces
 from gym_gridverse.debugging import reset_gv_debug
@@ -18,19 +16,22 @@ from gym_gridverse.representations.state_representations import (
 
 from asym_rlpo.envs.env import (
     Action,
-    Environment,
-    EnvironmentType,
     Latent,
+    LatentEnvironmentModule,
     Observation,
+    State,
+    StatefulEnvironment,
+    StateLatentEnvironmentModule,
 )
+from asym_rlpo.envs.types import EnvironmentType
 
 
 def make_gv_env(
     path: str,
-    latent_type: str,
     *,
+    latent_type: str,
     gv_representation: str,
-) -> Environment:
+) -> tuple[StatefulEnvironment, LatentEnvironmentModule]:
     reset_gv_debug(False)
 
     print('Loading using YAML')
@@ -49,25 +50,36 @@ def make_gv_env(
         observation_representation=observation_representation,
     )
 
-    env = GVEnvironment(outer_env)
-
-    if latent_type == 'beacon-color':
-        env = GVEnvironment_BeaconColor(env)
-
-    return env
+    stateful_env = GVStatefulEnvironment(outer_env)
+    latent_env_module = make_gv_latent_env_module(stateful_env, latent_type)
+    return stateful_env, latent_env_module
 
 
-class GVEnvironment(Environment):
+def make_gv_latent_env_module(
+    env: GVStatefulEnvironment,
+    latent_type: str,
+) -> LatentEnvironmentModule:
+    if latent_type == 'state':
+        return StateLatentEnvironmentModule(env)
+
+    if latent_type == 'gv-beacon':
+        return BeaconLatentEnvironmentModule(env)
+
+    raise ValueError(f'invalid latent type {latent_type}')
+
+
+class GVStatefulEnvironment(StatefulEnvironment):
+    state_space: gym.spaces.Dict
+    action_space: gym.spaces.Discrete
+    observation_space: gym.spaces.Dict
+
     def __init__(self, env: OuterEnv):
         self._gv_outer_env = env
         self.type = EnvironmentType.GV
-        self.latent_type = 'state'
 
-        self.action_space = gym.spaces.Discrete(env.action_space.num_actions)
         assert env.state_representation is not None
-        self.latent_space = outer_space_to_gym_space(
-            env.state_representation.space
-        )
+        self.state_space = outer_space_to_gym_space(env.state_representation.space)
+        self.action_space = gym.spaces.Discrete(env.action_space.num_actions)
         assert env.observation_representation is not None
         self.observation_space = outer_space_to_gym_space(
             env.observation_representation.space
@@ -75,64 +87,45 @@ class GVEnvironment(Environment):
 
     def seed(self, seed: int | None = None) -> None:
         self._gv_outer_env.inner_env.set_seed(seed)
+        self.state_space.seed(seed)
         self.action_space.seed(seed)
         self.observation_space.seed(seed)
-        self.latent_space.seed(seed)
 
-    def reset(self) -> tuple[Observation, Latent]:
+    def reset(self) -> tuple[State, Observation]:
         self._gv_outer_env.reset()
-        latent = self._gv_outer_env.state
+        state = self._gv_outer_env.state
         observation = self._gv_outer_env.observation
-        return observation, latent
+        return state, observation
 
-    def step(self, action: Action) -> tuple[Observation, Latent, float, bool]:
+    def step(self, action: Action) -> tuple[State, Observation, float, bool]:
         gv_action = self._gv_outer_env.action_space.int_to_action(action)
         reward, done = self._gv_outer_env.step(gv_action)
-        latent = self._gv_outer_env.state
+        state = self._gv_outer_env.state
         observation = self._gv_outer_env.observation
-        return observation, latent, reward, done
+        return state, observation, reward, done
 
     def render(self) -> None:
         raise NotImplementedError
 
 
-class GVEnvironment_BeaconColor(Environment):
-    def __init__(self, env: GVEnvironment):
-        super().__init__()
+class BeaconLatentEnvironmentModule(LatentEnvironmentModule):
+    def __init__(self, env: GVStatefulEnvironment):
         self._env = env
-        self.type = env.type
-        self.latent_type = 'beacon-color'
+        self.latent_type = 'gv-beacon'
+        # TODO get better beacon info
+        self.latent_space = gym.spaces.Discrete(env.state_space['item'].high[2] + 1)
+        env._gv_outer_env.inner_env.col
 
-        self.action_space = env.action_space
-        self.observation_space = env.observation_space
-
-        assert isinstance(env.latent_space, gym.spaces.Dict)
-        self.latent_space = gym.spaces.Discrete(
-            env.latent_space['item'].high[2] + 1
-        )
-
-    def seed(self, seed: int | None = None) -> None:
-        self._env.seed(seed)
-
-    def reset(self) -> tuple[Observation, Latent]:
-        observation, latent = self._env.reset()
-
+    # NOTE:  this assumes the latent mapping is synchronous
+    def __call__(self, state: State) -> Latent:
         # This assumes that there is only one possible beacon color, and that
         # the beacon color is static throughout an episode
-        state_grid = self._env._gv_outer_env.inner_env.state.grid
+        inner_state_grid = self._env._gv_outer_env.inner_env.state.grid
         beacon_position = next(
             position
-            for position in state_grid.area.positions()
-            if isinstance(state_grid[position], Beacon)
+            for position in inner_state_grid.area.positions()
+            if isinstance(inner_state_grid[position], Beacon)
         )
         y, x = beacon_position.yx
-        self._beacon_color = latent['grid'][y, x, 2]
-
-        return observation, self._beacon_color
-
-    def step(self, action: Action) -> tuple[Observation, Latent, float, bool]:
-        observation, _, reward, done = self._env.step(action)
-        return observation, self._beacon_color, reward, done
-
-    def render(self) -> None:
-        self._env.render()
+        beacon_color = state['grid'][y, x, 2]
+        return beacon_color
