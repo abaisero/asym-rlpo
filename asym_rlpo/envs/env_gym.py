@@ -219,5 +219,4 @@ class HeavenLatentEnvironmentModule(LatentEnvironmentModule):
 
         heaven_right = state >= self.heaven_right_threshold
         latent = int(heaven_right)
-        print(f'state {state} latent {latent}')
         return latent
