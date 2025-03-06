@@ -21,6 +21,7 @@ from asym_rlpo.data_logging.wandb_logger import (
 from asym_rlpo.envs import Environment, LatentType, make_env
 from asym_rlpo.evaluation import evaluate, evaluate_returns
 from asym_rlpo.policies import Policy
+from asym_rlpo.policies.hardcoded import make_hardcoded_policy
 from asym_rlpo.q_estimators import q_estimator_factory
 from asym_rlpo.sampling import sample_episodes
 from asym_rlpo.utils.aggregate import average
@@ -256,30 +257,6 @@ class RunStateSerializer(Serializer[RunState]):
             )
 
 
-class HardcodedPolicy(Policy):
-    def __init__(self, action_space: gym.spaces.Space):
-        super().__init__()
-
-        self.action_space = action_space
-
-    def reset(self, observation):
-        # @ Ankit: TODO implement reset
-        pass
-
-    def step(self, action, observation):
-        # @ Ankit: TODO implement step function
-        pass
-
-    def sample_action(self):
-        # @ Ankit: TODO implement sample function
-        return self.action_space.sample()
-
-
-def make_policy(env_name: str, env: Environment) -> Policy:
-    # TODO: based on env_name and env, create a specific hardcoded policy
-    return HardcodedPolicy(env.action_space)
-
-
 def setup() -> RunState:
     config = get_config()
 
@@ -291,7 +268,7 @@ def setup() -> RunState:
         max_episode_timesteps=config.max_episode_timesteps,
     )
 
-    policy = make_policy(config.env, env)
+    policy = make_hardcoded_policy(config.env, env)
 
     wandb_logger = WandbLogger()
 
@@ -338,7 +315,7 @@ def save_checkpoint(runstate: RunState):
 
 def run(runstate: RunState) -> bool:
     config = get_config()
-    logger.info("run %s %s", config.env_label)
+    logger.info("run %s", config.env_label)
     # logger.info("run %s %s", config.env_label, config.algo_label)
 
     (
@@ -364,7 +341,7 @@ def run(runstate: RunState) -> bool:
         torch.use_deterministic_algorithms(True)
 
     # main learning loop
-    for _ in range(1000):
+    for _ in range(10):
         with torch.inference_mode():
             evalstats = evaluate(
                 env,
@@ -373,21 +350,12 @@ def run(runstate: RunState) -> bool:
                 num_episodes=config.evaluation_num_episodes,
             )
 
-            avg_returns.extend(evalstats.returns.tolist())
             logger.info(
-                "EVALUATE epoch %d simulation_timestep %d return % .3f",
+                "EVALUATE epoch %d simulation_timestep %d return % .3f ± % .3f",
                 xstats.epoch,
                 xstats.simulation_timesteps,
                 evalstats.returns.mean(),
-            )
-            wandb_logger.log(
-                {
-                    **xstats.asdict(),
-                    "hours": timer.hours,
-                    "diagnostics/target_mean_episode_length": evalstats.lengths.mean(),
-                    "performance/target_mean_return": evalstats.returns.mean(),
-                    "performance/avg_mean_return": avg_returns.value(),
-                }
+                evalstats.returns.std(),
             )
 
     done = True
