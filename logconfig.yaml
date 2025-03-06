@@ -17,3 +17,8 @@ loggers:
     handlers: [console]
     level: INFO
     propagate: true
+
+  # asym_rlpo.policies.hardcoded:
+  #   handlers: [console]
+  #   level: DEBUG
+  #   propagate: true

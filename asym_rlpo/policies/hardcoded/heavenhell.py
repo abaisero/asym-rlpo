@@ -1,6 +1,9 @@
 import enum
+import logging
 
 from asym_rlpo.policies import Policy
+
+logger = logging.getLogger(__name__)
 
 
 class Locations(enum.Enum):
@@ -32,15 +35,32 @@ class HeavenHell_HardcodedPolicy(Policy):
         self.size = size
 
     def reset(self, observation):
+        # observation = observation.item()
         self.location = Locations.CENTER_CORRIDOR
         self.subgoal = SubGoals.REACH_ORACLE
 
     def step(self, action, observation):
+        observation = observation.item()
+
         self.location = get_location(observation, size=self.size)
+        logger.debug(
+            "LOCATION observation=%s size=%d => %s",
+            observation,
+            self.size,
+            self.location,
+        )
         self.subgoal = get_subgoal(self.subgoal, observation, size=self.size)
+        logger.debug(
+            "SUBGOAL subgoal=%s observation=%d size=%d => %s",
+            self.subgoal,
+            observation,
+            self.size,
+            self.subgoal,
+        )
 
     def sample_action(self):
         action = _istate_to_action[(self.subgoal, self.location)]
+        logger.debug("ACTION %s %s => %s", self.subgoal, self.location, action)
         return _action_to_int[action]
 
 
@@ -74,7 +94,7 @@ def get_subgoal(subgoal: SubGoals, observation: int, *, size: int) -> SubGoals:
         if observation == 4 * size + 2:
             return SubGoals.REACH_RIGHT_EXIT
 
-    return SubGoals.REACH_ORACLE
+    return subgoal
 
 
 _istate_to_action: dict[tuple[SubGoals, Locations], Actions] = {
@@ -102,8 +122,8 @@ _istate_to_action: dict[tuple[SubGoals, Locations], Actions] = {
 }
 
 _action_to_int = {
-    Actions.DOWN: 0,
-    Actions.UP: 1,
+    Actions.UP: 0,
+    Actions.DOWN: 1,
     Actions.RIGHT: 2,
     Actions.LEFT: 3,
 }
