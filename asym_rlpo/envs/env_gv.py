@@ -25,6 +25,10 @@ from asym_rlpo.envs.env import (
 )
 
 
+def env_is_gv(path: str) -> bool:
+    raise NotImplementedError
+
+
 def make_gv_env(
     path: str,
     latent_type: LatentType,

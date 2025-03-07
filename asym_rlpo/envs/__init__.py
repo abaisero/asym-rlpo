@@ -8,12 +8,29 @@ from asym_rlpo.envs.env import (
     LatentType,
     Observation,
 )
-from asym_rlpo.envs.env_gv import make_gv_env
+from asym_rlpo.envs.env_gv import make_gv_env, env_is_gv
 from asym_rlpo.envs.env_gym import make_gym_env
+from asym_rlpo.envs.env_gym_hh import id_is_heavenhell
 
 register_carflag()
 register_cleaner()
 register_dectiger()
+
+
+def valid_env_id_and_latent_type(id_or_path: str, *, latent_type: LatentType) -> bool:
+    if latent_type is LatentType.STATE:
+        return True
+
+    if id_is_heavenhell(id_or_path) and latent_type in [
+        LatentType.HH_HEAVEN,
+        LatentType.HH_POSITION,
+    ]:
+        return True
+
+    if env_is_gv(id_or_path) and latent_type is LatentType.GV_MEMORY:
+        return True
+
+    return False
 
 
 def make_env(
@@ -23,6 +40,9 @@ def make_env(
     max_episode_timesteps: int | None = None,
     gv_representation: str = 'compact',
 ) -> Environment:
+    if not valid_env_id_and_latent_type(id_or_path, latent_type=latent_type):
+        raise ValueError(f'Invalid {id_or_path=} {latent_type=} for gym envs')
+
     try:
         env = make_gym_env(id_or_path, latent_type=latent_type)
 

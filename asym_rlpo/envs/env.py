@@ -22,6 +22,8 @@ class EnvironmentType(enum.Enum):
 
 class LatentType(enum.Enum):
     STATE = enum.auto()
+    HH_HEAVEN = enum.auto()
+    HH_POSITION = enum.auto()
     GV_MEMORY = enum.auto()
 
 
