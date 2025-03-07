@@ -91,7 +91,7 @@ class Episode(Generic[Observation, Latent]):
 
     @staticmethod
     def from_interactions(
-        interactions: Iterable[Interaction[Observation, Latent]]
+        interactions: Iterable[Interaction[Observation, Latent]],
     ) -> Episode[Observation, Latent]:
         observations: Observation = collate_numpy(
             [interaction.observation for interaction in interactions]
@@ -99,12 +99,8 @@ class Episode(Generic[Observation, Latent]):
         latents: Latent = collate_numpy(
             [interaction.latent for interaction in interactions]
         )
-        actions = collate_numpy(
-            [interaction.action for interaction in interactions]
-        )
-        rewards = collate_numpy(
-            [interaction.reward for interaction in interactions]
-        )
+        actions = collate_numpy([interaction.action for interaction in interactions])
+        rewards = collate_numpy([interaction.reward for interaction in interactions])
         info = collate_numpy([interaction.info for interaction in interactions])
         return Episode(
             observations=observations,
@@ -119,17 +115,12 @@ class Episode(Generic[Observation, Latent]):
             (
                 isinstance(self.observations, np.ndarray)
                 or isinstance(self.observations, dict)
-                and all(
-                    isinstance(v, np.ndarray)
-                    for v in self.observations.values()
-                )
+                and all(isinstance(v, np.ndarray) for v in self.observations.values())
             )
             and (
                 isinstance(self.latents, np.ndarray)
                 or isinstance(self.latents, dict)
-                and all(
-                    isinstance(v, np.ndarray) for v in self.latents.values()
-                )
+                and all(isinstance(v, np.ndarray) for v in self.latents.values())
             )
             and isinstance(self.actions, np.ndarray)
             and isinstance(self.rewards, np.ndarray)
@@ -259,13 +250,11 @@ class EpisodeBufferSampler(Generic[Observation, Latent]):
 
 
 class EpisodeFactory(Protocol, Generic[Observation, Latent]):
-    def __call__(self) -> Episode[Observation, Latent]:
-        ...
+    def __call__(self) -> Episode[Observation, Latent]: ...
 
 
 class EpisodesFactory(Protocol, Generic[Observation, Latent]):
-    def __call__(self) -> list[Episode[Observation, Latent]]:
-        ...
+    def __call__(self) -> list[Episode[Observation, Latent]]: ...
 
 
 def populate_episode_buffer(

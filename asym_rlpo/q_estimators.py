@@ -11,8 +11,7 @@ class Q_Estimator(Protocol):
         values: torch.Tensor,
         *,
         discount: float,
-    ) -> torch.Tensor:
-        ...
+    ) -> torch.Tensor: ...
 
 
 def q_estimator_factory(

@@ -49,38 +49,36 @@ args=(
   --negentropy-nsteps 1_000_000
 )
 
-silent=true
-
 if [[ "$1" == "-v" ]]; then
   shift
   echo "running with standard output"
   echo
-  silent=false
+  SILENT=false
 else
   echo "running without standard output"
   echo
-  silent=true
+  SILENT=true
 fi
 
 if [[ "$1" == "--debug" ]]; then
   shift
   echo "running with debugging"
   echo
-  debug="-m ipdb -c continue"
-  silent=false
+  DEBUG="-m ipdb -c continue"
+  SILENT=false
 fi
 
-if [ "$silent" = true ]; then
-  outstream="/dev/null";
+if $SILENT; then
+  outstream=/dev/null
 else
-  outstream="/dev/stdout";
+  outstream=/dev/stdout
 fi
 
-warnings="-W ignore"
+WARNINGS="-W ignore"
 
 for env in "${envs[@]}"; do
   for algo in "${algos[@]}"; do
-    command="python $warnings $debug ./main_mr_a2c.py $env $algo ${args[*]} $*"
+    command="python $WARNINGS $DEBUG ./main_mr_a2c.py $env $algo ${args[*]} $*"
     echo "$command"
     
     if $command >$outstream; then

@@ -40,9 +40,7 @@ def make_target_update_function(
 
     if name == 'polyak':
         if tau is None:
-            raise ValueError(
-                'target update `polyak` requires non-None tau parameter'
-            )
+            raise ValueError('target update `polyak` requires non-None tau parameter')
 
         return functools.partial(polyak_target_update, tau=tau)
 

@@ -4,6 +4,7 @@ import gym
 import gym.spaces
 import numpy as np
 from gym import spaces
+
 # from gym.envs.classic_control import rendering as visualize
 from gym.envs.registration import register as gym_register
 from gym.utils import seeding
@@ -23,7 +24,7 @@ def register():
 class CarEnv(gym.Env):
     def __init__(
         self,
-        prepare_high_obs_method="full",
+        prepare_high_obs_method='full',
         args=None,
         seed=0,
         rendering=False,
@@ -68,19 +69,19 @@ class CarEnv(gym.Env):
         self.state_dim = 3
         self.low_obs_dim = 2
 
-        self.name = "Car-Flag-POMDP"
+        self.name = 'Car-Flag-POMDP'
 
         # Configs for agent
         agent_params = {}
-        agent_params["subgoal_test_perc"] = 0.3
+        agent_params['subgoal_test_perc'] = 0.3
 
-        agent_params["random_action_perc"] = 0.2
-        agent_params["num_pre_training_episodes"] = -1
+        agent_params['random_action_perc'] = 0.2
+        agent_params['num_pre_training_episodes'] = -1
 
-        agent_params["atomic_noise"] = [0.1]
-        agent_params["subgoal_noise"] = [0.1, 0.1]
+        agent_params['atomic_noise'] = [0.1]
+        agent_params['subgoal_noise'] = [0.1, 0.1]
 
-        agent_params["num_exploration_episodes"] = 50
+        agent_params['num_exploration_episodes'] = 50
 
         self.agent_params = agent_params
         self.sim = None
@@ -248,7 +249,7 @@ class CarEnv(gym.Env):
             self.render()
 
         # return self._state, env_reward, done, {"is_success": reward > 0.0}
-        return self._state, reward, done, {"is_success": reward > 0.0}
+        return self._state, reward, done, {'is_success': reward > 0.0}
 
     def render(self, mode='human'):
         raise NotImplementedError
@@ -279,9 +280,7 @@ class CarEnv(gym.Env):
             self._draw_flags()
             self._draw_boundary()
 
-        self._state = np.array(
-            [self.np_random.uniform(low=-0.2, high=0.2), 0, 0.0]
-        )
+        self._state = np.array([self.np_random.uniform(low=-0.2, high=0.2), 0, 0.0])
         return np.array(self._state)
 
     def _height(self, xs):
@@ -356,9 +355,7 @@ class CarEnv(gym.Env):
 
     def _setup_view(self):
         if not self.setup_view:
-            self.viewer = visualize.Viewer(
-                self.screen_width, self.screen_height
-            )
+            self.viewer = visualize.Viewer(self.screen_width, self.screen_height)
             scale = self.scale
             xs = np.linspace(self.min_position, self.max_position, 100)
             ys = self._height(xs)
@@ -399,13 +396,9 @@ class CarEnv(gym.Env):
             if self.args is not None:
                 if self.n_layers in [2, 3]:
                     ################ Goal 1 ################
-                    car1 = visualize.FilledPolygon(
-                        [(l, b), (l, t), (r, t), (r, b)]
-                    )
+                    car1 = visualize.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
                     car1.set_color(1, 0.0, 0.0)
-                    car1.add_attr(
-                        visualize.Transform(translation=(0, clearance))
-                    )
+                    car1.add_attr(visualize.Transform(translation=(0, clearance)))
                     self.cartrans1 = visualize.Transform()
                     car1.add_attr(self.cartrans1)
                     self.viewer.add_geom(car1)
@@ -413,13 +406,9 @@ class CarEnv(gym.Env):
 
                 if self.n_layers in [3]:
                     ############### Goal 2 ###############
-                    car2 = visualize.FilledPolygon(
-                        [(l, b), (l, t), (r, t), (r, b)]
-                    )
+                    car2 = visualize.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
                     car2.set_color(0.0, 1, 0.0)
-                    car2.add_attr(
-                        visualize.Transform(translation=(0, clearance))
-                    )
+                    car2.add_attr(visualize.Transform(translation=(0, clearance)))
                     self.cartrans2 = visualize.Transform()
                     car2.add_attr(self.cartrans2)
                     self.viewer.add_geom(car2)
@@ -427,7 +416,7 @@ class CarEnv(gym.Env):
 
             self.setup_view = True
 
-    def display_subgoals(self, subgoals, mode="human"):
+    def display_subgoals(self, subgoals, mode='human'):
         self._setup_view()
 
         if self.show:
@@ -465,13 +454,9 @@ class CarEnvWrapper(gym.ActionWrapper):
     def __init__(self, env: gym.Env, *, num_actions: int):
         super().__init__(env)
 
-        self.state_space = gym.spaces.Box(
-            low=self.low_state, high=self.high_state
-        )
+        self.state_space = gym.spaces.Box(low=self.low_state, high=self.high_state)
         self.action_space = gym.spaces.Discrete(num_actions)
-        self.__actions = np.linspace(
-            self.min_action, self.max_action, num_actions
-        )
+        self.__actions = np.linspace(self.min_action, self.max_action, num_actions)
 
     def action(self, action):
         return self.__actions[action]

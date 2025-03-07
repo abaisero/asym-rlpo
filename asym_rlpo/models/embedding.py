@@ -6,11 +6,7 @@ from asym_rlpo.models.model import FeatureModel
 
 class EmbeddingModel(FeatureModel):
     def __init__(
-        self,
-        num_embeddings: int,
-        embedding_dim: int,
-        *,
-        padding_idx: int | None = None
+        self, num_embeddings: int, embedding_dim: int, *, padding_idx: int | None = None
     ):
         super().__init__()
         self.embeddings = nn.Embedding(

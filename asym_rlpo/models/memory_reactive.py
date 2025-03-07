@@ -19,9 +19,7 @@ class MemoryPolicy:
         self.history_integrator = (
             hm_critic_model.history_model.make_history_integrator()
         )
-        self.memory_integrator = (
-            hm_critic_model.memory_model.make_memory_integrator()
-        )
+        self.memory_integrator = hm_critic_model.memory_model.make_memory_integrator()
 
         self.memory_features: list[Features] = []
         self.epsilon: float = 1.0

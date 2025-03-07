@@ -17,9 +17,7 @@ def compute_memory_reactive_history_features(
     if memory_size <= 0:
         raise ValueError(f'invalid truncation {memory_size=}')
 
-    padding = torch.zeros_like(
-        interaction_features[0].expand(memory_size - 1, -1)
-    )
+    padding = torch.zeros_like(interaction_features[0].expand(memory_size - 1, -1))
     interaction_features = torch.cat(
         [padding, interaction_features],
         dim=0,

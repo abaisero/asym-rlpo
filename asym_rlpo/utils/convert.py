@@ -42,33 +42,27 @@ def is_dtype_boolean(x: np.ndarray) -> bool:
 
 
 @overload
-def numpy2torch(data: None) -> None:
-    ...
+def numpy2torch(data: None) -> None: ...
 
 
 @overload
-def numpy2torch(data: int | float | bool) -> torch.Tensor:
-    ...
+def numpy2torch(data: int | float | bool) -> torch.Tensor: ...
 
 
 @overload
-def numpy2torch(data: np.ndarray) -> torch.Tensor:
-    ...
+def numpy2torch(data: np.ndarray) -> torch.Tensor: ...
 
 
 @overload
-def numpy2torch(data: list[np.ndarray]) -> list[torch.Tensor]:
-    ...
+def numpy2torch(data: list[np.ndarray]) -> list[torch.Tensor]: ...
 
 
 @overload
-def numpy2torch(data: tuple[np.ndarray]) -> tuple[torch.Tensor]:
-    ...
+def numpy2torch(data: tuple[np.ndarray]) -> tuple[torch.Tensor]: ...
 
 
 @overload
-def numpy2torch(data: dict[str, np.ndarray]) -> dict[str, torch.Tensor]:
-    ...
+def numpy2torch(data: dict[str, np.ndarray]) -> dict[str, torch.Tensor]: ...
 
 
 def numpy2torch(data):

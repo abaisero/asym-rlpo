@@ -46,9 +46,7 @@ def make_schedule(
 
     if name == 'linear':
         if value_from is None or value_to is None or nsteps is None:
-            raise ValueError(
-                f'invalid arguments {value_from} {value_to} {nsteps}'
-            )
+            raise ValueError(f'invalid arguments {value_from} {value_to} {nsteps}')
 
         return functools.partial(
             linear_schedule,

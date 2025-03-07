@@ -25,8 +25,7 @@ class HistoryFeaturesFunction(Protocol):
         self,
         sequence_model: SequenceModel,
         interaction_features: Features,
-    ) -> Features:
-        ...
+    ) -> Features: ...
 
 
 def make_history_features_function(
@@ -114,8 +113,7 @@ class HistoryIntegratorFactory(Protocol):
         self,
         interaction_model: InteractionModel,
         sequence_model: SequenceModel,
-    ) -> HistoryIntegrator:
-        ...
+    ) -> HistoryIntegrator: ...
 
 
 def make_history_integrator(

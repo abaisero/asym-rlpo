@@ -65,9 +65,7 @@ class GVEnvironment(Environment):
 
         self.action_space = gym.spaces.Discrete(env.action_space.num_actions)
         assert env.state_representation is not None
-        self.latent_space = outer_space_to_gym_space(
-            env.state_representation.space
-        )
+        self.latent_space = outer_space_to_gym_space(env.state_representation.space)
         assert env.observation_representation is not None
         self.observation_space = outer_space_to_gym_space(
             env.observation_representation.space

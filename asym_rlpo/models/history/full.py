@@ -37,9 +37,7 @@ class FullHistoryIntegrator(HistoryIntegrator):
             None,
             gtorch.unsqueeze(observation, 0),
         ).unsqueeze(1)
-        self.__features, self.__hidden = self.sequence_model(
-            interaction_features
-        )
+        self.__features, self.__hidden = self.sequence_model(interaction_features)
         self.__features = self.__features.squeeze(0).squeeze(0)
 
     def step(self, action: torch.Tensor, observation: TorchObservation):

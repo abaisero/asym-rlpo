@@ -4,6 +4,7 @@ Makes use of a radomized version of Kruskal's Minimum Spanning Tree (MST)
 algorithm to generate a randomized mazes!
     @author: Paul Miller (github.com/138paulmiller)
 """
+
 import random
 import sys
 import threading
@@ -64,8 +65,7 @@ class Maze:
         #   grid[3][2] =    5*3+2 = 17  vs      3+2 = 6 X Not unique!
         # use 2D list comprehensions to avoid iterating twice
         self.grid = [
-            [(width * row + col) for row in range(0, height)]
-            for col in range(0, width)
+            [(width * row + col) for row in range(0, height)] for col in range(0, width)
         ]
         # portals[key] = {keys of neighbors}
         self.portals = {}
@@ -88,11 +88,11 @@ class Maze:
         @return
                 Maze    : constructed object
         """
-        s = ""
+        s = ''
         for col in range(0, self.width):
             s += self.wall_c + self.wall_h
 
-        s += self.wall_c + "\n"
+        s += self.wall_c + '\n'
         # wall if region not the same
         for row in range(0, self.height):
             # draw S for start if at (0,0)
@@ -116,7 +116,7 @@ class Maze:
                 else:  # draw cell
                     c += self.empty
                 s += c
-            s += self.wall_v + "\n"
+            s += self.wall_v + '\n'
             # draw - if not portal between [row][col] and [row+1][col]
             for col in range(0, self.width):
                 # if edge above (visually below)
@@ -129,7 +129,7 @@ class Maze:
                 ):
                     c = self.empty
                 s += self.wall_c + c
-            s += self.wall_c + "\n"
+            s += self.wall_c + '\n'
         s += self.empty
         return s
 
@@ -179,15 +179,11 @@ class Maze:
                 if map_np[i][j] == 1:
                     for k in range(self.scaling):
                         for l in range(self.scaling):
-                            new_map_np[self.scaling * i + k][
-                                self.scaling * j + l
-                            ] = 1
+                            new_map_np[self.scaling * i + k][self.scaling * j + l] = 1
                 else:
                     for k in range(self.scaling):
                         for l in range(self.scaling):
-                            new_map_np[self.scaling * i + k][
-                                self.scaling * j + l
-                            ] = 0
+                            new_map_np[self.scaling * i + k][self.scaling * j + l] = 0
         return new_map_np
 
     def portals_str(self):
@@ -195,56 +191,48 @@ class Maze:
         Returns a string containing a list of all portal coordinates
         """
         i = 1
-        s = "Portal Coordinates\n"
+        s = 'Portal Coordinates\n'
         for key, portals in self.portals.items():
             for near in portals.keys():
                 # print the cell ids
-                s += "%-015s" % (str((key, near)))
+                s += '%-015s' % (str((key, near)))
                 # draw 5 portals coordinates per line
                 if i % 5 == 0:
-                    s += "\n"
+                    s += '\n'
                 i += 1
         return s
 
     def init_symbols(self, symbols):
         # get symbol colors _color + bg_color
 
-        start_color = symbols["start_color"] if "start_color" in symbols else ""
+        start_color = symbols['start_color'] if 'start_color' in symbols else ''
         start_bg_color = (
-            symbols["start_bg_color"] if "start_bg_color" in symbols else ""
+            symbols['start_bg_color'] if 'start_bg_color' in symbols else ''
         )
 
-        end_color = symbols["end_color"] if "end_color" in symbols else ""
-        end_bg_color = (
-            symbols["end_bg_color"] if "end_bg_color" in symbols else ""
-        )
+        end_color = symbols['end_color'] if 'end_color' in symbols else ''
+        end_bg_color = symbols['end_bg_color'] if 'end_bg_color' in symbols else ''
 
-        wall_color = symbols["wall_color"] if "wall_color" in symbols else ""
-        wall_bg_color = (
-            symbols["wall_bg_color"] if "wall_bg_color" in symbols else ""
-        )
+        wall_color = symbols['wall_color'] if 'wall_color' in symbols else ''
+        wall_bg_color = symbols['wall_bg_color'] if 'wall_bg_color' in symbols else ''
 
-        head_color = symbols["head_color"] if "head_color" in symbols else ""
-        head_bg_color = (
-            symbols["head_bg_color"] if "head_bg_color" in symbols else ""
-        )
+        head_color = symbols['head_color'] if 'head_color' in symbols else ''
+        head_bg_color = symbols['head_bg_color'] if 'head_bg_color' in symbols else ''
 
-        tail_color = symbols["tail_color"] if "tail_color" in symbols else ""
-        tail_bg_color = (
-            symbols["tail_bg_color"] if "tail_bg_color" in symbols else ""
-        )
+        tail_color = symbols['tail_color'] if 'tail_color' in symbols else ''
+        tail_bg_color = symbols['tail_bg_color'] if 'tail_bg_color' in symbols else ''
 
-        empty_color = symbols["empty_color"] if "empty_color" in symbols else ""
+        empty_color = symbols['empty_color'] if 'empty_color' in symbols else ''
 
         # symbol colors
-        self.start = start_bg_color + start_color + symbols["start"]
-        self.end = end_bg_color + end_color + symbols["end"] + empty_color
-        self.wall_h = wall_bg_color + wall_color + symbols["wall_h"]
-        self.wall_v = wall_bg_color + wall_color + symbols["wall_v"]
-        self.wall_c = wall_bg_color + wall_color + symbols["wall_c"]
-        self.head = head_bg_color + head_color + symbols["head"]
-        self.tail = tail_bg_color + tail_color + symbols["tail"]
-        self.empty = empty_color + " "
+        self.start = start_bg_color + start_color + symbols['start']
+        self.end = end_bg_color + end_color + symbols['end'] + empty_color
+        self.wall_h = wall_bg_color + wall_color + symbols['wall_h']
+        self.wall_v = wall_bg_color + wall_color + symbols['wall_v']
+        self.wall_c = wall_bg_color + wall_color + symbols['wall_c']
+        self.head = head_bg_color + head_color + symbols['head']
+        self.tail = tail_bg_color + tail_color + symbols['tail']
+        self.empty = empty_color + ' '
 
     def kruskalize(self):
         """
@@ -284,9 +272,7 @@ class Maze:
         # shuffle the ordered edges randomly into a new list
         while len(edges_ordered) > 0:
             # randomly pop an edge
-            edges.append(
-                edges_ordered.pop(random.randint(0, len(edges_ordered)) - 1)
-            )
+            edges.append(edges_ordered.pop(random.randint(0, len(edges_ordered)) - 1))
         disjoint_set = DisjointSet()
         for row in range(0, self.height):
             for col in range(0, self.width):
@@ -351,19 +337,18 @@ class Maze:
             self.is_moving = True
             #'\033[%d;%dH' % (y x)# move cursor to y, x
             head = (
-                "\033[%d;%dH" % (new_move[1] * 2 + 2, new_move[0] * 2 + 2)
-                + self.head
+                '\033[%d;%dH' % (new_move[1] * 2 + 2, new_move[0] * 2 + 2) + self.head
             )
             # uncolor edge between (edge is between newmove and player)
-            edge = "\033[%d;%dH" % (
+            edge = '\033[%d;%dH' % (
                 self.player[1] * 2 + (new_move[1] - self.player[1]) + 2,
                 self.player[0] * 2 + (new_move[0] - self.player[0]) + 2,
             )
-            tail = "\033[%d;%dH" % (
+            tail = '\033[%d;%dH' % (
                 self.player[1] * 2 + 2,
                 self.player[0] * 2 + 2,
             )
-            end = "\033[%d;%dH" % ((self.height) * 2 + 2, 0) + self.empty
+            end = '\033[%d;%dH' % ((self.height) * 2 + 2, 0) + self.empty
             # if new move is backtracking to last move then sets player pos to top of path and remove path top
             if len(self.path) > 0 and new_move == self.path[-1]:
                 # move cursor to player and color tail, move cursor to player and color empty
@@ -402,9 +387,7 @@ class Maze:
             # if position changed
             if position != self.player:
                 # move back from towards previos position
-                self.move(
-                    (position[0] - self.player[0], position[1] - self.player[1])
-                )
+                self.move((position[0] - self.player[0], position[1] - self.player[1]))
 
         return False
 
@@ -468,7 +451,7 @@ class Maze:
                     self.time_taken = time_elapsed
                     # use write and flush to ensure buffer is emptied completely to avoid flicker
                     sys.stdout.write(
-                        "\033[%d;%dHTime:%.2f"
+                        '\033[%d;%dHTime:%.2f'
                         % (self.height * 2 + 2, 0, self.time_taken)
                     )
                     sys.stdout.flush()

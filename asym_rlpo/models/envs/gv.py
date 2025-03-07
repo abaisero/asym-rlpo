@@ -35,9 +35,7 @@ class GVModelFactory(ModelFactory):
 
         assert isinstance(self.env.latent_space, gym.spaces.Dict)
         assert config.gv_state_submodels is not None and (
-            len(config.gv_state_submodels)
-            == len(set(config.gv_state_submodels))
-            > 0
+            len(config.gv_state_submodels) == len(set(config.gv_state_submodels)) > 0
         )
 
         return GV_Model(

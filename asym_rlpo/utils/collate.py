@@ -6,20 +6,15 @@ import torch
 
 
 @overload
-def collate_numpy(data: Sequence[np.ndarray]) -> np.ndarray:
-    ...
+def collate_numpy(data: Sequence[np.ndarray]) -> np.ndarray: ...
 
 
 @overload
-def collate_numpy(
-    data: Sequence[dict[str, np.ndarray]]
-) -> dict[str, np.ndarray]:
-    ...
+def collate_numpy(data: Sequence[dict[str, np.ndarray]]) -> dict[str, np.ndarray]: ...
 
 
 @overload
-def collate_numpy(data: Sequence[Sequence[Any]]) -> np.ndarray:
-    ...
+def collate_numpy(data: Sequence[Sequence[Any]]) -> np.ndarray: ...
 
 
 def collate_numpy(data):
@@ -36,20 +31,17 @@ def collate_numpy(data):
 
 
 @overload
-def collate_torch(data: Sequence[torch.Tensor]) -> torch.Tensor:
-    ...
+def collate_torch(data: Sequence[torch.Tensor]) -> torch.Tensor: ...
 
 
 @overload
 def collate_torch(
-    data: Sequence[dict[str, torch.Tensor]]
-) -> dict[str, torch.Tensor]:
-    ...
+    data: Sequence[dict[str, torch.Tensor]],
+) -> dict[str, torch.Tensor]: ...
 
 
 @overload
-def collate_torch(data: Sequence[Sequence[Any]]) -> torch.Tensor:
-    ...
+def collate_torch(data: Sequence[Sequence[Any]]) -> torch.Tensor: ...
 
 
 def collate_torch(data):

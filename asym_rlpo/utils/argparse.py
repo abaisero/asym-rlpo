@@ -15,9 +15,7 @@ def int_ge(threshold: int):
         x_int = int(x)
 
         if x_int < threshold:
-            raise ValueError(
-                f'Argument should be greater-or-equal than {threshold}'
-            )
+            raise ValueError(f'Argument should be greater-or-equal than {threshold}')
 
         return x_int
 

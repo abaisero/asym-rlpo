@@ -12,9 +12,7 @@ class CatModel(Model):
 
     @property
     def dim(self):
-        return sum(
-            representation.dim for representation in self.representations
-        )
+        return sum(representation.dim for representation in self.representations)
 
     def forward(self, inputs):
         return torch.cat(

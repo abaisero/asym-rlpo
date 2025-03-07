@@ -99,9 +99,7 @@ class Attention_SequenceModel(SequenceModel[Attention_Hidden]):
     @staticmethod
     def _make_causal_mask(rows: int, columns: int) -> torch.Tensor:
         diagonal = 1 + columns - rows
-        return torch.ones(rows, columns, dtype=torch.bool).triu(
-            diagonal=diagonal
-        )
+        return torch.ones(rows, columns, dtype=torch.bool).triu(diagonal=diagonal)
 
     def forward(
         self,
@@ -190,9 +188,7 @@ def make_sequence_model(
 
     if name == 'attention':
         if attention_num_heads is None:
-            raise ValueError(
-                f'{attention_num_heads=} required for attention model'
-            )
+            raise ValueError(f'{attention_num_heads=} required for attention model')
 
         if attention_num_heads <= 0:
             raise ValueError(

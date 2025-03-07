@@ -24,9 +24,7 @@ class IndexWrapper(gym.ObservationWrapper):
 
         assert isinstance(env.observation_space, gym.spaces.Box)
         if len(indices) > env.observation_space.shape[0]:
-            raise ValueError(
-                'number of indices must not exceed state dimensions'
-            )
+            raise ValueError('number of indices must not exceed state dimensions')
 
         if min(indices) < 0:
             raise ValueError('indices must be non-negative')
@@ -70,16 +68,10 @@ class SingleAgentWrapper(gym.Wrapper):
         ]
         self.action_space = gym.spaces.Discrete(np.prod(self.num_actions))
         low = np.concatenate(
-            [
-                observation_space.low
-                for observation_space in self.env.observation_space
-            ]
+            [observation_space.low for observation_space in self.env.observation_space]
         )
         high = np.concatenate(
-            [
-                observation_space.high
-                for observation_space in self.env.observation_space
-            ]
+            [observation_space.high for observation_space in self.env.observation_space]
         )
         self.observation_space = gym.spaces.Box(low, high)
 

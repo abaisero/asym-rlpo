@@ -14,6 +14,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import wandb
+import yaml
 from gym_gridverse.rng import reset_gv_rng
 
 from asym_rlpo.algorithms import A2C, make_a2c_algorithm
@@ -62,6 +63,9 @@ logger = logging.getLogger(__name__)
 def parse_args():
     parser = argparse.ArgumentParser()
 
+    # logging
+    parser.add_argument('--logconfig', default='logconfig.yaml')
+
     # wandb arguments
     parser.add_argument('--wandb-entity', default='abaisero')
     parser.add_argument('--wandb-project', default=None)
@@ -102,18 +106,14 @@ def parse_args():
         type=history_model_type,
         default='gru',
     )
-    parser.add_argument(
-        '--history-model-memory-size', type=int_non_neg, default=0
-    )
+    parser.add_argument('--history-model-memory-size', type=int_non_neg, default=0)
 
     # reproducibility
     parser.add_argument('--seed', type=int, default=None)
     parser.add_argument('--deterministic', action='store_true')
 
     # general
-    parser.add_argument(
-        '--max-simulation-timesteps', type=int_pos, default=2_000_000
-    )
+    parser.add_argument('--max-simulation-timesteps', type=int_pos, default=2_000_000)
     parser.add_argument('--max-episode-timesteps', type=int_pos, default=1_000)
     parser.add_argument('--simulation-num-episodes', type=int_pos, default=1)
 
@@ -130,9 +130,7 @@ def parse_args():
     parser.add_argument(
         '--target-update-function', choices=['full', 'polyak'], default='full'
     )
-    parser.add_argument(
-        '--target-update-full-period', type=int_pos, default=10_000
-    )
+    parser.add_argument('--target-update-full-period', type=int_pos, default=10_000)
     parser.add_argument('--target-update-polyak-tau', type=float, default=0.001)
 
     # q-estimator
@@ -240,9 +238,7 @@ def parse_args():
     else:
         args.checkpoint_path = f'{args.run_path}/checkpoint.pkl'
         args.model_path = f'{args.run_path}/model.pkl'
-        args.modelseq_path_template = (
-            f'{args.run_path}/modelseq/modelseq.{{}}.pkl'
-        )
+        args.modelseq_path_template = f'{args.run_path}/modelseq/modelseq.{{}}.pkl'
 
     for name, value in args.wandb_metagroups:
         setattr(args, f'wandb_metagroup_{name}', value)
@@ -752,8 +748,7 @@ def log_training(runstate: Runstate, training_data: TrainingData):
     )
 
     losses_logdata = {
-        f'training/losses/{key}': loss
-        for key, loss in training_data.losses.items()
+        f'training/losses/{key}': loss for key, loss in training_data.losses.items()
     }
     gradient_norms_logdata = {
         f'training/gradient_norms/{key}': gradient_norm
@@ -850,6 +845,10 @@ def define_metrics():
 
 def main():
     args = parse_args()
+
+    with open(args.logconfig, 'r') as f:
+        logconfig = yaml.safe_load(f)
+    logging.config.dictConfig(logconfig)
 
     wandb_kwargs = {
         'project': args.wandb_project,

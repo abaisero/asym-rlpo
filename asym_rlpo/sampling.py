@@ -57,6 +57,4 @@ def sample_episodes(
     num_episodes: int,
     render: bool = False,
 ) -> list[Episode]:
-    return [
-        sample_episode(env, policy, render=render) for _ in range(num_episodes)
-    ]
+    return [sample_episode(env, policy, render=render) for _ in range(num_episodes)]

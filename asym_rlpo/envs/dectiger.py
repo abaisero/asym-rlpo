@@ -47,9 +47,9 @@ def register():
     )
 
 
-ACTIONS = ("open-left", "open-right", "listen")
-STATES = ("tiger-left", "tiger-right")
-OBSERVAIONS = ("hear-left", "hear-right")
+ACTIONS = ('open-left', 'open-right', 'listen')
+STATES = ('tiger-left', 'tiger-right')
+OBSERVAIONS = ('hear-left', 'hear-right')
 JOINT_OBSERVATIONS_RIGHT = ((1, 1), (1, 0), (0, 1), (0, 0))
 JOINT_OBSERVATIONS_LEFT = ((0, 0), (1, 0), (0, 1), (1, 1))
 
@@ -85,9 +85,7 @@ class DecTiger(Env):
         a1, a2 = a
         if a1 == a2 == 2:  # both listen
             obs = (
-                JOINT_OBSERVATIONS_LEFT
-                if self.tiger == 0
-                else JOINT_OBSERVATIONS_RIGHT
+                JOINT_OBSERVATIONS_LEFT if self.tiger == 0 else JOINT_OBSERVATIONS_RIGHT
             )
             i = np.random.choice(4, p=(0.7225, 0.1275, 0.1275, 0.0225))
             o = obs[i]

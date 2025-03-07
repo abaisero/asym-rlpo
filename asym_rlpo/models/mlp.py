@@ -13,7 +13,7 @@ class MLP_Model(FeatureModel):
         nonlinearities: Sequence[str],
         *args,
         skip_last: bool = False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
 

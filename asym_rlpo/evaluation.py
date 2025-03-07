@@ -33,9 +33,7 @@ def evaluate_returns(
     tot_num_steps = max(len(rs) for rs in rewards)
     rewards_array = np.vstack(
         [
-            np.pad(
-                r_array, (0, tot_num_steps - r_array.size)
-            )  # pad zeros to the right
+            np.pad(r_array, (0, tot_num_steps - r_array.size))  # pad zeros to the right
             for r_array in rewards
         ]
     )

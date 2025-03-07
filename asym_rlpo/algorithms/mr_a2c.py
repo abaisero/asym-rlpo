@@ -46,9 +46,7 @@ class MemoryReactive_A2C(Algorithm):
         discount: float,
         q_estimator: Q_Estimator,
     ) -> LossDict:
-        action_logits = self.actor_critic_model.actor_model.action_logits(
-            episode
-        )
+        action_logits = self.actor_critic_model.actor_model.action_logits(episode)
         v_values = self.actor_critic_model.critic_model.values(episode)
         device = action_logits.device
 
@@ -60,9 +58,7 @@ class MemoryReactive_A2C(Algorithm):
             )
             advantages = q_values - v_values
 
-            target_v_values = self.target_critic_model.max_memory_values(
-                episode
-            )
+            target_v_values = self.target_critic_model.max_memory_values(episode)
             target_q_values = q_estimator(
                 episode.rewards,
                 target_v_values,
@@ -71,9 +67,9 @@ class MemoryReactive_A2C(Algorithm):
 
         # policy loss
         discounts = discount ** torch.arange(len(episode), device=device)
-        action_nlls = -action_logits.gather(
-            1, episode.actions.unsqueeze(-1)
-        ).squeeze(-1)
+        action_nlls = -action_logits.gather(1, episode.actions.unsqueeze(-1)).squeeze(
+            -1
+        )
         policy_loss = (discounts * advantages * action_nlls).sum()
 
         # negentropy loss

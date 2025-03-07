@@ -41,10 +41,7 @@ class Trainer:
         )
 
     def state_dict(self) -> dict:
-        return {
-            k: optimizer.state_dict()
-            for k, optimizer in self.optimizers.items()
-        }
+        return {k: optimizer.state_dict() for k, optimizer in self.optimizers.items()}
 
     def load_state_dict(self, state_dict: dict):
         if state_dict.keys() != self.optimizers.keys():
