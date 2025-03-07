@@ -130,13 +130,13 @@ class CarEnv(gym.Env):
 
         # print(prepare_high_obs_method)
 
-        if prepare_high_obs_method in ['full', 'recurrent']:
+        if prepare_high_obs_method in ["full", "recurrent"]:
             self.prepare_high_obs_fn = self.full_fn
 
-        if prepare_high_obs_method in ['final']:
+        if prepare_high_obs_method in ["final"]:
             self.prepare_high_obs_fn = self.final_fn
 
-        if prepare_high_obs_method in ['final-selective']:
+        if prepare_high_obs_method in ["final-selective"]:
             self.prepare_high_obs_fn = self.final_selective_fn
 
         self.high_obs_dim = len(self.prepare_high_obs_fn(obs))
@@ -238,7 +238,7 @@ class CarEnv(gym.Env):
         # return self._state, env_reward, done, {"is_success": reward > 0.0}
         return self._state, reward, done, {"is_success": reward > 0.0}
 
-    def render(self, mode='human'):
+    def render(self, mode="human"):
         self._setup_view()
 
         pos = self._state[0]
@@ -247,10 +247,9 @@ class CarEnv(gym.Env):
             self._height(pos) * self.scale,
         )
 
-        return self.viewer.render(return_rgb_array=mode == 'rgb_array')
+        return self.viewer.render(return_rgb_array=mode == "rgb_array")
 
     def reset(self):
-
         self.solved = False
         self.done = False
         self.steps_cnt = 0
@@ -267,9 +266,7 @@ class CarEnv(gym.Env):
             self._draw_flags()
             self._draw_boundary()
 
-        self._state = np.array(
-            [self.np_random.uniform(low=-0.2, high=0.2), 0, 0.0]
-        )
+        self._state = np.array([self.np_random.uniform(low=-0.2, high=0.2), 0, 0.0])
         return np.array(self._state)
 
     def _height(self, xs):
@@ -344,9 +341,7 @@ class CarEnv(gym.Env):
 
     def _setup_view(self):
         if not self.setup_view:
-            self.viewer = visualize.Viewer(
-                self.screen_width, self.screen_height
-            )
+            self.viewer = visualize.Viewer(self.screen_width, self.screen_height)
             scale = self.scale
             xs = np.linspace(self.min_position, self.max_position, 100)
             ys = self._height(xs)
@@ -386,30 +381,20 @@ class CarEnv(gym.Env):
 
             if self.args is not None:
                 if self.n_layers in [2, 3]:
-
                     ################ Goal 1 ################
-                    car1 = visualize.FilledPolygon(
-                        [(l, b), (l, t), (r, t), (r, b)]
-                    )
+                    car1 = visualize.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
                     car1.set_color(1, 0.0, 0.0)
-                    car1.add_attr(
-                        visualize.Transform(translation=(0, clearance))
-                    )
+                    car1.add_attr(visualize.Transform(translation=(0, clearance)))
                     self.cartrans1 = visualize.Transform()
                     car1.add_attr(self.cartrans1)
                     self.viewer.add_geom(car1)
                     ######################################
 
                 if self.n_layers in [3]:
-
                     ############### Goal 2 ###############
-                    car2 = visualize.FilledPolygon(
-                        [(l, b), (l, t), (r, t), (r, b)]
-                    )
+                    car2 = visualize.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
                     car2.set_color(0.0, 1, 0.0)
-                    car2.add_attr(
-                        visualize.Transform(translation=(0, clearance))
-                    )
+                    car2.add_attr(visualize.Transform(translation=(0, clearance)))
                     self.cartrans2 = visualize.Transform()
                     car2.add_attr(self.cartrans2)
                     self.viewer.add_geom(car2)
@@ -441,7 +426,7 @@ class CarEnv(gym.Env):
                     self._height(pos2) * self.scale,
                 )
 
-            return self.viewer.render(return_rgb_array=mode == 'rgb_array')
+            return self.viewer.render(return_rgb_array=mode == "rgb_array")
         else:
             return
 
@@ -455,13 +440,9 @@ class CarEnvWrapper(gym.ActionWrapper):
     def __init__(self, env: gym.Env, *, num_actions: int):
         super().__init__(env)
 
-        self.state_space = gym.spaces.Box(
-            low=self.low_state, high=self.high_state
-        )
+        self.state_space = gym.spaces.Box(low=self.low_state, high=self.high_state)
         self.action_space = gym.spaces.Discrete(num_actions)
-        self.__actions = np.linspace(
-            self.min_action, self.max_action, num_actions
-        )
+        self.__actions = np.linspace(self.min_action, self.max_action, num_actions)
 
     def action(self, action):
         return self.__actions[action]
@@ -480,26 +461,26 @@ def main():
     env = CarEnvWrapper(CarEnv(), num_actions=5)
     observation = env.reset()
     env.render()
-    print(f'state: {env.state}')
-    print(f'observation: {observation}')
+    print(f"state: {env.state}")
+    print(f"observation: {observation}")
 
     while True:
         action = env.action_space.sample()
-        print(f'action: {action}')
+        print(f"action: {action}")
         observation, reward, done, _ = env.step(action)
         env.render()
-        print(f'state: {env.state}')
-        print(f'observation: {observation}')
-        print(f'reward: {reward}')
-        print(f'done: {done}')
+        print(f"state: {env.state}")
+        print(f"observation: {observation}")
+        print(f"reward: {reward}")
+        print(f"done: {done}")
 
         if done:
             time.sleep(1)
             observation = env.reset()
             env.render()
-            print(f'state: {env.state}')
-            print(f'observation: {observation}')
+            print(f"state: {env.state}")
+            print(f"observation: {observation}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

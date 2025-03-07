@@ -25,14 +25,14 @@ def _check_gv_observation_space_keys(space: gym.Space) -> bool:
     checkraise(
         isinstance(space, gym.spaces.Dict),
         TypeError,
-        'incorrect observation space type',
+        "incorrect observation space type",
     )
 
-    for key in ['grid', 'item']:
+    for key in ["grid", "item"]:
         checkraise(
             key in space.spaces,
             KeyError,
-            f'space does not contain `{key}` key',
+            f"space does not contain `{key}` key",
         )
 
 
@@ -40,14 +40,14 @@ def _check_gv_state_space_keys(space: gym.Space) -> bool:
     checkraise(
         isinstance(space, gym.spaces.Dict),
         TypeError,
-        'incorrect state space type',
+        "incorrect state space type",
     )
 
-    for key in ['grid', 'agent_id_grid', 'agent', 'item']:
+    for key in ["grid", "agent_id_grid", "agent", "item"]:
         checkraise(
             key in space.spaces,
             KeyError,
-            f'space does not contain `{key}` key',
+            f"space does not contain `{key}` key",
         )
 
 
@@ -64,8 +64,8 @@ class GV_Representation(Representation):
         self.space = space
 
         num_embeddings = max(
-            space['grid'].high.max() + 1,
-            space['item'].high.max() + 1,
+            space["grid"].high.max() + 1,
+            space["item"].high.max() + 1,
         )
         self.embedding = EmbeddingRepresentation(num_embeddings, embedding_size)
         gv_models = [self._make_gv_model(name) for name in names]
@@ -74,7 +74,7 @@ class GV_Representation(Representation):
 
         if len(layers) > 0:
             sizes = [self.cat_representation.dim] + layers
-            nonlinearities = ['relu'] * len(layers)
+            nonlinearities = ["relu"] * len(layers)
             self.fc_model = make_mlp(sizes, nonlinearities)
             self._dim = sizes[-1]
 
@@ -90,65 +90,65 @@ class GV_Representation(Representation):
         return self.fc_model(self.cat_representation(inputs))
 
     def _make_gv_model(self, name: str):
-        if name == 'agent':
+        if name == "agent":
             checkraise(
-                'agent' in self.space.spaces,
+                "agent" in self.space.spaces,
                 KeyError,
-                'space does not contain `agent` key',
+                "space does not contain `agent` key",
             )
             return GV_Agent_Representation(self.space)
 
-        if name == 'item':
+        if name == "item":
             checkraise(
-                'item' in self.space.spaces,
+                "item" in self.space.spaces,
                 KeyError,
-                'space does not contain `item` key',
+                "space does not contain `item` key",
             )
             return GV_Item_Representation(self.space, self.embedding)
 
-        if name == 'grid-cnn':
+        if name == "grid-cnn":
             checkraise(
-                'grid' in self.space.spaces,
+                "grid" in self.space.spaces,
                 KeyError,
-                'space does not contain `grid` key',
+                "space does not contain `grid` key",
             )
             return GV_Grid_CNN_Representation(self.space, self.embedding)
 
-        if name == 'grid-fc':
+        if name == "grid-fc":
             checkraise(
-                'grid' in self.space.spaces,
+                "grid" in self.space.spaces,
                 KeyError,
-                'space does not contain `grid` key',
+                "space does not contain `grid` key",
             )
             return GV_Grid_FC_Representation(self.space, self.embedding)
 
-        if name == 'agent-grid-cnn':
+        if name == "agent-grid-cnn":
             checkraise(
-                'grid' in self.space.spaces,
+                "grid" in self.space.spaces,
                 KeyError,
-                'space does not contain `grid` key',
+                "space does not contain `grid` key",
             )
             checkraise(
-                'agent_id_grid' in self.space.spaces,
+                "agent_id_grid" in self.space.spaces,
                 KeyError,
-                'space does not contain `agent_id_grid` key',
+                "space does not contain `agent_id_grid` key",
             )
             return GV_AgentGrid_CNN_Representation(self.space, self.embedding)
 
-        if name == 'agent-grid-fc':
+        if name == "agent-grid-fc":
             checkraise(
-                'grid' in self.space.spaces,
+                "grid" in self.space.spaces,
                 KeyError,
-                'space does not contain `grid` key',
+                "space does not contain `grid` key",
             )
             checkraise(
-                'agent_id_grid' in self.space.spaces,
+                "agent_id_grid" in self.space.spaces,
                 KeyError,
-                'space does not contain `agent_id_grid` key',
+                "space does not contain `agent_id_grid` key",
             )
             return GV_AgentGrid_FC_Representation(self.space, self.embedding)
 
-        raise ValueError(f'invalid gv model name {name}')
+        raise ValueError(f"invalid gv model name {name}")
 
 
 def gv_cnn(in_channels):
@@ -172,20 +172,20 @@ class GV_Agent_Representation(Representation):
     def __init__(self, space: gym.spaces.Dict):
         super().__init__()
         checkraise(
-            'agent' in space.spaces,
+            "agent" in space.spaces,
             KeyError,
-            'space does not contain `agent` key',
+            "space does not contain `agent` key",
         )
 
         self.space = space
 
     @property
     def dim(self):
-        (agent_dim,) = self.space['agent'].shape
+        (agent_dim,) = self.space["agent"].shape
         return agent_dim
 
     def forward(self, inputs: GV_Observation):
-        agent = inputs['agent']
+        agent = inputs["agent"]
         return agent
 
 
@@ -197,9 +197,9 @@ class GV_Item_Representation(Representation):
     ):
         super().__init__()
         checkraise(
-            'item' in space.spaces,
+            "item" in space.spaces,
             KeyError,
-            'space does not contain `item` key',
+            "space does not contain `item` key",
         )
 
         self.space = space
@@ -207,11 +207,11 @@ class GV_Item_Representation(Representation):
 
     @property
     def dim(self):
-        (item_dim,) = self.space['item'].shape
+        (item_dim,) = self.space["item"].shape
         return item_dim * self.embedding.dim
 
     def forward(self, inputs: GV_Observation):
-        item = inputs['item']
+        item = inputs["item"]
         return self.embedding(item).flatten(start_dim=-2)
 
 
@@ -223,15 +223,15 @@ class GV_Grid_CNN_Representation(Representation):
     ):
         super().__init__()
         checkraise(
-            'grid' in space.spaces,
+            "grid" in space.spaces,
             KeyError,
-            'space does not contain `grid` key',
+            "space does not contain `grid` key",
         )
 
         self.space = space
         self.embedding = embedding
 
-        grid_channels = space.spaces['grid'].shape[-1]
+        grid_channels = space.spaces["grid"].shape[-1]
         in_channels = grid_channels * embedding.dim
         self.cnn = gv_cnn(in_channels)
 
@@ -242,7 +242,7 @@ class GV_Grid_CNN_Representation(Representation):
         return self.forward(observation).shape[1]
 
     def forward(self, inputs: GV_Observation):
-        grid = inputs['grid']
+        grid = inputs["grid"]
         grid = self.embedding(grid).flatten(start_dim=-2)
 
         cnn_input = torch.transpose(grid, 1, 3)
@@ -260,20 +260,20 @@ class GV_AgentGrid_CNN_Representation(Representation):
     ):
         super().__init__()
         checkraise(
-            'grid' in space.spaces,
+            "grid" in space.spaces,
             KeyError,
-            'space does not contain `grid` key',
+            "space does not contain `grid` key",
         )
         checkraise(
-            'agent_id_grid' in space.spaces,
+            "agent_id_grid" in space.spaces,
             KeyError,
-            'space does not contain `agent_id_grid` key',
+            "space does not contain `agent_id_grid` key",
         )
 
         self.space = space
         self.embedding = embedding
 
-        grid_channels = space.spaces['grid'].shape[-1]
+        grid_channels = space.spaces["grid"].shape[-1]
         # adding one for agent_id_grid
         in_channels = grid_channels * embedding.dim + 1
         self.cnn = gv_cnn(in_channels)
@@ -285,8 +285,8 @@ class GV_AgentGrid_CNN_Representation(Representation):
         return self.forward(state).shape[1]
 
     def forward(self, inputs: GV_Observation):
-        grid = inputs['grid']
-        agent_id_grid = inputs['agent_id_grid']
+        grid = inputs["grid"]
+        agent_id_grid = inputs["agent_id_grid"]
 
         grid = self.embedding(grid).flatten(start_dim=-2)
         agent_id_grid = agent_id_grid.unsqueeze(-1)
@@ -306,9 +306,9 @@ class GV_Grid_FC_Representation(Representation):
     ):
         super().__init__()
         checkraise(
-            'grid' in space.spaces,
+            "grid" in space.spaces,
             KeyError,
-            'space does not contain `grid` key',
+            "space does not contain `grid` key",
         )
 
         self.space = space
@@ -316,11 +316,11 @@ class GV_Grid_FC_Representation(Representation):
 
     @property
     def dim(self):
-        grid_dim = math.prod(self.space['grid'].shape)
+        grid_dim = math.prod(self.space["grid"].shape)
         return grid_dim * self.embedding.dim
 
     def forward(self, inputs: GV_Observation):
-        grid = inputs['grid']
+        grid = inputs["grid"]
         return self.embedding(grid).flatten(start_dim=-4)
 
 
@@ -332,14 +332,14 @@ class GV_AgentGrid_FC_Representation(Representation):
     ):
         super().__init__()
         checkraise(
-            'grid' in space.spaces,
+            "grid" in space.spaces,
             KeyError,
-            'space does not contain `grid` key',
+            "space does not contain `grid` key",
         )
         checkraise(
-            'agent_id_grid' in space.spaces,
+            "agent_id_grid" in space.spaces,
             KeyError,
-            'space does not contain `agent_id_grid` key',
+            "space does not contain `agent_id_grid` key",
         )
 
         self.space = space
@@ -347,13 +347,13 @@ class GV_AgentGrid_FC_Representation(Representation):
 
     @property
     def dim(self):
-        grid_dim = math.prod(self.space['grid'].shape)
-        agent_dim = math.prod(self.space['agent_id_grid'].shape)
+        grid_dim = math.prod(self.space["grid"].shape)
+        agent_dim = math.prod(self.space["agent_id_grid"].shape)
         return grid_dim * self.embedding.dim + agent_dim
 
     def forward(self, inputs: GV_Observation):
-        grid = inputs['grid']
-        agent_id_grid = inputs['agent_id_grid']
+        grid = inputs["grid"]
+        agent_id_grid = inputs["agent_id_grid"]
 
         grid = self.embedding(grid).flatten(start_dim=-4)
         agent_id_grid = agent_id_grid.flatten(start_dim=-2)

@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from .base import Representation
 from .mlp import MLPRepresentation
 
-H = TypeVar('H')
+H = TypeVar("H")
 
 
 class SequenceRepresentation(Generic[H], Representation):
@@ -92,9 +92,7 @@ class AttentionSequenceRepresentation(SequenceRepresentation[torch.Tensor]):
     @staticmethod
     def _make_causal_mask(rows: int, columns: int) -> torch.Tensor:
         diagonal = 1 + columns - rows
-        return torch.ones(rows, columns, dtype=torch.bool).triu(
-            diagonal=diagonal
-        )
+        return torch.ones(rows, columns, dtype=torch.bool).triu(diagonal=diagonal)
 
     def forward(
         self,
@@ -130,16 +128,18 @@ def make_sequence_model(
 ) -> SequenceRepresentation:
     """sequence model factory"""
 
-    if name == 'rnn':
-        kwargs.setdefault('nonlinearity', 'relu')
+    if name == "rnn":
+        kwargs.setdefault("nonlinearity", "relu")
         return RNNSequenceRepresentation(in_features, out_features, **kwargs)
 
-    if name == 'gru':
+    if name == "gru":
         return GRUSequenceRepresentation(in_features, out_features, **kwargs)
 
-    if name == 'attention':
+    if name == "attention":
         if num_heads is None or num_heads <= 0:
-            raise ValueError(f'{num_heads=} must be positive integer for attention model')
+            raise ValueError(
+                f"{num_heads=} must be positive integer for attention model"
+            )
 
         return AttentionSequenceRepresentation(
             in_features,
@@ -148,4 +148,4 @@ def make_sequence_model(
             **kwargs,
         )
 
-    raise ValueError(f'invalid sequence model name {name}')
+    raise ValueError(f"invalid sequence model name {name}")

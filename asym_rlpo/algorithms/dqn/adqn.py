@@ -13,14 +13,14 @@ from .base import DQN_ABC
 
 class ADQN(DQN_ABC):
     model_keys = {
-        'agent': [
-            'action_model',
-            'observation_model',
-            'interaction_model',
-            'history_model',
-            'qh_model',
-            'latent_model',
-            'qhz_model',
+        "agent": [
+            "action_model",
+            "observation_model",
+            "interaction_model",
+            "history_model",
+            "qh_model",
+            "latent_model",
+            "qhz_model",
         ]
     }
 
@@ -31,7 +31,6 @@ class ADQN(DQN_ABC):
         observations: TorchObservation,
         latents: TorchLatent,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-
         history_features = self.compute_history_features(
             models.agent.interaction_model,
             models.agent.history_model,
@@ -56,14 +55,9 @@ class ADQN(DQN_ABC):
         *,
         discount: float,
     ) -> torch.Tensor:
-
-        qhz_values = qhz_values.gather(
-            1, episode.actions.unsqueeze(-1)
-        ).squeeze(-1)
+        qhz_values = qhz_values.gather(1, episode.actions.unsqueeze(-1)).squeeze(-1)
         qhz_values_bootstrap = (
-            target_qhz_values.gather(
-                1, target_qh_values.argmax(-1).unsqueeze(-1)
-            )
+            target_qhz_values.gather(1, target_qh_values.argmax(-1).unsqueeze(-1))
             .squeeze(-1)
             .roll(-1, 0)
         )
@@ -85,7 +79,6 @@ class ADQN(DQN_ABC):
         *,
         discount: float,  # pylint: disable=unused-argument
     ) -> torch.Tensor:
-
         loss = F.mse_loss(
             qh_values,
             target_qhz_values,
@@ -97,7 +90,6 @@ class ADQN(DQN_ABC):
     ) -> torch.Tensor:
         losses = []
         for episode in episodes:
-
             qh_values, qhz_values = self.compute_q_values(
                 self.models,
                 episode.actions,
@@ -145,14 +137,9 @@ class ADQN_Bootstrap(ADQN):
         *,
         discount: float,
     ) -> torch.Tensor:
-
-        qh_values = qh_values.gather(1, episode.actions.unsqueeze(-1)).squeeze(
-            -1
-        )
+        qh_values = qh_values.gather(1, episode.actions.unsqueeze(-1)).squeeze(-1)
         qhz_values_bootstrap = (
-            target_qhz_values.gather(
-                1, target_qh_values.argmax(-1).unsqueeze(-1)
-            )
+            target_qhz_values.gather(1, target_qh_values.argmax(-1).unsqueeze(-1))
             .squeeze(-1)
             .roll(-1, 0)
         )

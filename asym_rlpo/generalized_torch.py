@@ -2,7 +2,7 @@ from typing import Dict, TypeVar
 
 import torch
 
-GTensor = TypeVar('GTensor', torch.Tensor, Dict[str, torch.Tensor])
+GTensor = TypeVar("GTensor", torch.Tensor, Dict[str, torch.Tensor])
 
 
 def f_apply(f, x: GTensor, *args, **kwargs) -> GTensor:
@@ -26,12 +26,12 @@ def zeros_like(x: GTensor, *args, **kwargs) -> GTensor:
 
 
 def squeeze(x: GTensor, *args, **kwargs) -> GTensor:
-    return tensor_apply(x, 'squeeze', *args, **kwargs)
+    return tensor_apply(x, "squeeze", *args, **kwargs)
 
 
 def unsqueeze(x: GTensor, *args, **kwargs) -> GTensor:
-    return tensor_apply(x, 'unsqueeze', *args, **kwargs)
+    return tensor_apply(x, "unsqueeze", *args, **kwargs)
 
 
 def to(x: GTensor, *args, **kwargs) -> GTensor:
-    return tensor_apply(x, 'to', *args, **kwargs)
+    return tensor_apply(x, "to", *args, **kwargs)

@@ -33,7 +33,7 @@ def make_gv_env(path: str, latent_type: LatentType) -> Environment:
 
     config = get_config()
 
-    print('Loading using YAML')
+    print("Loading using YAML")
     inner_env = factory_env_from_yaml(path)
     state_representation = make_state_representation(
         config.gv_state_representation,
@@ -65,9 +65,7 @@ class GVEnvironment(Environment):
 
         self.action_space = gym.spaces.Discrete(env.action_space.num_actions)
         assert env.state_representation is not None
-        self.latent_space = outer_space_to_gym_space(
-            env.state_representation.space
-        )
+        self.latent_space = outer_space_to_gym_space(env.state_representation.space)
         assert env.observation_representation is not None
         self.observation_space = outer_space_to_gym_space(
             env.observation_representation.space
@@ -109,10 +107,10 @@ class GVEnvironment_MEMORY(Environment):
 
         assert isinstance(env.latent_space, gym.spaces.Dict)
         self.latent_space = gym.spaces.Box(
-            env.latent_space['item'].low[2],
-            env.latent_space['item'].high[2],
+            env.latent_space["item"].low[2],
+            env.latent_space["item"].high[2],
             shape=(),
-            dtype=env.latent_space['item'].dtype,
+            dtype=env.latent_space["item"].dtype,
         )
 
     def seed(self, seed: Optional[int] = None) -> None:
@@ -120,13 +118,13 @@ class GVEnvironment_MEMORY(Environment):
 
     def reset(self) -> Tuple[Observation, Latent]:
         observation, latent = self._env.reset()
-        counts = Counter(latent['grid'].flatten())
+        counts = Counter(latent["grid"].flatten())
         latent = next(k for k, v in counts.items() if v == 2)
         return observation, latent
 
     def step(self, action: Action) -> Tuple[Observation, Latent, float, bool]:
         observation, latent, reward, done = self._env.step(action)
-        counts = Counter(latent['grid'].flatten())
+        counts = Counter(latent["grid"].flatten())
         latent = next(k for k, v in counts.items() if v == 2)
         return observation, latent, reward, done
 

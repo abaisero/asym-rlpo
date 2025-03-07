@@ -12,7 +12,7 @@ class MLPRepresentation(Representation):
         super().__init__()
 
         self.dims = dims
-        nonlinearities = ['relu'] * (len(dims) - 1)
+        nonlinearities = ["relu"] * (len(dims) - 1)
         self.model = make_mlp(self.dims, nonlinearities)
 
     @property

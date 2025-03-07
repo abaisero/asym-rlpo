@@ -1,7 +1,7 @@
 """
 Disjoint Set Class that provides basic functionality.
 Implemented according the functionality provided here:
-	https://en.wikipedia.org/wiki/Disjoint-set_data_structure
+        https://en.wikipedia.org/wiki/Disjoint-set_data_structure
 @author: Paul Miller (github.com/138paulmiller)
 """
 

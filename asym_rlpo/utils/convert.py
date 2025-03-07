@@ -42,33 +42,27 @@ def is_dtype_boolean(x: np.ndarray) -> bool:
 
 
 @overload
-def numpy2torch(data: None) -> None:
-    ...
+def numpy2torch(data: None) -> None: ...
 
 
 @overload
-def numpy2torch(data: Union[int, float, bool]) -> torch.Tensor:
-    ...
+def numpy2torch(data: Union[int, float, bool]) -> torch.Tensor: ...
 
 
 @overload
-def numpy2torch(data: np.ndarray) -> torch.Tensor:
-    ...
+def numpy2torch(data: np.ndarray) -> torch.Tensor: ...
 
 
 @overload
-def numpy2torch(data: List[np.ndarray]) -> List[torch.Tensor]:
-    ...
+def numpy2torch(data: List[np.ndarray]) -> List[torch.Tensor]: ...
 
 
 @overload
-def numpy2torch(data: Tuple[np.ndarray]) -> Tuple[torch.Tensor]:
-    ...
+def numpy2torch(data: Tuple[np.ndarray]) -> Tuple[torch.Tensor]: ...
 
 
 @overload
-def numpy2torch(data: Dict[str, np.ndarray]) -> Dict[str, torch.Tensor]:
-    ...
+def numpy2torch(data: Dict[str, np.ndarray]) -> Dict[str, torch.Tensor]: ...
 
 
 def numpy2torch(data):
@@ -94,4 +88,4 @@ def numpy2torch(data):
     if isinstance(data, dict):
         return {k: numpy2torch(v) for k, v in data.items()}
 
-    raise TypeError(f'unsupported data type {type(data)}')
+    raise TypeError(f"unsupported data type {type(data)}")

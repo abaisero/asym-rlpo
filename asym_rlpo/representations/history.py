@@ -35,7 +35,7 @@ def make_history_representation(
         name,
         interaction_model.dim,
         dim,
-        num_heads = num_heads,
+        num_heads=num_heads,
         **kwargs,
     )
     return HistoryRepresentation(sequence_model)

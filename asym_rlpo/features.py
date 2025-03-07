@@ -27,9 +27,7 @@ def compute_interaction_features(
         if action is None
         else action_model(action.to(device))
     )
-    interaction_features = torch.cat(
-        [action_features, observation_features], dim=-1
-    )
+    interaction_features = torch.cat([action_features, observation_features], dim=-1)
 
     return interaction_features
 
@@ -40,9 +38,7 @@ def compute_full_history_features(
     actions: torch.Tensor,
     observations: TorchObservation,
 ) -> torch.Tensor:
-    interaction_features = interaction_model.episode_features(
-        actions, observations
-    )
+    interaction_features = interaction_model.episode_features(actions, observations)
     history_features, _ = history_model(interaction_features.unsqueeze(0))
     history_features = history_features.squeeze(0)
 
@@ -58,11 +54,9 @@ def compute_truncated_history_features(
     n: int,
 ) -> torch.Tensor:
     if n <= 0:
-        raise ValueError(f'invalid truncation value n={n}')
+        raise ValueError(f"invalid truncation value n={n}")
 
-    interaction_features = interaction_model.episode_features(
-        actions, observations
-    )
+    interaction_features = interaction_model.episode_features(actions, observations)
     padding = torch.zeros_like(interaction_features[0].expand(n - 1, -1))
     interaction_features = torch.cat(
         [padding, interaction_features],
@@ -154,9 +148,7 @@ class FullHistoryIntegrator(HistoryIntegrator):
             None,
             gtorch.unsqueeze(observation, 0),
         ).unsqueeze(1)
-        self.__features, self.__hidden = self.history_model(
-            interaction_features
-        )
+        self.__features, self.__hidden = self.history_model(interaction_features)
         self.__features = self.__features.squeeze(0).squeeze(0)
 
     def step(self, action, observation):
@@ -197,8 +189,7 @@ class TruncatedHistoryIntegrator(HistoryIntegrator):
 
         self._interaction_features_deque.clear()
         self._interaction_features_deque.extend(
-            torch.zeros(interaction_features.size(-1))
-            for _ in range(self.n - 1)
+            torch.zeros(interaction_features.size(-1)) for _ in range(self.n - 1)
         )
 
         self._interaction_features_deque.append(interaction_features)

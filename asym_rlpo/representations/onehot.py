@@ -14,7 +14,7 @@ class OneHotRepresentation(Representation):
         checkraise(
             isinstance(input_space, gym.spaces.Discrete),
             TypeError,
-            'input_space must be Discrete',
+            "input_space must be Discrete",
         )
 
         self.__num_classes = input_space.n

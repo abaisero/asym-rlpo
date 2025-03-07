@@ -14,17 +14,17 @@ from asym_rlpo.utils.config import get_config
 
 
 def _make_q_model(in_size, out_size):
-    return make_mlp([in_size, 512, 256, out_size], ['relu', 'relu', 'identity'])
+    return make_mlp([in_size, 512, 256, out_size], ["relu", "relu", "identity"])
 
 
 def _make_v_model(in_size):
-    return make_mlp([in_size, 512, 256, 1], ['relu', 'relu', 'identity'])
+    return make_mlp([in_size, 512, 256, 1], ["relu", "relu", "identity"])
 
 
 def _make_policy_model(in_size, out_size):
     return make_mlp(
         [in_size, 512, 256, out_size],
-        ['relu', 'relu', 'logsoftmax'],
+        ["relu", "relu", "logsoftmax"],
     )
 
 
@@ -42,14 +42,12 @@ def _make_representation_models(env: Environment) -> nn.ModuleDict:
     observation_model = MLPRepresentation([observation_space_dim, 64])
     assert isinstance(env.latent_space, Box)
     latent_model = IdentityRepresentation(env.latent_space)
-    interaction_model = InteractionRepresentation(
-        action_model, observation_model
-    )
+    interaction_model = InteractionRepresentation(action_model, observation_model)
     history_model = make_history_representation(
         config.history_model,
         interaction_model,
         128,
-        num_heads=config._get('attention_num_heads'),
+        num_heads=config._get("attention_num_heads"),
     )
 
     # resize history and state models
@@ -64,11 +62,11 @@ def _make_representation_models(env: Environment) -> nn.ModuleDict:
 
     return nn.ModuleDict(
         {
-            'latent_model': latent_model,
-            'action_model': action_model,
-            'observation_model': observation_model,
-            'interaction_model': interaction_model,
-            'history_model': history_model,
+            "latent_model": latent_model,
+            "action_model": action_model,
+            "observation_model": observation_model,
+            "interaction_model": interaction_model,
+            "history_model": history_model,
         }
     )
 
@@ -76,22 +74,22 @@ def _make_representation_models(env: Environment) -> nn.ModuleDict:
 def make_models(env: Environment) -> nn.ModuleDict:
     models = nn.ModuleDict(
         {
-            'agent': _make_representation_models(env),
-            'critic': _make_representation_models(env),
+            "agent": _make_representation_models(env),
+            "critic": _make_representation_models(env),
         }
     )
 
     # DQN models
     models.agent.update(
         {
-            'qh_model': _make_q_model(
+            "qh_model": _make_q_model(
                 models.agent.history_model.dim, env.action_space.n
             ),
-            'qhz_model': _make_q_model(
+            "qhz_model": _make_q_model(
                 models.agent.history_model.dim + models.agent.latent_model.dim,
                 env.action_space.n,
             ),
-            'qz_model': _make_q_model(
+            "qz_model": _make_q_model(
                 models.agent.latent_model.dim, env.action_space.n
             ),
         }
@@ -100,18 +98,18 @@ def make_models(env: Environment) -> nn.ModuleDict:
     # A2C models
     models.agent.update(
         {
-            'policy_model': _make_policy_model(
+            "policy_model": _make_policy_model(
                 models.agent.history_model.dim, env.action_space.n
             )
         }
     )
     models.critic.update(
         {
-            'vh_model': _make_v_model(models.critic.history_model.dim),
-            'vhz_model': _make_v_model(
+            "vh_model": _make_v_model(models.critic.history_model.dim),
+            "vhz_model": _make_v_model(
                 models.critic.history_model.dim + models.critic.latent_model.dim
             ),
-            'vz_model': _make_v_model(models.critic.latent_model.dim),
+            "vz_model": _make_v_model(models.critic.latent_model.dim),
         }
     )
 

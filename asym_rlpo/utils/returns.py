@@ -13,10 +13,8 @@ def discounts_uncached(num_steps: int, discount: float) -> np.ndarray:
     :param discount:  discount factor
     :rtype: (N,) np.ndarray of discounts
     """
-    checkraise(num_steps > 0, ValueError, 'invalid `num_steps` {}', num_steps)
-    checkraise(
-        0.0 <= discount <= 1.0, ValueError, 'invalid `discount` {}', discount
-    )
+    checkraise(num_steps > 0, ValueError, "invalid `num_steps` {}", num_steps)
+    checkraise(0.0 <= discount <= 1.0, ValueError, "invalid `discount` {}", discount)
 
     return discount ** np.arange(num_steps, dtype=float)
 
@@ -31,10 +29,8 @@ def discounts(num_steps: int, discount: float) -> np.ndarray:
     :param discount:  discount factor
     :rtype: (N,) np.ndarray of discounts
     """
-    checkraise(num_steps > 0, ValueError, 'invalid `num_steps` {}', num_steps)
-    checkraise(
-        0.0 <= discount <= 1.0, ValueError, 'invalid `discount` {}', discount
-    )
+    checkraise(num_steps > 0, ValueError, "invalid `num_steps` {}", num_steps)
+    checkraise(0.0 <= discount <= 1.0, ValueError, "invalid `discount` {}", discount)
 
     cached_discounts = discounts_cache[discount]
 
@@ -56,9 +52,7 @@ def returns(rewards: np.ndarray, discount: float) -> np.ndarray:
     :param discount:  discount factor
     :rtype: (B,) np.ndarray of empirical returns
     """
-    checkraise(
-        rewards.ndim > 1, ValueError, 'invalid rewards.ndim {}', rewards.ndim
-    )
+    checkraise(rewards.ndim > 1, ValueError, "invalid rewards.ndim {}", rewards.ndim)
 
     num_steps = rewards.shape[-1]
-    return np.einsum('j,...j->...', discounts(num_steps, discount), rewards)
+    return np.einsum("j,...j->...", discounts(num_steps, discount), rewards)

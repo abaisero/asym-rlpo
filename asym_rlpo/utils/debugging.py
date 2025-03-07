@@ -10,7 +10,7 @@ def checkraise(
     error_type: Type[Exception],
     error_message_fmt: str,
     *args,
-    **kwargs
+    **kwargs,
 ):
     if not condition:
         raise error_type(error_message_fmt.format(*args, **kwargs))

@@ -26,13 +26,13 @@ class StepDispenser:
 class StepDispenserSerializer(Serializer[StepDispenser]):
     def serialize(self, obj: StepDispenser) -> Dict:
         return {
-            'n': obj.n,
-            'next_i': obj.next_i,
+            "n": obj.n,
+            "next_i": obj.next_i,
         }
 
     def deserialize(self, obj: StepDispenser, data: Dict):
-        obj.n = data['n']
-        obj.next_i = data['next_i']
+        obj.n = data["n"]
+        obj.next_i = data["next_i"]
 
 
 class TimePeriodDispenser:

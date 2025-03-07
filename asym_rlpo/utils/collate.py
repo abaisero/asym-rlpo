@@ -5,20 +5,15 @@ import torch
 
 
 @overload
-def collate_numpy(data: Sequence[np.ndarray]) -> np.ndarray:
-    ...
+def collate_numpy(data: Sequence[np.ndarray]) -> np.ndarray: ...
 
 
 @overload
-def collate_numpy(
-    data: Sequence[Dict[str, np.ndarray]]
-) -> Dict[str, np.ndarray]:
-    ...
+def collate_numpy(data: Sequence[Dict[str, np.ndarray]]) -> Dict[str, np.ndarray]: ...
 
 
 @overload
-def collate_numpy(data: Sequence[Sequence[Any]]) -> np.ndarray:
-    ...
+def collate_numpy(data: Sequence[Sequence[Any]]) -> np.ndarray: ...
 
 
 def collate_numpy(data):
@@ -31,24 +26,21 @@ def collate_numpy(data):
     try:
         return np.array(data)
     except TypeError as e:
-        raise TypeError(f'unsupported data type {type(data[0])}') from e
+        raise TypeError(f"unsupported data type {type(data[0])}") from e
 
 
 @overload
-def collate_torch(data: Sequence[torch.Tensor]) -> torch.Tensor:
-    ...
+def collate_torch(data: Sequence[torch.Tensor]) -> torch.Tensor: ...
 
 
 @overload
 def collate_torch(
-    data: Sequence[Dict[str, torch.Tensor]]
-) -> Dict[str, torch.Tensor]:
-    ...
+    data: Sequence[Dict[str, torch.Tensor]],
+) -> Dict[str, torch.Tensor]: ...
 
 
 @overload
-def collate_torch(data: Sequence[Sequence[Any]]) -> torch.Tensor:
-    ...
+def collate_torch(data: Sequence[Sequence[Any]]) -> torch.Tensor: ...
 
 
 def collate_torch(data):
@@ -61,4 +53,4 @@ def collate_torch(data):
     try:
         return torch.tensor(data)
     except TypeError as e:
-        raise TypeError(f'unsupported data type {type(data[0])}') from e
+        raise TypeError(f"unsupported data type {type(data[0])}") from e

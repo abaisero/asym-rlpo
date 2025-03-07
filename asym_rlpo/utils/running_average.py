@@ -39,13 +39,13 @@ class InfiniteRunningAverage(RunningAverage):
 class InfiniteRunningAverageSerializer(Serializer[RunningAverage]):
     def serialize(self, obj: InfiniteRunningAverage) -> Dict:
         return {
-            'cum_value': obj.cum_value,
-            'num_values': obj.num_values,
+            "cum_value": obj.cum_value,
+            "num_values": obj.num_values,
         }
 
     def deserialize(self, obj: InfiniteRunningAverage, data: Dict):
-        obj.cum_value = data['cum_value']
-        obj.num_values = data['num_values']
+        obj.cum_value = data["cum_value"]
+        obj.num_values = data["num_values"]
 
 
 class WindowRunningAverage(RunningAverage):
@@ -64,20 +64,16 @@ class WindowRunningAverage(RunningAverage):
 
 class WindowRunningAverageSerializer(Serializer[WindowRunningAverage]):
     def serialize(self, obj: WindowRunningAverage) -> Dict:
-        return {'values': obj.values}
+        return {"values": obj.values}
 
     def deserialize(self, obj: WindowRunningAverage, data: Dict):
-        obj.values = data['values']
+        obj.values = data["values"]
 
 
 class RunningAverageSerializer(Serializer[RunningAverage]):
     def __init__(self):
-        self.infinite_running_average_serializer = (
-            InfiniteRunningAverageSerializer()
-        )
-        self.window_running_average_serializer = (
-            WindowRunningAverageSerializer()
-        )
+        self.infinite_running_average_serializer = InfiniteRunningAverageSerializer()
+        self.window_running_average_serializer = WindowRunningAverageSerializer()
 
     def serialize(self, obj: RunningAverage) -> Dict:
         if isinstance(obj, InfiniteRunningAverage):
@@ -86,15 +82,13 @@ class RunningAverageSerializer(Serializer[RunningAverage]):
         if isinstance(obj, WindowRunningAverage):
             return self.window_running_average_serializer.serialize(obj)
 
-        raise TypeError(f'invalid type {type(obj)}')
+        raise TypeError(f"invalid type {type(obj)}")
 
     def deserialize(self, obj: RunningAverage, data: Dict):
         if isinstance(obj, InfiniteRunningAverage):
-            return self.infinite_running_average_serializer.deserialize(
-                obj, data
-            )
+            return self.infinite_running_average_serializer.deserialize(obj, data)
 
         if isinstance(obj, WindowRunningAverage):
             return self.window_running_average_serializer.deserialize(obj, data)
 
-        raise TypeError(f'invalid type {type(obj)}')
+        raise TypeError(f"invalid type {type(obj)}")

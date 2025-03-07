@@ -4,6 +4,7 @@ Makes use of a radomized version of Kruskal's Minimum Spanning Tree (MST)
 algorithm to generate a randomized mazes!
     @author: Paul Miller (github.com/138paulmiller)
 """
+
 import random
 import sys
 import threading
@@ -64,8 +65,7 @@ class Maze:
         #   grid[3][2] =    5*3+2 = 17  vs      3+2 = 6 X Not unique!
         # use 2D list comprehensions to avoid iterating twice
         self.grid = [
-            [(width * row + col) for row in range(0, height)]
-            for col in range(0, width)
+            [(width * row + col) for row in range(0, height)] for col in range(0, width)
         ]
         # portals[key] = {keys of neighbors}
         self.portals = {}
@@ -179,15 +179,11 @@ class Maze:
                 if map_np[i][j] == 1:
                     for k in range(self.scaling):
                         for l in range(self.scaling):
-                            new_map_np[self.scaling * i + k][
-                                self.scaling * j + l
-                            ] = 1
+                            new_map_np[self.scaling * i + k][self.scaling * j + l] = 1
                 else:
                     for k in range(self.scaling):
                         for l in range(self.scaling):
-                            new_map_np[self.scaling * i + k][
-                                self.scaling * j + l
-                            ] = 0
+                            new_map_np[self.scaling * i + k][self.scaling * j + l] = 0
         return new_map_np
 
     def portals_str(self):
@@ -215,24 +211,16 @@ class Maze:
         )
 
         end_color = symbols["end_color"] if "end_color" in symbols else ""
-        end_bg_color = (
-            symbols["end_bg_color"] if "end_bg_color" in symbols else ""
-        )
+        end_bg_color = symbols["end_bg_color"] if "end_bg_color" in symbols else ""
 
         wall_color = symbols["wall_color"] if "wall_color" in symbols else ""
-        wall_bg_color = (
-            symbols["wall_bg_color"] if "wall_bg_color" in symbols else ""
-        )
+        wall_bg_color = symbols["wall_bg_color"] if "wall_bg_color" in symbols else ""
 
         head_color = symbols["head_color"] if "head_color" in symbols else ""
-        head_bg_color = (
-            symbols["head_bg_color"] if "head_bg_color" in symbols else ""
-        )
+        head_bg_color = symbols["head_bg_color"] if "head_bg_color" in symbols else ""
 
         tail_color = symbols["tail_color"] if "tail_color" in symbols else ""
-        tail_bg_color = (
-            symbols["tail_bg_color"] if "tail_bg_color" in symbols else ""
-        )
+        tail_bg_color = symbols["tail_bg_color"] if "tail_bg_color" in symbols else ""
 
         empty_color = symbols["empty_color"] if "empty_color" in symbols else ""
 
@@ -284,9 +272,7 @@ class Maze:
         # shuffle the ordered edges randomly into a new list
         while len(edges_ordered) > 0:
             # randomly pop an edge
-            edges.append(
-                edges_ordered.pop(random.randint(0, len(edges_ordered)) - 1)
-            )
+            edges.append(edges_ordered.pop(random.randint(0, len(edges_ordered)) - 1))
         disjoint_set = DisjointSet()
         for row in range(0, self.height):
             for col in range(0, self.width):
@@ -351,8 +337,7 @@ class Maze:
             self.is_moving = True
             #'\033[%d;%dH' % (y x)# move cursor to y, x
             head = (
-                "\033[%d;%dH" % (new_move[1] * 2 + 2, new_move[0] * 2 + 2)
-                + self.head
+                "\033[%d;%dH" % (new_move[1] * 2 + 2, new_move[0] * 2 + 2) + self.head
             )
             # uncolor edge between (edge is between newmove and player)
             edge = "\033[%d;%dH" % (
@@ -402,9 +387,7 @@ class Maze:
             # if position changed
             if position != self.player:
                 # move back from towards previos position
-                self.move(
-                    (position[0] - self.player[0], position[1] - self.player[1])
-                )
+                self.move((position[0] - self.player[0], position[1] - self.player[1]))
 
         return False
 

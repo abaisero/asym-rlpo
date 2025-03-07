@@ -7,7 +7,7 @@ class ResizeRepresentation(Representation):
     def __init__(self, representation: Representation, dim: int):
         super().__init__()
         self._representation = representation
-        self._resize_model = make_mlp([representation.dim, dim], ['relu'])
+        self._resize_model = make_mlp([representation.dim, dim], ["relu"])
         self._dim = dim
 
     @property

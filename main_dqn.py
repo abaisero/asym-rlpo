@@ -10,6 +10,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import wandb
+import yaml
 from gym_gridverse.rng import reset_gv_rng
 
 from asym_rlpo.algorithms import make_dqn_algorithm
@@ -52,153 +53,151 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     # wandb arguments
-    parser.add_argument('--wandb-entity', default='abaisero')
-    parser.add_argument('--wandb-project', default=None)
-    parser.add_argument('--wandb-group', default=None)
-    parser.add_argument('--wandb-tag', action='append', dest='wandb_tags')
-    parser.add_argument('--wandb-offline', action='store_true')
+    parser.add_argument("--wandb-entity", default="abaisero")
+    parser.add_argument("--wandb-project", default=None)
+    parser.add_argument("--wandb-group", default=None)
+    parser.add_argument("--wandb-tag", action="append", dest="wandb_tags")
+    parser.add_argument("--wandb-offline", action="store_true")
 
     # wandb related
-    parser.add_argument('--num-wandb-logs', type=int, default=200)
+    parser.add_argument("--num-wandb-logs", type=int, default=200)
 
     # algorithm and environment
-    parser.add_argument('env')
+    parser.add_argument("env")
     parser.add_argument(
-        'algo',
+        "algo",
         choices=[
-            'dqn',
-            'adqn',
-            'adqn-bootstrap',
-            'adqn-short',
-            'adqn-state',
-            'adqn-state-bootstrap',
+            "dqn",
+            "adqn",
+            "adqn-bootstrap",
+            "adqn-short",
+            "adqn-state",
+            "adqn-state-bootstrap",
         ],
     )
 
-    parser.add_argument('--env-label', default=None)
-    parser.add_argument('--algo-label', default=None)
+    parser.add_argument("--env-label", default=None)
+    parser.add_argument("--algo-label", default=None)
 
     # truncated histories
     parser.add_argument(
-        '--history-model',
-        choices=['rnn', 'gru', 'attention'],
-        default='gru',
+        "--history-model",
+        choices=["rnn", "gru", "attention"],
+        default="gru",
     )
-    parser.add_argument('--truncated-histories-n', type=int, default=None)
+    parser.add_argument("--truncated-histories-n", type=int, default=None)
 
     # reproducibility
-    parser.add_argument('--seed', type=int, default=None)
-    parser.add_argument('--deterministic', action='store_true')
+    parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--deterministic", action="store_true")
 
     # general
-    parser.add_argument(
-        '--max-simulation-timesteps', type=int, default=2_000_000
-    )
-    parser.add_argument('--max-episode-timesteps', type=int, default=1_000)
-    parser.add_argument('--simulation-num-episodes', type=int, default=1)
+    parser.add_argument("--max-simulation-timesteps", type=int, default=2_000_000)
+    parser.add_argument("--max-episode-timesteps", type=int, default=1_000)
+    parser.add_argument("--simulation-num-episodes", type=int, default=1)
 
     # evaluation
-    parser.add_argument('--evaluation', action='store_true')
-    parser.add_argument('--evaluation-period', type=int, default=10)
-    parser.add_argument('--evaluation-num-episodes', type=int, default=1)
+    parser.add_argument("--evaluation", action="store_true")
+    parser.add_argument("--evaluation-period", type=int, default=10)
+    parser.add_argument("--evaluation-num-episodes", type=int, default=1)
 
     # discounts
-    parser.add_argument('--evaluation-discount', type=float, default=1.0)
-    parser.add_argument('--training-discount', type=float, default=0.99)
+    parser.add_argument("--evaluation-discount", type=float, default=1.0)
+    parser.add_argument("--training-discount", type=float, default=0.99)
 
     # episode buffer
+    parser.add_argument("--episode-buffer-max-timesteps", type=int, default=1_000_000)
     parser.add_argument(
-        '--episode-buffer-max-timesteps', type=int, default=1_000_000
+        "--episode-buffer-prepopulate-timesteps", type=int, default=50_000
     )
     parser.add_argument(
-        '--episode-buffer-prepopulate-timesteps', type=int, default=50_000
-    )
-    parser.add_argument(
-        '--episode-buffer-prepopulate-policy',
-        choices=['random', 'behavior', 'target'],
-        default='behavior',
+        "--episode-buffer-prepopulate-policy",
+        choices=["random", "behavior", "target"],
+        default="behavior",
     )
 
     # target
-    parser.add_argument('--target-update-period', type=int, default=10_000)
+    parser.add_argument("--target-update-period", type=int, default=10_000)
 
     # training parameters
     parser.add_argument(
-        '--training-timesteps-per-simulation-timestep', type=int, default=8
+        "--training-timesteps-per-simulation-timestep", type=int, default=8
     )
-    parser.add_argument('--training-num-episodes', type=int, default=1)
+    parser.add_argument("--training-num-episodes", type=int, default=1)
 
     # epsilon schedule
-    parser.add_argument('--epsilon-schedule', default='linear')
-    parser.add_argument('--epsilon-value-from', type=float, default=1.0)
-    parser.add_argument('--epsilon-value-to', type=float, default=0.1)
-    parser.add_argument('--epsilon-nsteps', type=int, default=1_000_000)
+    parser.add_argument("--epsilon-schedule", default="linear")
+    parser.add_argument("--epsilon-value-from", type=float, default=1.0)
+    parser.add_argument("--epsilon-value-to", type=float, default=0.1)
+    parser.add_argument("--epsilon-nsteps", type=int, default=1_000_000)
 
     # optimization
-    parser.add_argument('--optim-lr', type=float, default=1e-4)
-    parser.add_argument('--optim-eps', type=float, default=1e-4)
-    parser.add_argument('--optim-max-norm', type=float, default=float('inf'))
+    parser.add_argument("--optim-lr", type=float, default=1e-4)
+    parser.add_argument("--optim-eps", type=float, default=1e-4)
+    parser.add_argument("--optim-max-norm", type=float, default=float("inf"))
 
     # device
-    parser.add_argument('--device', default='auto')
+    parser.add_argument("--device", default="auto")
 
     # temporary / development
-    parser.add_argument('--hs-features-dim', type=int, default=0)
-    parser.add_argument('--normalize-hs-features', action='store_true')
+    parser.add_argument("--hs-features-dim", type=int, default=0)
+    parser.add_argument("--normalize-hs-features", action="store_true")
 
     # latent observation
-    parser.add_argument('--latent-type', default='state')
+    parser.add_argument("--latent-type", default="state")
 
     # representation options
     parser.add_argument(
-        '--attention-num-heads',
+        "--attention-num-heads",
         choices=[2**k for k in range(10)],
         type=int,
         default=2,
     )
 
     # gv models
-    parser.add_argument('--gv-observation-representation', default='compact')
-    parser.add_argument('--gv-state-representation', default='compact')
+    parser.add_argument("--gv-observation-representation", default="compact")
+    parser.add_argument("--gv-state-representation", default="compact")
 
     parser.add_argument(
-        '--gv-observation-grid-model-type',
-        choices=['cnn', 'fc'],
-        default='fc',
+        "--gv-observation-grid-model-type",
+        choices=["cnn", "fc"],
+        default="fc",
     )
     parser.add_argument(
-        '--gv-observation-representation-layers',
+        "--gv-observation-representation-layers",
         type=int,
         default=0,
     )
 
     parser.add_argument(
-        '--gv-state-grid-model-type',
-        choices=['cnn', 'fc'],
-        default='fc',
+        "--gv-state-grid-model-type",
+        choices=["cnn", "fc"],
+        default="fc",
     )
     parser.add_argument(
-        '--gv-state-representation-layers',
+        "--gv-state-representation-layers",
         type=int,
         default=0,
     )
 
     # checkpoint
-    parser.add_argument('--checkpoint', default=None)
-    parser.add_argument('--checkpoint-period', type=int, default=10 * 60)
+    parser.add_argument("--checkpoint", default=None)
+    parser.add_argument("--checkpoint-period", type=int, default=10 * 60)
 
-    parser.add_argument('--timeout-timestamp', type=float, default=float('inf'))
+    parser.add_argument("--timeout-timestamp", type=float, default=float("inf"))
 
-    parser.add_argument('--save-model', action='store_true')
-    parser.add_argument('--model-filename', default=None)
+    parser.add_argument("--save-model", action="store_true")
+    parser.add_argument("--model-filename", default=None)
 
-    parser.add_argument('--save-modelseq', action='store_true')
-    parser.add_argument('--modelseq-filename', default=None)
+    parser.add_argument("--save-modelseq", action="store_true")
+    parser.add_argument("--modelseq-filename", default=None)
+
+    parser.add_argument("--logconfig", default="logconfig.yaml")
 
     args = parser.parse_args()
     args.env_label = args.env if args.env_label is None else args.env_label
     args.algo_label = args.algo if args.algo_label is None else args.algo_label
-    args.wandb_mode = 'offline' if args.wandb_offline else None
+    args.wandb_mode = "offline" if args.wandb_offline else None
     return args
 
 
@@ -220,12 +219,12 @@ class XStatsSerializer(Serializer[XStats]):
         return xstats.asdict()
 
     def deserialize(self, xstats: XStats, data: Dict):
-        xstats.epoch = data['epoch']
-        xstats.simulation_episodes = data['simulation_episodes']
-        xstats.simulation_timesteps = data['simulation_timesteps']
-        xstats.optimizer_steps = data['optimizer_steps']
-        xstats.training_episodes = data['training_episodes']
-        xstats.training_timesteps = data['training_timesteps']
+        xstats.epoch = data["epoch"]
+        xstats.simulation_episodes = data["simulation_episodes"]
+        xstats.simulation_timesteps = data["simulation_timesteps"]
+        xstats.optimizer_steps = data["optimizer_steps"]
+        xstats.training_episodes = data["training_episodes"]
+        xstats.training_timesteps = data["training_timesteps"]
 
 
 class RunState(NamedTuple):
@@ -249,60 +248,60 @@ class RunStateSerializer(Serializer[RunState]):
 
     def serialize(self, runstate: RunState) -> Dict:
         return {
-            'models': runstate.algo.models.state_dict(),
-            'target_models': runstate.algo.target_models.state_dict(),
-            'optimizer': runstate.optimizer.state_dict(),
-            'wandb_logger': self.wandb_logger_serializer.serialize(
+            "models": runstate.algo.models.state_dict(),
+            "target_models": runstate.algo.target_models.state_dict(),
+            "optimizer": runstate.optimizer.state_dict(),
+            "wandb_logger": self.wandb_logger_serializer.serialize(
                 runstate.wandb_logger
             ),
-            'xstats': self.xstats_serializer.serialize(runstate.xstats),
-            'timer': self.timer_serializer.serialize(runstate.timer),
-            'running_averages': {
+            "xstats": self.xstats_serializer.serialize(runstate.xstats),
+            "timer": self.timer_serializer.serialize(runstate.timer),
+            "running_averages": {
                 k: self.running_average_serializer.serialize(v)
                 for k, v in runstate.running_averages.items()
             },
-            'dispensers': {
+            "dispensers": {
                 k: self.dispenser_serializer.serialize(v)
                 for k, v in runstate.dispensers.items()
             },
         }
 
     def deserialize(self, runstate: RunState, data: Dict):
-        runstate.algo.models.load_state_dict(data['models'])
-        runstate.algo.target_models.load_state_dict(data['target_models'])
-        runstate.optimizer.load_state_dict(data['optimizer'])
+        runstate.algo.models.load_state_dict(data["models"])
+        runstate.algo.target_models.load_state_dict(data["target_models"])
+        runstate.optimizer.load_state_dict(data["optimizer"])
         self.wandb_logger_serializer.deserialize(
             runstate.wandb_logger,
-            data['wandb_logger'],
+            data["wandb_logger"],
         )
-        self.xstats_serializer.deserialize(runstate.xstats, data['xstats'])
-        self.timer_serializer.deserialize(runstate.timer, data['timer'])
+        self.xstats_serializer.deserialize(runstate.xstats, data["xstats"])
+        self.timer_serializer.deserialize(runstate.timer, data["timer"])
 
-        data_keys = data['running_averages'].keys()
+        data_keys = data["running_averages"].keys()
         obj_keys = runstate.running_averages.keys()
         if set(data_keys) != set(obj_keys):
             raise RuntimeError()
         for k, running_average in runstate.running_averages.items():
             self.running_average_serializer.deserialize(
                 running_average,
-                data['running_averages'][k],
+                data["running_averages"][k],
             )
 
-        data_keys = data['dispensers'].keys()
+        data_keys = data["dispensers"].keys()
         obj_keys = runstate.dispensers.keys()
         if set(data_keys) != set(obj_keys):
             raise RuntimeError()
         for k, dispenser in runstate.dispensers.items():
             self.dispenser_serializer.deserialize(
                 dispenser,
-                data['dispensers'][k],
+                data["dispensers"][k],
             )
 
 
 def setup() -> RunState:
     config = get_config()
 
-    table = str.maketrans({'-': '_'})
+    table = str.maketrans({"-": "_"})
     latent_type = LatentType[config.latent_type.upper().translate(table)]
     env = make_env(
         config.env,
@@ -328,15 +327,15 @@ def setup() -> RunState:
     timer = Timer()
 
     running_averages = {
-        'avg_target_returns': InfiniteRunningAverage(),
-        'avg_behavior_returns': InfiniteRunningAverage(),
-        'avg100_behavior_returns': WindowRunningAverage(100),
+        "avg_target_returns": InfiniteRunningAverage(),
+        "avg_behavior_returns": InfiniteRunningAverage(),
+        "avg100_behavior_returns": WindowRunningAverage(100),
     }
 
     wandb_log_period = config.max_simulation_timesteps // config.num_wandb_logs
     dispensers = {
-        'target_update_dispenser': StepDispenser(config.target_update_period),
-        'wandb_log_dispenser': StepDispenser(wandb_log_period),
+        "target_update_dispenser": StepDispenser(config.target_update_period),
+        "wandb_log_dispenser": StepDispenser(wandb_log_period),
     }
 
     return RunState(
@@ -361,22 +360,22 @@ def save_checkpoint(runstate: RunState):
     if config.checkpoint is not None:
         assert wandb.run is not None
 
-        logger.info('checkpointing...')
+        logger.info("checkpointing...")
         runstate_serializer = RunStateSerializer()
         checkpoint = {
-            'metadata': {
-                'config': config._as_dict(),
-                'wandb_id': wandb.run.id,
+            "metadata": {
+                "config": config._as_dict(),
+                "wandb_id": wandb.run.id,
             },
-            'data': runstate_serializer.serialize(runstate),
+            "data": runstate_serializer.serialize(runstate),
         }
         save_data(config.checkpoint, checkpoint)
-        logger.info('checkpointing DONE')
+        logger.info("checkpointing DONE")
 
 
 def run(runstate: RunState) -> bool:
     config = get_config()
-    logger.info('run %s %s', config.env_label, config.algo_label)
+    logger.info("run %s %s", config.env_label, config.algo_label)
 
     (
         env,
@@ -389,11 +388,11 @@ def run(runstate: RunState) -> bool:
         dispensers,
     ) = runstate
 
-    avg_target_returns = running_averages['avg_target_returns']
-    avg_behavior_returns = running_averages['avg_behavior_returns']
-    avg100_behavior_returns = running_averages['avg100_behavior_returns']
-    target_update_dispenser = dispensers['target_update_dispenser']
-    wandb_log_dispenser = dispensers['wandb_log_dispenser']
+    avg_target_returns = running_averages["avg_target_returns"]
+    avg_behavior_returns = running_averages["avg_behavior_returns"]
+    avg100_behavior_returns = running_averages["avg100_behavior_returns"]
+    target_update_dispenser = dispensers["target_update_dispenser"]
+    wandb_log_dispenser = dispensers["wandb_log_dispenser"]
 
     device = get_device(config.device)
     algo.to(device)
@@ -420,23 +419,19 @@ def run(runstate: RunState) -> bool:
     target_policy = algo.target_policy()
 
     logger.info(
-        f'setting prepopulating policy:'
-        f' {config.episode_buffer_prepopulate_policy}'
+        f"setting prepopulating policy: {config.episode_buffer_prepopulate_policy}"
     )
 
     prepopulate_policies: Dict[str, Policy] = {
-        'random': RandomPolicy(env.action_space),
-        'behavior': behavior_policy,
-        'target': target_policy,
+        "random": RandomPolicy(env.action_space),
+        "behavior": behavior_policy,
+        "target": target_policy,
     }
-    prepopulate_policy = prepopulate_policies[
-        config.episode_buffer_prepopulate_policy
-    ]
+    prepopulate_policy = prepopulate_policies[config.episode_buffer_prepopulate_policy]
 
     if xstats.simulation_timesteps != 0:
         prepopulate_policy.epsilon = epsilon_schedule(
-            xstats.simulation_timesteps
-            - config.episode_buffer_prepopulate_timesteps
+            xstats.simulation_timesteps - config.episode_buffer_prepopulate_timesteps
         )
 
     # instantiate and prepopulate buffer
@@ -469,7 +464,7 @@ def run(runstate: RunState) -> bool:
     while xstats.simulation_timesteps < config.max_simulation_timesteps:
         timeout = timeout_dispenser.dispense()
         if timeout:
-            logger.info('timeout dispenser triggered, interrupting')
+            logger.info("timeout dispenser triggered, interrupting")
             save_checkpoint(runstate)
             break
 
@@ -490,7 +485,7 @@ def run(runstate: RunState) -> bool:
 
                 avg_target_returns.extend(evalstats.returns.tolist())
                 logger.info(
-                    'EVALUATE epoch %d simulation_step %d return %.3f',
+                    "EVALUATE epoch %d simulation_step %d return %.3f",
                     xstats.epoch,
                     xstats.simulation_timesteps,
                     evalstats.returns.mean(),
@@ -498,17 +493,16 @@ def run(runstate: RunState) -> bool:
                 wandb_logger.log(
                     {
                         **xstats.asdict(),
-                        'hours': timer.hours,
-                        'diagnostics/target_mean_episode_length': evalstats.lengths.mean(),
-                        'performance/target_mean_return': evalstats.returns.mean(),
-                        'performance/avg_target_mean_return': avg_target_returns.value(),
+                        "hours": timer.hours,
+                        "diagnostics/target_mean_episode_length": evalstats.lengths.mean(),
+                        "performance/target_mean_return": evalstats.returns.mean(),
+                        "performance/avg_target_mean_return": avg_target_returns.value(),
                     }
                 )
 
         # populate episode buffer
         behavior_policy.epsilon = epsilon_schedule(
-            xstats.simulation_timesteps
-            - config.episode_buffer_prepopulate_timesteps
+            xstats.simulation_timesteps - config.episode_buffer_prepopulate_timesteps
         )
         episodes = sample_episodes(
             env,
@@ -517,9 +511,7 @@ def run(runstate: RunState) -> bool:
         )
 
         mean_length = sum(map(len, episodes)) / len(episodes)
-        returns = evaluate_returns(
-            episodes, discount=config.evaluation_discount
-        )
+        returns = evaluate_returns(episodes, discount=config.evaluation_discount)
         avg_behavior_returns.extend(returns.tolist())
         avg100_behavior_returns.extend(returns.tolist())
 
@@ -527,19 +519,19 @@ def run(runstate: RunState) -> bool:
 
         if wandb_log:
             logger.info(
-                'behavior log - simulation_step %d return %.3f',
+                "behavior log - simulation_step %d return %.3f",
                 xstats.simulation_timesteps,
                 returns.mean(),
             )
             wandb_logger.log(
                 {
                     **xstats.asdict(),
-                    'hours': timer.hours,
-                    'diagnostics/epsilon': behavior_policy.epsilon,
-                    'diagnostics/behavior_mean_episode_length': mean_length,
-                    'performance/behavior_mean_return': returns.mean(),
-                    'performance/avg_behavior_mean_return': avg_behavior_returns.value(),
-                    'performance/avg100_behavior_mean_return': avg100_behavior_returns.value(),
+                    "hours": timer.hours,
+                    "diagnostics/epsilon": behavior_policy.epsilon,
+                    "diagnostics/behavior_mean_episode_length": mean_length,
+                    "performance/behavior_mean_return": returns.mean(),
+                    "performance/avg_behavior_mean_return": avg_behavior_returns.value(),
+                    "performance/avg100_behavior_mean_return": avg100_behavior_returns.value(),
                 }
             )
 
@@ -571,9 +563,7 @@ def run(runstate: RunState) -> bool:
                 replacement=True,
             )
             episodes = [episode.to(device) for episode in episodes]
-            loss = algo.episodic_loss(
-                episodes, discount=config.training_discount
-            )
+            loss = algo.episodic_loss(episodes, discount=config.training_discount)
             loss.backward()
             gradient_norm = nn.utils.clip_grad.clip_grad_norm_(
                 algo.models.parameters(), max_norm=config.optim_max_norm
@@ -582,37 +572,33 @@ def run(runstate: RunState) -> bool:
 
             if wandb_log:
                 logger.debug(
-                    'training log - simulation_step %d loss %.3f',
+                    "training log - simulation_step %d loss %.3f",
                     xstats.simulation_timesteps,
                     loss,
                 )
                 wandb_logger.log(
                     {
                         **xstats.asdict(),
-                        'hours': timer.hours,
-                        'training/loss': loss,
-                        'training/gradient_norm': gradient_norm,
+                        "hours": timer.hours,
+                        "training/loss": loss,
+                        "training/gradient_norm": gradient_norm,
                     }
                 )
 
             if config.save_modelseq and config.modelseq_filename is not None:
                 data = {
-                    'metadata': {'config': config._as_dict()},
-                    'data': {
-                        'timestep': xstats.simulation_timesteps,
-                        'model.state_dict': algo.models.state_dict(),
+                    "metadata": {"config": config._as_dict()},
+                    "data": {
+                        "timestep": xstats.simulation_timesteps,
+                        "model.state_dict": algo.models.state_dict(),
                     },
                 }
-                filename = config.modelseq_filename.format(
-                    xstats.simulation_timesteps
-                )
+                filename = config.modelseq_filename.format(xstats.simulation_timesteps)
                 save_data(filename, data)
 
             xstats.optimizer_steps += 1
             xstats.training_episodes += len(episodes)
-            xstats.training_timesteps += sum(
-                len(episode) for episode in episodes
-            )
+            xstats.training_timesteps += sum(len(episode) for episode in episodes)
 
         xstats.epoch += 1
 
@@ -620,8 +606,8 @@ def run(runstate: RunState) -> bool:
 
     if done and config.save_model and config.model_filename is not None:
         data = {
-            'metadata': {'config': config._as_dict()},
-            'data': {'models.state_dict': algo.models.state_dict()},
+            "metadata": {"config": config._as_dict()},
+            "data": {"models.state_dict": algo.models.state_dict()},
         }
         save_data(config.model_filename, data)
 
@@ -630,13 +616,18 @@ def run(runstate: RunState) -> bool:
 
 def main() -> int:
     args = parse_args()
+
+    with open(args.logconfig, "r") as f:
+        logconfig = yaml.safe_load(f.read())
+    logging.config.dictConfig(logconfig)
+
     wandb_kwargs = {
-        'project': args.wandb_project,
-        'entity': args.wandb_entity,
-        'group': args.wandb_group,
-        'tags': args.wandb_tags,
-        'mode': args.wandb_mode,
-        'config': args,
+        "project": args.wandb_project,
+        "entity": args.wandb_entity,
+        "group": args.wandb_group,
+        "tags": args.wandb_tags,
+        "mode": args.wandb_mode,
+        "config": args,
     }
 
     try:
@@ -646,8 +637,8 @@ def main() -> int:
     else:
         wandb_kwargs.update(
             {
-                'resume': 'must',
-                'id': checkpoint['metadata']['wandb_id'],
+                "resume": "must",
+                "id": checkpoint["metadata"]["wandb_id"],
             }
         )
 
@@ -655,55 +646,26 @@ def main() -> int:
         config = get_config()
         config._update(dict(wandb.config))
 
-        logger.info('setup of runstate...')
+        logger.info("setup of runstate...")
         runstate = setup()
-        logger.info('setup DONE')
+        logger.info("setup DONE")
 
         if checkpoint is not None:
-            if checkpoint['metadata']['config'] != config._as_dict():
-                raise RuntimeError(
-                    'checkpoint config inconsistent with program config'
-                )
+            if checkpoint["metadata"]["config"] != config._as_dict():
+                raise RuntimeError("checkpoint config inconsistent with program config")
 
-            logger.debug('updating runstate from checkpoint')
+            logger.debug("updating runstate from checkpoint")
             runstate_serializer = RunStateSerializer()
-            runstate_serializer.deserialize(runstate, checkpoint['data'])
+            runstate_serializer.deserialize(runstate, checkpoint["data"])
 
-        logger.info('run...')
+        logger.info("run...")
         done = run(runstate)
-        logger.info('run DONE')
+        logger.info("run DONE")
 
         save_checkpoint(runstate)
 
     return int(not done)
 
 
-if __name__ == '__main__':
-    logging.config.dictConfig(
-        {
-            'version': 1,
-            'disable_existing_loggers': False,
-            'formatters': {
-                'standard': {
-                    'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
-                },
-            },
-            'handlers': {
-                'default_handler': {
-                    'class': 'logging.StreamHandler',
-                    'level': 'DEBUG',
-                    'formatter': 'standard',
-                    'stream': 'ext://sys.stdout',
-                },
-            },
-            'loggers': {
-                '': {
-                    'handlers': ['default_handler'],
-                    'level': 'DEBUG',
-                    'propagate': False,
-                }
-            },
-        }
-    )
-
+if __name__ == "__main__":
     raise SystemExit(main())

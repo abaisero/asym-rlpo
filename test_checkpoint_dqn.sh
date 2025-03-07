@@ -11,8 +11,8 @@ args=(
   --max-episode-timesteps 100
   --evaluation
   --evaluation-period 1
-  --checkpoint checkpoint_$algo.pk
+  --checkpoint "checkpoint_$algo.pk"
 )
 
 timeout_time=120
-timeout --foreground $timeout_time python ./main_dqn.py $env $algo ${args[@]}
+timeout --foreground $timeout_time python ./main_dqn.py $env $algo "${args[*]}"

@@ -7,7 +7,9 @@ Schedule = Callable[[int], float]
 
 
 def constant_schedule(
-    step: int, *, const: float  # pylint: disable=unused-argument
+    step: int,
+    *,
+    const: float,  # pylint: disable=unused-argument
 ) -> float:
     return const
 
@@ -20,9 +22,7 @@ def linear_schedule(
     return value_from * (1.0 - t) + value_to * t
 
 
-def exponential_schedule(
-    step: int, *, value_from: float, halflife: int
-) -> float:
+def exponential_schedule(step: int, *, value_from: float, halflife: int) -> float:
     return value_from * 0.5 ** (step / halflife)
 
 
@@ -35,20 +35,19 @@ def make_schedule(
     nsteps: Optional[int] = None,
     halflife: Optional[int] = None,
 ) -> Schedule:
-
-    if name == 'constant':
+    if name == "constant":
         checkraise(
             const is not None,
             ValueError,
-            f'invalid arguments {const}',
+            f"invalid arguments {const}",
         )
         return functools.partial(constant_schedule, const=const)
 
-    if name == 'linear':
+    if name == "linear":
         checkraise(
             None not in [value_from, value_to, nsteps],
             ValueError,
-            f'invalid arguments {value_from} {value_to} {nsteps}',
+            f"invalid arguments {value_from} {value_to} {nsteps}",
         )
         return functools.partial(
             linear_schedule,
@@ -57,11 +56,11 @@ def make_schedule(
             nsteps=nsteps,
         )
 
-    if name == 'exponential':
+    if name == "exponential":
         checkraise(
             None not in [value_from, halflife],
             ValueError,
-            f'invalid arguments {value_from} {halflife}',
+            f"invalid arguments {value_from} {halflife}",
         )
         return functools.partial(
             exponential_schedule,
@@ -69,4 +68,4 @@ def make_schedule(
             halflife=halflife,
         )
 
-    raise ValueError(f'invalid schedule name {name}')
+    raise ValueError(f"invalid schedule name {name}")

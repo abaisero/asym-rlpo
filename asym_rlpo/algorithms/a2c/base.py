@@ -40,7 +40,6 @@ class A2C_ABC(Algorithm_ABC):
     def compute_action_logits(
         self, models: nn.ModuleDict, episode: Episode
     ) -> torch.Tensor:
-
         history_features = self.compute_history_features(
             models.agent.interaction_model,
             models.agent.history_model,
@@ -51,9 +50,7 @@ class A2C_ABC(Algorithm_ABC):
         return action_logits
 
     @abc.abstractmethod
-    def compute_v_values(
-        self, models: nn.ModuleDict, episode: Episode
-    ) -> torch.Tensor:
+    def compute_v_values(self, models: nn.ModuleDict, episode: Episode) -> torch.Tensor:
         assert False
 
     def actor_losses(  # pylint: disable=too-many-locals
@@ -63,7 +60,6 @@ class A2C_ABC(Algorithm_ABC):
         discount: float,
         q_estimator: Optional[Q_Estimator] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-
         if q_estimator is None:
             q_estimator = td0_q_estimator
 
@@ -75,9 +71,9 @@ class A2C_ABC(Algorithm_ABC):
             q_values = q_estimator(episode.rewards, v_values, discount=discount)
 
         discounts = discount ** torch.arange(len(episode), device=device)
-        action_nlls = -action_logits.gather(
-            1, episode.actions.unsqueeze(-1)
-        ).squeeze(-1)
+        action_nlls = -action_logits.gather(1, episode.actions.unsqueeze(-1)).squeeze(
+            -1
+        )
         advantages = q_values.detach() - v_values.detach()
         actor_loss = (discounts * advantages * action_nlls).sum()
 
@@ -93,7 +89,6 @@ class A2C_ABC(Algorithm_ABC):
         discount: float,
         q_estimator: Optional[Q_Estimator] = None,
     ) -> torch.Tensor:
-
         if q_estimator is None:
             q_estimator = td0_q_estimator
 
@@ -105,7 +100,7 @@ class A2C_ABC(Algorithm_ABC):
                 episode.rewards, target_v_values, discount=discount
             )
 
-        critic_loss = F.mse_loss(v_values, target_q_values, reduction='sum')
+        critic_loss = F.mse_loss(v_values, target_q_values, reduction="sum")
 
         return critic_loss
 

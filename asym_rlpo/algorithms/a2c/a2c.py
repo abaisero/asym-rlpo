@@ -8,27 +8,24 @@ from .base import A2C_ABC
 
 class A2C(A2C_ABC):
     model_keys = {
-        'agent': [
-            'action_model',
-            'observation_model',
-            'interaction_model',
-            'history_model',
-            'policy_model',
+        "agent": [
+            "action_model",
+            "observation_model",
+            "interaction_model",
+            "history_model",
+            "policy_model",
         ],
-        'critic': [
-            'latent_model',
-            'action_model',
-            'observation_model',
-            'interaction_model',
-            'history_model',
-            'vh_model',
+        "critic": [
+            "latent_model",
+            "action_model",
+            "observation_model",
+            "interaction_model",
+            "history_model",
+            "vh_model",
         ],
     }
 
-    def compute_v_values(
-        self, models: nn.ModuleDict, episode: Episode
-    ) -> torch.Tensor:
-
+    def compute_v_values(self, models: nn.ModuleDict, episode: Episode) -> torch.Tensor:
         history_features = self.compute_history_features(
             models.critic.interaction_model,
             models.critic.history_model,

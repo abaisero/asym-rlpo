@@ -19,7 +19,7 @@ class WandbLogger(DataLogger):
 
 class WandbLoggerSerializer(Serializer[WandbLogger]):
     def serialize(self, obj: WandbLogger) -> Dict:
-        return {'step': obj.step}
+        return {"step": obj.step}
 
     def deserialize(self, obj: WandbLogger, data: Dict):
-        obj.step = data['step']
+        obj.step = data["step"]

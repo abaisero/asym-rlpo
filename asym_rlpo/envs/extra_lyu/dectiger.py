@@ -72,9 +72,7 @@ class DecTiger(Env):
         a1, a2 = a
         if a1 == a2 == 2:  # both listen
             obs = (
-                JOINT_OBSERVATIONS_LEFT
-                if self.tiger == 0
-                else JOINT_OBSERVATIONS_RIGHT
+                JOINT_OBSERVATIONS_LEFT if self.tiger == 0 else JOINT_OBSERVATIONS_RIGHT
             )
             i = np.random.choice(4, p=(0.7225, 0.1275, 0.1275, 0.0225))
             o = obs[i]
@@ -134,30 +132,30 @@ def main():
 
     while True:
         observations = env.reset()
-        print(f'state: {env.state}')
+        print(f"state: {env.state}")
         assert env.state_space.contains(env.state)
-        print(f'observations: {observations}')
+        print(f"observations: {observations}")
         assert env.observation_space.contains(observations)
 
         for t in itt.count():
-            print(f't: {t}')
+            print(f"t: {t}")
 
             actions = env.action_space.sample()
-            print(f'actions: {actions}')
+            print(f"actions: {actions}")
             assert env.action_space.contains(actions)
 
             observations, rewards, done = env.step(actions)
-            print(f'state: {env.state}')
+            print(f"state: {env.state}")
             assert env.state_space.contains(env.state)
-            print(f'observations: {observations}')
+            print(f"observations: {observations}")
             assert env.observation_space.contains(observations)
-            print(f'rewards: {rewards}')
-            print(f'done: {done}')
+            print(f"rewards: {rewards}")
+            print(f"done: {done}")
 
             if done:
                 time.sleep(1)
                 break
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

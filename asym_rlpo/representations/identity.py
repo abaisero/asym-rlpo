@@ -11,10 +11,9 @@ class IdentityRepresentation(Representation):
         super().__init__()
 
         checkraise(
-            isinstance(input_space, gym.spaces.Box)
-            and len(input_space.shape) == 1,
+            isinstance(input_space, gym.spaces.Box) and len(input_space.shape) == 1,
             TypeError,
-            'input_space must be Box',
+            "input_space must be Box",
         )
 
         (self.__out_dim,) = input_space.shape

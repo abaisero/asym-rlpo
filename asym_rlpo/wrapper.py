@@ -19,32 +19,32 @@ class IndexWrapper(gym.ObservationWrapper):
             isinstance(env.observation_space, gym.spaces.Box)
             and len(env.observation_space.shape) == 1,
             ValueError,
-            'env.observation_space must be flat Box',
+            "env.observation_space must be flat Box",
         )
 
         checkraise(
             len(set(indices)) == len(indices),
             ValueError,
-            'indices must be unique',
+            "indices must be unique",
         )
 
         assert isinstance(env.observation_space, gym.spaces.Box)
         checkraise(
             len(indices) <= env.observation_space.shape[0],
             ValueError,
-            'number of indices must not exceed state dimensions',
+            "number of indices must not exceed state dimensions",
         )
 
         checkraise(
             min(indices) >= 0,
             ValueError,
-            'indices must be non-negative',
+            "indices must be non-negative",
         )
 
         checkraise(
             max(indices) < env.observation_space.shape[0],
             ValueError,
-            'indices must be lower than state dimensions',
+            "indices must be lower than state dimensions",
         )
 
         super().__init__(env)

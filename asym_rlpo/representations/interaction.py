@@ -38,9 +38,7 @@ class InteractionRepresentation(Representation):
         )
         return torch.cat([action_features, observation_features], dim=-1)
 
-    def episode_features(
-        self, actions: torch.Tensor, observations: TorchObservation
-    ):
+    def episode_features(self, actions: torch.Tensor, observations: TorchObservation):
         """syncs actions and observations, and applies interaction models"""
         action_features = self.action_model(actions)
         action_features = action_features.roll(1, 0)

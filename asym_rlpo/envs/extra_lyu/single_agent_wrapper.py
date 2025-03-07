@@ -22,16 +22,10 @@ class SingleAgentWrapper(gym.Wrapper):
         ]
         self.action_space = gym.spaces.Discrete(np.prod(self.num_actions))
         low = np.concatenate(
-            [
-                observation_space.low
-                for observation_space in self.env.observation_space
-            ]
+            [observation_space.low for observation_space in self.env.observation_space]
         )
         high = np.concatenate(
-            [
-                observation_space.high
-                for observation_space in self.env.observation_space
-            ]
+            [observation_space.high for observation_space in self.env.observation_space]
         )
         self.observation_space = gym.spaces.Box(low, high)
 

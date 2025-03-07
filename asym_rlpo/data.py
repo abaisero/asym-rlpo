@@ -25,25 +25,25 @@ from asym_rlpo.utils.debugging import checkraise
 logger = logging.getLogger(__name__)
 
 TorchObservation = TypeVar(
-    'TorchObservation',
+    "TorchObservation",
     torch.Tensor,
     Dict[str, torch.Tensor],
 )
 TorchLatent = TypeVar(
-    'TorchLatent',
+    "TorchLatent",
     torch.Tensor,
     Dict[str, torch.Tensor],
 )
 
 Observation = TypeVar(
-    'Observation',
+    "Observation",
     torch.Tensor,
     Dict[str, torch.Tensor],
     np.ndarray,
     Dict[str, np.ndarray],
 )
 Latent = TypeVar(
-    'Latent',
+    "Latent",
     torch.Tensor,
     Dict[str, torch.Tensor],
     np.ndarray,
@@ -69,9 +69,7 @@ class Interaction(Generic[Observation, Latent]):
 class Episode(Generic[Observation, Latent]):
     """Storage for collated episode data."""
 
-    def __init__(
-        self, *, observations: Observation, latents: Latent, actions, rewards
-    ):
+    def __init__(self, *, observations: Observation, latents: Latent, actions, rewards):
         self.observations: Observation = observations
         self.latents: Latent = latents
         self.actions = actions
@@ -98,7 +96,7 @@ class Episode(Generic[Observation, Latent]):
 
     @staticmethod
     def from_interactions(
-        interactions: Iterable[Interaction[Observation, Latent]]
+        interactions: Iterable[Interaction[Observation, Latent]],
     ) -> Episode[Observation, Latent]:
         observations: Observation = collate_numpy(
             [interaction.observation for interaction in interactions]
@@ -106,12 +104,8 @@ class Episode(Generic[Observation, Latent]):
         latents: Latent = collate_numpy(
             [interaction.latent for interaction in interactions]
         )
-        actions = collate_numpy(
-            [interaction.action for interaction in interactions]
-        )
-        rewards = collate_numpy(
-            [interaction.reward for interaction in interactions]
-        )
+        actions = collate_numpy([interaction.action for interaction in interactions])
+        rewards = collate_numpy([interaction.reward for interaction in interactions])
         return Episode(
             observations=observations,
             latents=latents,
@@ -124,22 +118,17 @@ class Episode(Generic[Observation, Latent]):
             (
                 isinstance(self.observations, np.ndarray)
                 or isinstance(self.observations, dict)
-                and all(
-                    isinstance(v, np.ndarray)
-                    for v in self.observations.values()
-                )
+                and all(isinstance(v, np.ndarray) for v in self.observations.values())
             )
             and (
                 isinstance(self.latents, np.ndarray)
                 or isinstance(self.latents, dict)
-                and all(
-                    isinstance(v, np.ndarray) for v in self.latents.values()
-                )
+                and all(isinstance(v, np.ndarray) for v in self.latents.values())
             )
             and isinstance(self.actions, np.ndarray)
             and isinstance(self.rewards, np.ndarray),
             TypeError,
-            'Episode is not numpy to begin with??',
+            "Episode is not numpy to begin with??",
         )
         return Episode(
             observations=numpy2torch(self.observations),
@@ -200,7 +189,7 @@ class EpisodeBufferSampler(Generic[Observation, Latent]):
 
     def sample_episode(self) -> Episode[Observation, Latent]:
         if self.episode_buffer.num_episodes == 0:
-            raise ValueError('Cannot sample from empty episode buffer')
+            raise ValueError("Cannot sample from empty episode buffer")
 
         i = random.randrange(self.episode_buffer.num_episodes())
         return self.episode_buffer[i]
@@ -209,12 +198,12 @@ class EpisodeBufferSampler(Generic[Observation, Latent]):
         self, num_samples: int, *, replacement: bool
     ) -> List[Episode[Observation, Latent]]:
         if self.episode_buffer.num_episodes == 0:
-            raise ValueError('Cannot sample from empty episode buffer')
+            raise ValueError("Cannot sample from empty episode buffer")
 
         if not replacement and num_samples > self.episode_buffer.num_episodes():
             raise ValueError(
-                f'Cannot sample {num_samples} episodes from an episode buffer'
-                f' that contains only {self.episode_buffer.num_episodes()} episodes'
+                f"Cannot sample {num_samples} episodes from an episode buffer"
+                f" that contains only {self.episode_buffer.num_episodes()} episodes"
             )
 
         indices = list(range(self.episode_buffer.num_episodes()))
@@ -230,8 +219,7 @@ class EpisodeBufferSampler(Generic[Observation, Latent]):
 
 
 class EpisodeFactory(Protocol, Generic[Observation, Latent]):
-    def __call__(self) -> Episode[Observation, Latent]:
-        ...
+    def __call__(self) -> Episode[Observation, Latent]: ...
 
 
 def prepopulate_episode_buffer(
@@ -240,11 +228,9 @@ def prepopulate_episode_buffer(
     *,
     timesteps: int,
 ):
-    logger.info(f'prepopulating episode buffer ({timesteps:_} timesteps)...')
+    logger.info(f"prepopulating episode buffer ({timesteps:_} timesteps)...")
     while episode_buffer.num_interactions() < timesteps:
         episode = episode_factory().torch()
         episode_buffer.append_episode(episode)
-        logger.debug(
-            f'episode buffer {episode_buffer.num_interactions():_} timesteps'
-        )
-    logger.info('prepopulating DONE')
+        logger.debug(f"episode buffer {episode_buffer.num_interactions():_} timesteps")
+    logger.info("prepopulating DONE")

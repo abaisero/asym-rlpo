@@ -12,7 +12,7 @@ class EmbeddingRepresentation(Representation):
         num_embeddings: int,
         embedding_dim: int,
         *,
-        padding_idx: Optional[int] = None
+        padding_idx: Optional[int] = None,
     ):
         super().__init__()
         self.embeddings = nn.Embedding(

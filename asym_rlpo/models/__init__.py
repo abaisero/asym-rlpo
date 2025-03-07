@@ -17,7 +17,6 @@ def make_models(
     *,
     keys: Optional[Iterable[str]] = None,
 ) -> nn.ModuleDict:
-
     if env.type is EnvironmentType.GV:
         models = make_models_gv(env)
 
@@ -48,7 +47,7 @@ def filter_models(models: nn.ModuleDict, keys: Iterable[str]) -> nn.ModuleDict:
         checkraise(
             len(missing_keys) == 0,
             ValueError,
-            'models dictionary does not contains keys {}',
+            "models dictionary does not contains keys {}",
             missing_keys,
         )
         return nn.ModuleDict({k: models[k] for k in keys})
@@ -58,11 +57,9 @@ def filter_models(models: nn.ModuleDict, keys: Iterable[str]) -> nn.ModuleDict:
         checkraise(
             len(missing_keys) == 0,
             ValueError,
-            'models dictionary does not contains keys {}',
+            "models dictionary does not contains keys {}",
             missing_keys,
         )
-        return nn.ModuleDict(
-            {k: filter_models(models[k], v) for k, v in keys.items()}
-        )
+        return nn.ModuleDict({k: filter_models(models[k], v) for k, v in keys.items()})
 
     raise NotImplementedError

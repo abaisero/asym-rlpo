@@ -16,18 +16,18 @@ from .dqn.base import DQN_ABC
 from .dqn.dqn import DQN
 
 _a2c_algorithm_classes = {
-    'a2c': A2C,
-    'asym-a2c': AsymA2C,
-    'asym-a2c-state': AsymA2C_State,
+    "a2c": A2C,
+    "asym-a2c": AsymA2C,
+    "asym-a2c-state": AsymA2C_State,
 }
 
 _dqn_algorithm_classes = {
-    'dqn': DQN,
-    'adqn': ADQN,
-    'adqn-bootstrap': ADQN_Bootstrap,
-    'adqn-state': ADQN_State,
-    'adqn-state-bootstrap': ADQN_State_Bootstrap,
-    'adqn-short': ADQN_Short,
+    "dqn": DQN,
+    "adqn": ADQN,
+    "adqn-bootstrap": ADQN_Bootstrap,
+    "adqn-state": ADQN_State,
+    "adqn-state-bootstrap": ADQN_State_Bootstrap,
+    "adqn-short": ADQN_Short,
 }
 
 
@@ -35,14 +35,14 @@ def get_a2c_algorithm_class(name: str) -> Type[A2C_ABC]:
     try:
         return _a2c_algorithm_classes[name]
     except KeyError:
-        raise ValueError(f'invalid algorithm name {name}')
+        raise ValueError(f"invalid algorithm name {name}")
 
 
 def get_dqn_algorithm_class(name: str) -> Type[DQN_ABC]:
     try:
         return _dqn_algorithm_classes[name]
     except KeyError:
-        raise ValueError(f'invalid algorithm name {name}')
+        raise ValueError(f"invalid algorithm name {name}")
 
 
 def make_a2c_algorithm(

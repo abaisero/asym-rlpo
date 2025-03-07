@@ -22,21 +22,21 @@ def make_perceptron_modules(
 
     module = nn.Linear(in_features, out_features, *args, **kwargs)
 
-    if nonlinearity == 'identity':
-        init_linear_module(module, 'linear')
+    if nonlinearity == "identity":
+        init_linear_module(module, "linear")
         # keep the Identity layer seems useless, but it's necessary for potential
         # skip connections
         return module, nn.Identity()
 
-    if nonlinearity == 'relu':
-        init_linear_module(module, 'relu')
+    if nonlinearity == "relu":
+        init_linear_module(module, "relu")
         return module, nn.ReLU()
 
-    if nonlinearity == 'logsoftmax':
-        init_linear_module(module, 'linear')
+    if nonlinearity == "logsoftmax":
+        init_linear_module(module, "linear")
         return module, nn.LogSoftmax(dim=-1)
 
-    raise ValueError(f'invalid nonlinearity {nonlinearity}')
+    raise ValueError(f"invalid nonlinearity {nonlinearity}")
 
 
 def make_mlp_modules(
@@ -48,12 +48,12 @@ def make_mlp_modules(
     """creates and initializes multiple layers of linear modules and nonlinearities"""
 
     if len(sizes) < 2:
-        raise ValueError(f'requires at least 2 sizes, given {len(sizes)}')
+        raise ValueError(f"requires at least 2 sizes, given {len(sizes)}")
 
     if len(nonlinearities) != len(sizes) - 1:
         raise ValueError(
-            f'incompatible number of sizes and nonlinearities, '
-            f'given {len(sizes)} and {len(nonlinearities)}'
+            f"incompatible number of sizes and nonlinearities, "
+            f"given {len(sizes)} and {len(nonlinearities)}"
         )
 
     perceptron_modules = (
