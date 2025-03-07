@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-from typing import Protocol
 
 import gym
 import gym.spaces
@@ -14,16 +13,14 @@ from asym_rlpo.envs.env import (
     Latent,
     LatentType,
     Observation,
-    State,
 )
+from asym_rlpo.envs.env_gym_hh import GymEnvironment_HH, id_is_heavenhell
+from asym_rlpo.envs.env_gym_stateful import StatefulGymEnv
 from asym_rlpo.envs.wrappers import IndexWrapper
 
 
 def make_gym_env(id: str, *, latent_type: LatentType) -> Environment:
     """makes a stateful gym environment or converts a fully observable openai environment into a partially observable openai environment"""
-
-    if latent_type is not LatentType.STATE:
-        raise ValueError(f'Invalid latent type {latent_type} for gym envs')
 
     try:
         return make_po_gym_env(id)
@@ -38,6 +35,9 @@ def make_gym_env(id: str, *, latent_type: LatentType) -> Environment:
 
         else:
             if isinstance(gym_env.unwrapped, gym_pomdps.POMDP):
+                if id_is_heavenhell(id):
+                    return GymEnvironment_HH(gym_env, latent_type)
+
                 return GymEnvironment(gym_env, EnvironmentType.FLAT)
 
             if re.fullmatch(r'extra-dectiger-v\d+', gym_env.spec.id):
@@ -120,24 +120,6 @@ def make_po_gym_env(name: str) -> Environment:
         raise ValueError('invalid env name {env_name}')
 
     return GymEnvironment(env, EnvironmentType.OPENAI)
-
-
-class StatefulGymEnv(Protocol):
-    """Protocol based on gym.Env which also contains state_space and state"""
-
-    state_space: gym.spaces.Space
-    action_space: gym.spaces.Discrete
-    observation_space: gym.spaces.Space
-
-    state: State
-
-    def seed(self, seed=None): ...
-
-    def reset(self) -> Observation: ...
-
-    def step(self, action) -> tuple[Observation, float, bool, dict]: ...
-
-    def render(self, mode='human'): ...
 
 
 class GymEnvironment(Environment):
