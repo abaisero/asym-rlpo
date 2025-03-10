@@ -483,7 +483,7 @@ def save_checkpoint(runstate: Runstate):
     save_data(config.checkpoint_path, checkpoint)
 
 
-def save_model(model: ActorCriticModel):
+def save_model(model: nn.Module):
     config = get_config()
 
     data = {
@@ -764,7 +764,7 @@ def log_training(runstate: Runstate, training_data: TrainingData):
     )
 
 
-def save_modelseq(timestep: int, model: ActorCriticModel):
+def save_modelseq(timestep: int, model: nn.Module):
     config = get_config()
     data = {
         'metadata': {'config': config._as_dict()},
@@ -902,31 +902,4 @@ def main():
 
 
 if __name__ == '__main__':
-    logging.config.dictConfig(
-        {
-            'version': 1,
-            'disable_existing_loggers': False,
-            'formatters': {
-                'standard': {
-                    'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
-                },
-            },
-            'handlers': {
-                'default_handler': {
-                    'class': 'logging.StreamHandler',
-                    'level': 'DEBUG',
-                    'formatter': 'standard',
-                    'stream': 'ext://sys.stdout',
-                },
-            },
-            'loggers': {
-                '': {
-                    'handlers': ['default_handler'],
-                    'level': 'DEBUG',
-                    'propagate': False,
-                }
-            },
-        }
-    )
-
     sys.exit(main())

@@ -499,12 +499,12 @@ def save_checkpoint(runstate: Runstate):
     save_data(config.checkpoint_path, checkpoint)
 
 
-def save_model(models):
+def save_model(model: nn.Module):
     config = get_config()
 
     data = {
         'metadata': {'config': config._as_dict()},
-        'data': {'models.state_dict': models.state_dict()},
+        'data': {'model.state_dict': model.state_dict()},
     }
     save_data(config.model_filename, data)
 
@@ -831,13 +831,13 @@ def log_training(runstate: Runstate, training_datas: Sequence[TrainingData]):
     )
 
 
-def save_modelseq(timestep: int, models: nn.Module):
+def save_modelseq(timestep: int, model: nn.Module):
     config = get_config()
     data = {
         'metadata': {'config': config._as_dict()},
         'data': {
             'timestep': timestep,
-            'model.state_dict': models.state_dict(),
+            'model.state_dict': model.state_dict(),
         },
     }
     filename = config.modelseq_path_template.format(timestep)
@@ -958,31 +958,4 @@ def main():
 
 
 if __name__ == '__main__':
-    logging.config.dictConfig(
-        {
-            'version': 1,
-            'disable_existing_loggers': False,
-            'formatters': {
-                'standard': {
-                    'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
-                },
-            },
-            'handlers': {
-                'default_handler': {
-                    'class': 'logging.StreamHandler',
-                    'level': 'DEBUG',
-                    'formatter': 'standard',
-                    'stream': 'ext://sys.stdout',
-                },
-            },
-            'loggers': {
-                '': {
-                    'handlers': ['default_handler'],
-                    'level': 'DEBUG',
-                    'propagate': False,
-                }
-            },
-        }
-    )
-
     sys.exit(main())
