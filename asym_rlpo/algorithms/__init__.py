@@ -11,13 +11,15 @@ from asym_rlpo.algorithms.adqn_state import (
 from asym_rlpo.algorithms.algorithm import ValueBasedAlgorithm
 from asym_rlpo.algorithms.dqn import DQN
 from asym_rlpo.algorithms.mr_a2c import MemoryReactive_A2C
+from asym_rlpo.algorithms.noisy_a2c import NoisyA2C
 from asym_rlpo.algorithms.trainer import Trainer
 from asym_rlpo.models.actor import MemoryReactive_ActorModel
 from asym_rlpo.models.actor_critic import (
     ActorCriticModel,
     MemoryReactive_ActorCriticModel,
+    NoisyActorCriticModel,
 )
-from asym_rlpo.models.critic import HM_CriticModel
+from asym_rlpo.models.critic import H_CriticModel, HM_CriticModel, HZ_CriticModel
 from asym_rlpo.models.factory import ModelFactory
 from asym_rlpo.models.memory_reactive import (
     MemoryModel,
@@ -163,6 +165,54 @@ def make_a2c_algorithm(
     )
 
     return A2C(actor_critic_model, target_critic_model, trainer)
+
+
+def make_noisy_a2c_algorithm(
+    name: str,
+    model_factory: ModelFactory,
+    *,
+    actor_optimizer_factory: OptimizerFactory,
+    critic_optimizer_factory: OptimizerFactory,
+    max_gradient_norm: float,
+) -> NoisyA2C:
+    if name != 'noisy-a2c':
+        raise ValueError(f'invalid noisy-a2c {name=}')
+
+    h_critic_model = model_factory.make_critic_model(CriticType.H)
+    assert isinstance(h_critic_model, H_CriticModel)
+    hz_critic_model = model_factory.make_critic_model(CriticType.HZ)
+    assert isinstance(hz_critic_model, HZ_CriticModel)
+
+    actor_critic_model = NoisyActorCriticModel(
+        model_factory.make_actor_model(),
+        h_critic_model,
+        hz_critic_model,
+    )
+    target_h_critic_model = model_factory.make_critic_model(CriticType.H)
+    assert isinstance(target_h_critic_model, H_CriticModel)
+    target_hz_critic_model = model_factory.make_critic_model(CriticType.HZ)
+    assert isinstance(target_hz_critic_model, HZ_CriticModel)
+
+    trainer = Trainer.from_factories(
+        {
+            'actor': actor_optimizer_factory,
+            'h_critic': critic_optimizer_factory,
+            'hz_critic': critic_optimizer_factory,
+        },
+        {
+            'actor': actor_critic_model.actor_model.parameters,
+            'h_critic': actor_critic_model.h_critic_model.parameters,
+            'hz_critic': actor_critic_model.hz_critic_model.parameters,
+        },
+        max_gradient_norm=max_gradient_norm,
+    )
+
+    return NoisyA2C(
+        actor_critic_model,
+        target_h_critic_model,
+        target_hz_critic_model,
+        trainer,
+    )
 
 
 def make_dqn_algorithm(
