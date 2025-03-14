@@ -235,13 +235,13 @@ def parse_args():
     args.wandb_mode = 'offline' if args.wandb_offline else None
 
     if args.run_path is None:
-        args.checkpoint_path = None
-        args.model_path = None
-        args.modelseq_path_template = None
+        args.filename_checkpoint = None
+        args.filename_model = None
+        args.filename_modelseq_template = None
     else:
-        args.checkpoint_path = f'{args.run_path}/checkpoint.pkl'
-        args.model_path = f'{args.run_path}/model.pkl'
-        args.modelseq_path_template = f'{args.run_path}/modelseq/modelseq.{{}}.pkl'
+        args.filename_checkpoint = f'{args.run_path}/checkpoint.pkl'
+        args.filename_model = f'{args.run_path}/model.pkl'
+        args.filename_modelseq_template = f'{args.run_path}/modelseq/modelseq.{{}}.pkl'
 
     for name, value in args.wandb_metagroups:
         setattr(args, f'wandb_metagroup_{name}', value)
@@ -497,22 +497,22 @@ def make_checkpoint(runstate: Runstate) -> Checkpoint:
 def save_checkpoint(runstate: Runstate):
     config = get_config()
 
-    if config.checkpoint_path is None:
+    if config.filename_checkpoint is None:
         logger.info('no checkpoint path available;  skipping checkpoint')
         return
 
     checkpoint = make_checkpoint(runstate)
-    save_data(config.checkpoint_path, checkpoint)
+    save_data(config.filename_checkpoint, checkpoint)
 
 
-def save_model(model: nn.Module):
+def save_model(model: MemoryReactive_ActorCriticModel):
     config = get_config()
 
     data = {
         'metadata': {'config': config._as_dict()},
         'data': {'model.state_dict': model.state_dict()},
     }
-    save_data(config.model_path, data)
+    save_data(config.filename_model, data)
 
 
 def run(runstate: Runstate) -> Runflags:
@@ -789,7 +789,7 @@ def log_training(runstate: Runstate, training_data: TrainingData):
     )
 
 
-def save_modelseq(timestep: int, model: nn.Module):
+def save_modelseq(timestep: int, model: MemoryReactive_ActorCriticModel):
     config = get_config()
     data = {
         'metadata': {'config': config._as_dict()},
@@ -798,7 +798,7 @@ def save_modelseq(timestep: int, model: nn.Module):
             'model.state_dict': model.state_dict(),
         },
     }
-    filename = config.modelseq_path_template.format(timestep)
+    filename = config.filename_modelseq_template.format(timestep)
     save_data(filename, data)
 
 
@@ -886,7 +886,7 @@ def main():
 
     checkpoint: Checkpoint | None
     try:
-        checkpoint = load_data(args.checkpoint_path)
+        checkpoint = load_data(args.filename_checkpoint)
     except (TypeError, FileNotFoundError):
         checkpoint = None
     else:
