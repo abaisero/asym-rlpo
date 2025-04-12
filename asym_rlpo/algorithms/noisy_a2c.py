@@ -139,9 +139,22 @@ def compute_hz_values_variance(
     hz_values = hz_critic_model.value_module(input_features).squeeze(-1)
     # (T, S)
 
-    second_moment = (hz_values**2 * beliefs).sum(-1)
+    first_moment = torch.einsum('ts,ts->t', hz_values, beliefs)
     # (T,)
-    first_moment_squared = (hz_values * beliefs).sum(-1) ** 2
+    squared_deviation = (hz_values - first_moment.unsqueeze(-1)) ** 2
+    # (T, S)
+    variance = torch.einsum('ts,ts->t', squared_deviation, beliefs)
     # (T,)
-    variance = second_moment - first_moment_squared
+
+    # # numerically unstable, can result in negative variances
+    # second_moment = (hz_values**2 * beliefs).sum(-1)
+    # # (T,)
+    # first_moment_squared = (hz_values * beliefs).sum(-1) ** 2
+    # # (T,)
+    # variance = second_moment - first_moment_squared
+    # # numerical errors may cause small negative variances
+    #
+    # assert variance.min() >= -1e-6
+    # return variance + torch.minimum(variance, torch.zeros_like(variance))
+
     return variance
