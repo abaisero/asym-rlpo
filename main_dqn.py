@@ -929,27 +929,27 @@ def main():
             }
         )
 
-    wandb.init(**wandb_kwargs)
-    define_metrics()
-
     config = get_config()
-    config._update(dict(wandb.config))
-    assert wandb.run is not None
-    config._update({'wandb_run_id': wandb.run.id})
+    with wandb.init(**wandb_kwargs) as wandb_run:
+        assert wandb_run is not None
 
-    if (
-        checkpoint is not None
-        and config.check_checkpoint_consistency
-        and checkpoint.metadata.config != config._as_dict()
-    ):
-        raise RuntimeError('checkpoint config inconsistent with program config')
+        define_metrics()
+        config._update(dict(wandb_run.config))
+        config._update({'wandb_run_id': wandb_run.id})
 
-    logger.info('making runstate')
-    runstate = make_runstate(checkpoint)
+        if (
+            checkpoint is not None
+            and config.check_checkpoint_consistency
+            and checkpoint.metadata.config != config._as_dict()
+        ):
+            raise RuntimeError('checkpoint config inconsistent with program config')
 
-    logger.info('starting run')
-    runflags = run(runstate)
-    logger.info(f'stopping run with flags {runflags}')
+        logger.info('making runstate')
+        runstate = make_runstate(checkpoint)
+
+        logger.info('starting run')
+        runflags = run(runstate)
+        logger.info(f'stopping run with flags {runflags}')
 
     retvalue = int(not runflags.done)
     logger.info(f'returning {retvalue}')
