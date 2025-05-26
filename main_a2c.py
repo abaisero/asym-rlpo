@@ -24,7 +24,6 @@ from asym_rlpo.data_logging.wandb_logger import WandbLogger
 from asym_rlpo.envs import Environment, LatentType, make_env
 from asym_rlpo.evaluation import evaluate_episodes
 from asym_rlpo.models import make_model_factory
-from asym_rlpo.models.actor_critic import ActorCriticModel
 from asym_rlpo.q_estimators import Q_Estimator, q_estimator_factory
 from asym_rlpo.runs.xstats import (
     XStats,
@@ -94,7 +93,13 @@ def parse_args():
     parser.add_argument('env')
     parser.add_argument(
         'algo',
-        choices=['a2c', 'asym-a2c', 'asym-a2c-state'],
+        choices=[
+            'a2c',
+            'asym-a2c',
+            'asym-a2c-state',
+            'biphasic-asym-a2c-h-hs',
+            'biphasic-asym-a2c-hs-h',
+        ],
     )
 
     parser.add_argument('--env-label', default=None)
@@ -358,6 +363,7 @@ def make_runstate(checkpoint: Checkpoint | None) -> Runstate:
         actor_optimizer_factory=actor_optimizer_factory,
         critic_optimizer_factory=critic_optimizer_factory,
         max_gradient_norm=config.optim_max_norm,
+        info={'env': config.env},
     )
 
     device = get_device(config.device)
@@ -391,7 +397,7 @@ def make_runstate(checkpoint: Checkpoint | None) -> Runstate:
     )
     dispensers.checkpoint.dispense()  # consume first checkpoint dispense
 
-    policy = algo.actor_critic_model.actor_model.policy()
+    policy = algo.actor_model.policy()
 
     episodes_factories = RunstateEpisodesFactories(
         behavior_factory=functools.partial(
@@ -483,7 +489,7 @@ def save_checkpoint(runstate: Runstate):
     save_data(config.filename_checkpoint, checkpoint)
 
 
-def save_model(model: ActorCriticModel):
+def save_model(model: nn.Module):
     config = get_config()
 
     data = {
@@ -513,7 +519,7 @@ def run(runstate: Runstate) -> Runflags:
 
     setup_interruption_handling(runflags)
 
-    wandb.watch(runstate.algo.actor_critic_model)
+    wandb.watch(runstate.algo.actor_critic_models)
     while True:
         update_runflags(runstate, runflags)
 
@@ -528,7 +534,7 @@ def run(runstate: Runstate) -> Runflags:
     save_checkpoint(runstate)
 
     if runflags.done and config.save_model:
-        save_model(runstate.algo.actor_critic_model)
+        save_model(runstate.algo.actor_critic_models)
 
     return runflags
 
@@ -602,7 +608,7 @@ def run_epoch(runstate: Runstate, controlflow: Controlflow):
     if controlflow.save_modelseq:
         save_modelseq(
             runstate.xstats.simulation_timesteps,
-            runstate.algo.actor_critic_model,
+            runstate.algo.actor_critic_models,
         )
 
     update_xstats_epoch(runstate.xstats)
@@ -612,12 +618,12 @@ def run_epoch(runstate: Runstate, controlflow: Controlflow):
 
 
 def run_evaluation(runstate: Runstate):
-    runstate.algo.actor_critic_model.eval()
+    runstate.algo.actor_critic_models.eval()
 
     with torch.inference_mode():
         episodes = runstate.episodes_factories.evaluation_factory()
 
-    runstate.algo.actor_critic_model.train()
+    runstate.algo.actor_critic_models.train()
 
     log_evaluation(runstate, episodes)
 
@@ -701,23 +707,27 @@ def run_training(
     config = get_config()
 
     episodes = [episode.torch().to(runstate.device) for episode in episodes]
-    losses = average_losses(
-        [
-            runstate.algo.compute_losses(
-                episode,
-                discount=config.training_discount,
-                q_estimator=runstate.q_estimator,
-            )
-            for episode in episodes
-        ]
+    episode_losses = [
+        runstate.algo.compute_losses(
+            episode,
+            discount=config.training_discount,
+            q_estimator=runstate.q_estimator,
+        )
+        for episode in episodes
+    ]
+    actor_losses = average_losses([actor_losses for actor_losses, _ in episode_losses])
+    critic_losses = average_losses(
+        [critic_losses for _, critic_losses in episode_losses]
     )
+    losses: LossDict = {**actor_losses, **critic_losses}
+
     negentropy_weight = runstate.negentropy_schedule(
         runstate.xstats.simulation_timesteps
     )
-    objectives = {
-        'actor': losses['policy'] + negentropy_weight * losses['negentropy'],
-        'critic': losses['critic'],
-    }
+    actor_objective = (
+        actor_losses['policy'] + negentropy_weight * actor_losses['negentropy']
+    )
+    objectives = {'actor': actor_objective, **critic_losses}
     gradient_norms = runstate.algo.trainer.gradient_step(objectives)
 
     if controlflow.log_data:
@@ -764,7 +774,7 @@ def log_training(runstate: Runstate, training_data: TrainingData):
     )
 
 
-def save_modelseq(timestep: int, model: ActorCriticModel):
+def save_modelseq(timestep: int, model: nn.Module):
     config = get_config()
     data = {
         'metadata': {'config': config._as_dict()},
@@ -895,10 +905,10 @@ def main():
         runflags = run(runstate)
         logger.info(f'stopping run with flags {runflags}')
 
-    retvalue = int(not runflags.done)
-    logger.info(f'returning {retvalue}')
+        retvalue = int(not runflags.done)
+        logger.info(f'returning {retvalue}')
 
-    return retvalue
+        return retvalue
 
 
 if __name__ == '__main__':

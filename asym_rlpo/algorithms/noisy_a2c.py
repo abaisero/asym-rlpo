@@ -1,54 +1,42 @@
 from __future__ import annotations
 
+from typing import cast
+
 import gym
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
-from asym_rlpo.algorithms.algorithm import Algorithm
+from asym_rlpo.algorithms.a2c import A2C
 from asym_rlpo.algorithms.trainer import Trainer
 from asym_rlpo.data import Episode
 from asym_rlpo.envs.utils.beliefs import compute_beliefs
-from asym_rlpo.models.actor_critic import NoisyActorCriticModel
-from asym_rlpo.models.critic import CriticModel, H_CriticModel, HZ_CriticModel
+from asym_rlpo.models.actor import ActorModel
+from asym_rlpo.models.critic import (
+    CriticModels,
+    H_CriticModel,
+    HZ_CriticModel,
+)
 from asym_rlpo.q_estimators import Q_Estimator
 from asym_rlpo.types import LossDict
 
 
-class NoisyA2C(Algorithm):
+class NoisyA2C(A2C):
     def __init__(
         self,
-        actor_critic_model: NoisyActorCriticModel,
-        target_h_critic_model: H_CriticModel,
-        target_hz_critic_model: HZ_CriticModel,
+        actor_model: ActorModel,
+        critic_models: CriticModels,
+        target_critic_models: CriticModels,
         trainer: Trainer,
+        *,
+        pomdp: gym.Env,
     ):
-        models = nn.ModuleDict(
-            {
-                'actor_critic_model': actor_critic_model,
-                'target_h_critic_model': target_h_critic_model,
-                'target_hz_critic_model': target_hz_critic_model,
-            }
+        super().__init__(
+            actor_model=actor_model,
+            critic_models=critic_models,
+            target_critic_models=target_critic_models,
+            trainer=trainer,
         )
-        super().__init__(models, trainer)
-
-        self.actor_critic_model = actor_critic_model
-        self.target_h_critic_model = target_h_critic_model
-        self.target_hz_critic_model = target_hz_critic_model
-
-    def target_pairs(
-        self,
-    ) -> list[tuple[CriticModel, CriticModel]]:
-        return [
-            (
-                self.target_h_critic_model,
-                self.actor_critic_model.h_critic_model,
-            ),
-            (
-                self.target_hz_critic_model,
-                self.actor_critic_model.hz_critic_model,
-            ),
-        ]
+        self._pomdp = pomdp
 
     def compute_losses(
         self,
@@ -56,22 +44,31 @@ class NoisyA2C(Algorithm):
         *,
         discount: float,
         q_estimator: Q_Estimator,
-        pomdp: gym.Env,
-    ) -> LossDict:
-        action_logits = self.actor_critic_model.actor_model.action_logits(episode)
-        vh_values = self.actor_critic_model.h_critic_model.values(episode)
-        vhz_values = self.actor_critic_model.hz_critic_model.values(episode)
+    ) -> tuple[LossDict, LossDict]:
+        actor_model = self.actor_model
+        h_critic_model = cast(H_CriticModel, self.critic_models['h_critic_model'])
+        hz_critic_model = cast(HZ_CriticModel, self.critic_models['hz_critic_model'])
+        target_h_critic_model = cast(
+            H_CriticModel, self.target_critic_models['h_critic_model']
+        )
+        target_hz_critic_model = cast(
+            HZ_CriticModel, self.target_critic_models['hz_critic_model']
+        )
+
+        action_logits = actor_model.action_logits(episode)
+        vh_values = h_critic_model.values(episode)
+        vhz_values = hz_critic_model.values(episode)
         device = action_logits.device
 
         with torch.no_grad():
-            target_vh_values = self.target_h_critic_model.values(episode)
+            target_vh_values = target_h_critic_model.values(episode)
             target_qh_values = q_estimator(
                 episode.rewards,
                 target_vh_values,
                 discount=discount,
             )
 
-            target_vhz_values = self.target_hz_critic_model.values(episode)
+            target_vhz_values = target_hz_critic_model.values(episode)
             target_qhz_values = q_estimator(
                 episode.rewards,
                 target_vhz_values,
@@ -80,8 +77,8 @@ class NoisyA2C(Algorithm):
 
             noise_variance = compute_hz_values_variance(
                 episode,
-                hz_critic_model=self.target_hz_critic_model,
-                pomdp=pomdp,
+                hz_critic_model=target_hz_critic_model,
+                pomdp=self._pomdp,
             )
             # (T,)
             noise = torch.randn_like(target_vh_values) * noise_variance.sqrt()
@@ -93,9 +90,8 @@ class NoisyA2C(Algorithm):
 
         # policy loss
         discounts = discount ** torch.arange(len(episode), device=device)
-        action_nlls = -action_logits.gather(1, episode.actions.unsqueeze(-1)).squeeze(
-            -1
-        )
+        action_nlls = -action_logits.gather(1, episode.actions.unsqueeze(-1))
+        action_nlls = action_nlls.squeeze(-1)
         policy_loss = (discounts * noisy_advantages * action_nlls).sum()
 
         # negentropy loss
@@ -106,12 +102,9 @@ class NoisyA2C(Algorithm):
         h_critic_loss = F.mse_loss(vh_values, target_qh_values, reduction='sum')
         hz_critic_loss = F.mse_loss(vhz_values, target_qhz_values, reduction='sum')
 
-        return {
-            'policy': policy_loss,
-            'negentropy': negentropy_loss,
-            'h_critic': h_critic_loss,
-            'hz_critic': hz_critic_loss,
-        }
+        actor_losses = {'policy': policy_loss, 'negentropy': negentropy_loss}
+        critic_losses = {'h_critic': h_critic_loss, 'hz_critic': hz_critic_loss}
+        return actor_losses, critic_losses
 
 
 def compute_hz_values_variance(

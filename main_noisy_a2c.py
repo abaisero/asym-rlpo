@@ -239,9 +239,7 @@ def parse_args():
     else:
         args.filename_checkpoint = f'{args.run_path}/checkpoint.pkl'
         args.filename_model = f'{args.run_path}/model.pkl'
-        args.filename_modelseq_template = (
-            f'{args.run_path}/modelseq/modelseq.{{}}.pkl'
-        )
+        args.filename_modelseq_template = f'{args.run_path}/modelseq/modelseq.{{}}.pkl'
 
     for name, value in args.wandb_metagroups:
         setattr(args, f'wandb_metagroup_{name}', value)

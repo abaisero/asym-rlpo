@@ -2,22 +2,33 @@ import torch.nn as nn
 
 from asym_rlpo.models.actor import ActorModel, MemoryReactive_ActorModel
 from asym_rlpo.models.critic import (
-    CriticModel,
+    # CriticModel,
     H_CriticModel,
-    HZ_CriticModel,
     HM_CriticModel,
+    HZ_CriticModel,
 )
+
+
+# class ActorCriticModel(nn.Module):
+#     def __init__(
+#         self,
+#         actor_model: ActorModel,
+#         critic_model: CriticModel,
+#     ):
+#         super().__init__()
+#         self.actor_model = actor_model
+#         self.critic_model = critic_model
 
 
 class ActorCriticModel(nn.Module):
     def __init__(
         self,
         actor_model: ActorModel,
-        critic_model: CriticModel,
+        critic_models: nn.ModuleDict,
     ):
         super().__init__()
         self.actor_model = actor_model
-        self.critic_model = critic_model
+        self.critic_models = critic_models
 
 
 class MemoryReactive_ActorCriticModel(nn.Module):

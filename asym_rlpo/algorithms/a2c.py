@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import cast
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,8 +9,8 @@ import torch.nn.functional as F
 from asym_rlpo.algorithms.algorithm import Algorithm
 from asym_rlpo.algorithms.trainer import Trainer
 from asym_rlpo.data import Episode
-from asym_rlpo.models.actor_critic import ActorCriticModel
-from asym_rlpo.models.critic import CriticModel
+from asym_rlpo.models.actor import ActorModel
+from asym_rlpo.models.critic import CriticModel, CriticModels
 from asym_rlpo.q_estimators import Q_Estimator
 from asym_rlpo.types import LossDict
 
@@ -16,28 +18,37 @@ from asym_rlpo.types import LossDict
 class A2C(Algorithm):
     def __init__(
         self,
-        actor_critic_model: ActorCriticModel,
-        target_critic_model: CriticModel,
+        actor_model: ActorModel,
+        critic_models: CriticModels,
+        target_critic_models: CriticModels,
         trainer: Trainer,
     ):
         models = nn.ModuleDict(
             {
-                'actor_critic_model': actor_critic_model,
-                'target_critic_model': target_critic_model,
+                'actor_model': actor_model,
+                'critic_models': critic_models,
+                'target_critic_models': target_critic_models,
             }
         )
         super().__init__(models, trainer)
 
-        self.actor_critic_model = actor_critic_model
-        self.target_critic_model = target_critic_model
+        self.actor_critic_models = nn.ModuleDict(
+            {
+                'actor_model': actor_model,
+                'critic_models': critic_models,
+            }
+        )
+        self.actor_model = actor_model
+        self.critic_models = critic_models
+        self.target_critic_models = target_critic_models
 
     def target_pairs(
         self,
-    ) -> list[tuple[CriticModel, CriticModel]]:
+    ) -> list[tuple[CriticModels, CriticModels]]:
         return [
             (
-                self.target_critic_model,
-                self.actor_critic_model.critic_model,
+                self.target_critic_models,
+                self.critic_models,
             )
         ]
 
@@ -47,9 +58,15 @@ class A2C(Algorithm):
         *,
         discount: float,
         q_estimator: Q_Estimator,
-    ) -> LossDict:
-        action_logits = self.actor_critic_model.actor_model.action_logits(episode)
-        v_values = self.actor_critic_model.critic_model.values(episode)
+    ) -> tuple[LossDict, LossDict]:
+        actor_model = self.actor_model
+        critic_model = cast(CriticModel, self.critic_models['critic'])
+        target_critic_model = cast(
+            CriticModel, self.target_critic_models['critic']
+        )
+
+        action_logits = actor_model.action_logits(episode)
+        v_values = critic_model.values(episode)
         device = action_logits.device
 
         with torch.no_grad():
@@ -60,7 +77,7 @@ class A2C(Algorithm):
             )
             advantages = q_values - v_values
 
-            target_v_values = self.target_critic_model.values(episode)
+            target_v_values = target_critic_model.values(episode)
             target_q_values = q_estimator(
                 episode.rewards,
                 target_v_values,
@@ -69,9 +86,8 @@ class A2C(Algorithm):
 
         # policy loss
         discounts = discount ** torch.arange(len(episode), device=device)
-        action_nlls = -action_logits.gather(1, episode.actions.unsqueeze(-1)).squeeze(
-            -1
-        )
+        action_nlls = -action_logits.gather(1, episode.actions.unsqueeze(-1))
+        action_nlls = action_nlls.squeeze(-1)
         policy_loss = (discounts * advantages * action_nlls).sum()
 
         # negentropy loss
@@ -81,8 +97,6 @@ class A2C(Algorithm):
         # critic loss
         critic_loss = F.mse_loss(v_values, target_q_values, reduction='sum')
 
-        return {
-            'policy': policy_loss,
-            'negentropy': negentropy_loss,
-            'critic': critic_loss,
-        }
+        actor_losses = {'policy': policy_loss, 'negentropy': negentropy_loss}
+        critic_losses = {'critic': critic_loss}
+        return actor_losses, critic_losses

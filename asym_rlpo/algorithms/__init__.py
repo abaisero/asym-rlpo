@@ -1,3 +1,6 @@
+import torch
+import torch.nn as nn
+
 from asym_rlpo.algorithms.a2c import A2C
 from asym_rlpo.algorithms.adqn import ADQN, ADQN_VarianceReduced
 from asym_rlpo.algorithms.adqn_short import (
@@ -9,13 +12,14 @@ from asym_rlpo.algorithms.adqn_state import (
     ADQN_State_VarianceReduced,
 )
 from asym_rlpo.algorithms.algorithm import ValueBasedAlgorithm
+from asym_rlpo.algorithms.biphasic_a2c import BiphasicA2C
 from asym_rlpo.algorithms.dqn import DQN
 from asym_rlpo.algorithms.mr_a2c import MemoryReactive_A2C
 from asym_rlpo.algorithms.noisy_a2c import NoisyA2C
 from asym_rlpo.algorithms.trainer import Trainer
+from asym_rlpo.data import Episode
 from asym_rlpo.models.actor import MemoryReactive_ActorModel
 from asym_rlpo.models.actor_critic import (
-    ActorCriticModel,
     MemoryReactive_ActorCriticModel,
     NoisyActorCriticModel,
 )
@@ -144,13 +148,25 @@ def make_a2c_algorithm(
     actor_optimizer_factory: OptimizerFactory,
     critic_optimizer_factory: OptimizerFactory,
     max_gradient_norm: float,
+    info: dict,
 ) -> A2C:
+    if name.startswith('biphasic-asym-a2c'):
+        return make_biphasic_a2c_algorithm(
+            name,
+            model_factory,
+            actor_optimizer_factory=actor_optimizer_factory,
+            critic_optimizer_factory=critic_optimizer_factory,
+            max_gradient_norm=max_gradient_norm,
+            info=info,
+        )
+
+    actor_model = model_factory.make_actor_model()
     critic_type = get_a2c_critic_type(name)
-    actor_critic_model = ActorCriticModel(
-        model_factory.make_actor_model(),
-        model_factory.make_critic_model(critic_type),
-    )
+    critic_model = model_factory.make_critic_model(critic_type)
     target_critic_model = model_factory.make_critic_model(critic_type)
+
+    critic_models = nn.ModuleDict({'critic': critic_model})
+    target_critic_models = nn.ModuleDict({'critic': target_critic_model})
 
     trainer = Trainer.from_factories(
         {
@@ -158,13 +174,86 @@ def make_a2c_algorithm(
             'critic': critic_optimizer_factory,
         },
         {
-            'actor': actor_critic_model.actor_model.parameters,
-            'critic': actor_critic_model.critic_model.parameters,
+            'actor': actor_model.parameters,
+            'critic': critic_model.parameters,
         },
         max_gradient_norm=max_gradient_norm,
     )
 
-    return A2C(actor_critic_model, target_critic_model, trainer)
+    return A2C(actor_model, critic_models, target_critic_models, trainer)
+
+
+def make_phase_identifier(env: str):
+    if 'heavenhell_' in env:
+        return phase_identifier_heavenhell
+
+    raise ValueError(f'invalid env {env=} for biphasic-a2c')
+
+
+def phase_identifier_heavenhell(episode: Episode) -> torch.Tensor:
+    dummy_observation = episode.observations[0]
+    oracle_observations = [dummy_observation - 2, dummy_observation - 1]
+    counts = torch.zeros_like(episode.observations)
+    for oracle_observation in oracle_observations:
+        counts += episode.observations == oracle_observation
+
+    phases = counts.cumsum(dim=0).sign()
+    return phases
+
+
+def make_biphasic_a2c_algorithm(
+    name: str,
+    model_factory: ModelFactory,
+    *,
+    actor_optimizer_factory: OptimizerFactory,
+    critic_optimizer_factory: OptimizerFactory,
+    max_gradient_norm: float,
+    info: dict,
+) -> BiphasicA2C:
+    if name == 'biphasic-asym-a2c-h-hs':
+        critic_type_0 = CriticType.H
+        critic_type_1 = CriticType.HZ
+    elif name == 'biphasic-asym-a2c-hs-h':
+        critic_type_0 = CriticType.HZ
+        critic_type_1 = CriticType.H
+    else:
+        raise ValueError(f'invalid biphasic-a2c {name=}')
+
+    phase_identifier = make_phase_identifier(info['env'])
+
+    actor_model = model_factory.make_actor_model()
+    critic_model_0 = model_factory.make_critic_model(critic_type_0)
+    critic_model_1 = model_factory.make_critic_model(critic_type_1)
+    target_critic_model_0 = model_factory.make_critic_model(critic_type_0)
+    target_critic_model_1 = model_factory.make_critic_model(critic_type_1)
+    critic_models = nn.ModuleDict(
+        {'critic_0': critic_model_0, 'critic_1': critic_model_1}
+    )
+    target_critic_models = nn.ModuleDict(
+        {'critic_0': target_critic_model_0, 'critic_1': target_critic_model_1}
+    )
+
+    trainer = Trainer.from_factories(
+        {
+            'actor': actor_optimizer_factory,
+            'critic_0': critic_optimizer_factory,
+            'critic_1': critic_optimizer_factory,
+        },
+        {
+            'actor': actor_model.parameters,
+            'critic_0': critic_model_0.parameters,
+            'critic_1': critic_model_1.parameters,
+        },
+        max_gradient_norm=max_gradient_norm,
+    )
+
+    return BiphasicA2C(
+        actor_model,
+        critic_models,
+        target_critic_models,
+        trainer,
+        phase_identifier=phase_identifier,
+    )
 
 
 def make_noisy_a2c_algorithm(
@@ -212,6 +301,7 @@ def make_noisy_a2c_algorithm(
         target_h_critic_model,
         target_hz_critic_model,
         trainer,
+        pomdp=pomdp,
     )
 
 

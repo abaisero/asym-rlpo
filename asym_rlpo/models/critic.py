@@ -1,6 +1,8 @@
 import abc
+from typing import TypeAlias
 
 import torch
+import torch.nn as nn
 
 from asym_rlpo.data import Episode
 from asym_rlpo.models.history import HistoryModel
@@ -8,6 +10,8 @@ from asym_rlpo.models.memory import MemoryModel
 from asym_rlpo.models.model import Model
 from asym_rlpo.models.types import UModule, VModule
 from asym_rlpo.types import Features, Values
+
+CriticModels: TypeAlias = nn.ModuleDict
 
 
 class CriticModel(Model):
