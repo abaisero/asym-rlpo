@@ -5,11 +5,13 @@ export WANDB_CONSOLE=off
 export WANDB_SILENT=true
 
 algos=(
-  a2c
-  asym-a2c
-  asym-a2c-state
+  # a2c
+  # asym-a2c
+  # asym-a2c-state
   biphasic-asym-a2c-h-hs
+  biphasic-asym-a2c-h-s
   biphasic-asym-a2c-hs-h
+  biphasic-asym-a2c-s-h
 )
 
 envs=(

@@ -213,8 +213,14 @@ def make_biphasic_a2c_algorithm(
     if name == 'biphasic-asym-a2c-h-hs':
         critic_type_0 = CriticType.H
         critic_type_1 = CriticType.HZ
+    elif name == 'biphasic-asym-a2c-h-s':
+        critic_type_0 = CriticType.H
+        critic_type_1 = CriticType.Z
     elif name == 'biphasic-asym-a2c-hs-h':
         critic_type_0 = CriticType.HZ
+        critic_type_1 = CriticType.H
+    elif name == 'biphasic-asym-a2c-s-h':
+        critic_type_0 = CriticType.Z
         critic_type_1 = CriticType.H
     else:
         raise ValueError(f'invalid biphasic-a2c {name=}')
