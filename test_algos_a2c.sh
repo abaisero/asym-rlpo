@@ -8,16 +8,19 @@ algos=(
   # a2c
   # asym-a2c
   # asym-a2c-state
-  biphasic-asym-a2c-h-hs
-  biphasic-asym-a2c-h-s
-  biphasic-asym-a2c-hs-h
-  biphasic-asym-a2c-s-h
+  # biphasic-asym-a2c-h-hs
+  # biphasic-asym-a2c-h-s
+  # biphasic-asym-a2c-hs-h
+  # biphasic-asym-a2c-s-h
+  counterfactual-asym-a2c
 )
 
 envs=(
-  "POMDP-heavenhell_2-episodic-v0 --latent-type state"
-  "POMDP-heavenhell_2-episodic-v0 --latent-type hh-heaven"
-  "POMDP-heavenhell_2-episodic-v0 --latent-type hh-position"
+  "POMDP-heavenhell_2-episodic-v0"
+  "POMDP-heavenhell_3-episodic-v0"
+  "POMDP-heavenhell_4-episodic-v0"
+  # "POMDP-heavenhell_2-episodic-v0 --latent-type hh-heaven"
+  # "POMDP-heavenhell_2-episodic-v0 --latent-type hh-position"
   # POMDP-shopping_5-episodic-v1
   # PO-pos-CartPole-v1
   # "gv-yaml/asym-rlpo/gv_four_rooms.7x7.yaml"

@@ -101,6 +101,7 @@ def parse_args():
             'biphasic-asym-a2c-hs-h',
             'biphasic-asym-a2c-h-s',
             'biphasic-asym-a2c-s-h',
+            'counterfactual-asym-a2c',
         ],
     )
 
@@ -250,6 +251,11 @@ def parse_args():
     for name, value in args.wandb_metagroups:
         setattr(args, f'wandb_metagroup_{name}', value)
 
+    if args.algo == 'counterfactual-asym-a2c' and args.latent_type != 'state':
+        raise ValueError(
+            f'Counterfactual A2C only works with state latent type, got {args.latent_type}'
+        )
+
     return args
 
 
@@ -365,7 +371,7 @@ def make_runstate(checkpoint: Checkpoint | None) -> Runstate:
         actor_optimizer_factory=actor_optimizer_factory,
         critic_optimizer_factory=critic_optimizer_factory,
         max_gradient_norm=config.optim_max_norm,
-        info={'env': config.env},
+        info={'env_name': config.env, 'env': env},
     )
 
     device = get_device(config.device)

@@ -1,3 +1,7 @@
+from functools import partial
+
+import gym
+import gym.spaces
 import torch
 import torch.nn as nn
 
@@ -13,11 +17,13 @@ from asym_rlpo.algorithms.adqn_state import (
 )
 from asym_rlpo.algorithms.algorithm import ValueBasedAlgorithm
 from asym_rlpo.algorithms.biphasic_a2c import BiphasicA2C
+from asym_rlpo.algorithms.counterfactual_a2c import CounterfactualA2C
 from asym_rlpo.algorithms.dqn import DQN
 from asym_rlpo.algorithms.mr_a2c import MemoryReactive_A2C
 from asym_rlpo.algorithms.noisy_a2c import NoisyA2C
 from asym_rlpo.algorithms.trainer import Trainer
 from asym_rlpo.data import Episode
+from asym_rlpo.envs import Environment
 from asym_rlpo.models.actor import MemoryReactive_ActorModel
 from asym_rlpo.models.actor_critic import (
     MemoryReactive_ActorCriticModel,
@@ -160,6 +166,16 @@ def make_a2c_algorithm(
             info=info,
         )
 
+    if name == 'counterfactual-asym-a2c':
+        return make_counterfactual_a2c_algorithm(
+            name,
+            model_factory,
+            actor_optimizer_factory=actor_optimizer_factory,
+            critic_optimizer_factory=critic_optimizer_factory,
+            max_gradient_norm=max_gradient_norm,
+            info=info,
+        )
+
     actor_model = model_factory.make_actor_model()
     critic_type = get_a2c_critic_type(name)
     critic_model = model_factory.make_critic_model(critic_type)
@@ -183,16 +199,17 @@ def make_a2c_algorithm(
     return A2C(actor_model, critic_models, target_critic_models, trainer)
 
 
-def make_phase_identifier(env: str):
-    if 'heavenhell_' in env:
+def make_phase_identifier(env_name: str):
+    if 'heavenhell_' in env_name:
         return phase_identifier_heavenhell
 
-    raise ValueError(f'invalid env {env=} for biphasic-a2c')
+    raise ValueError(f'invalid env {env_name=} for biphasic-a2c')
 
 
 def phase_identifier_heavenhell(episode: Episode) -> torch.Tensor:
     dummy_observation = episode.observations[0]
     oracle_observations = [dummy_observation - 2, dummy_observation - 1]
+
     counts = torch.zeros_like(episode.observations)
     for oracle_observation in oracle_observations:
         counts += episode.observations == oracle_observation
@@ -225,7 +242,7 @@ def make_biphasic_a2c_algorithm(
     else:
         raise ValueError(f'invalid biphasic-a2c {name=}')
 
-    phase_identifier = make_phase_identifier(info['env'])
+    phase_identifier = make_phase_identifier(info['env_name'])
 
     actor_model = model_factory.make_actor_model()
     critic_model_0 = model_factory.make_critic_model(critic_type_0)
@@ -259,6 +276,81 @@ def make_biphasic_a2c_algorithm(
         target_critic_models,
         trainer,
         phase_identifier=phase_identifier,
+    )
+
+
+def make_counterfactual_sampler(env_name: str, env: Environment):
+    if 'heavenhell_' in env_name:
+        return partial(counterfactual_sampler_heavenhell, env)
+
+    raise ValueError(f'invalid env {env=} for biphasic-a2c')
+
+
+def counterfactual_sampler_heavenhell(
+    env: Environment, episode: Episode
+) -> torch.Tensor:
+    dummy_observation = episode.observations[0]
+    oracle_observations = [dummy_observation - 2, dummy_observation - 1]
+
+    counts = torch.zeros_like(episode.observations)
+    for oracle_observation in oracle_observations:
+        counts += episode.observations == oracle_observation
+
+    oracle_seen = (counts > 0).any()
+
+    if oracle_seen:
+        return episode.latents
+
+    assert isinstance(env.latent_space, gym.spaces.Discrete)
+    num_states = env.latent_space.n
+    state_delta = num_states // 2
+
+    normalized_states = episode.latents - episode.latents[0]
+    counterfactual_delta = state_delta * torch.randint(2, (1,)).item()
+    counterfactual_states = normalized_states + counterfactual_delta
+
+    return counterfactual_states
+
+
+def make_counterfactual_a2c_algorithm(
+    name: str,
+    model_factory: ModelFactory,
+    *,
+    actor_optimizer_factory: OptimizerFactory,
+    critic_optimizer_factory: OptimizerFactory,
+    max_gradient_norm: float,
+    info: dict,
+) -> A2C:
+    assert name == 'counterfactual-asym-a2c'
+
+    actor_model = model_factory.make_actor_model()
+    critic_type = CriticType.HZ
+    critic_model = model_factory.make_critic_model(critic_type)
+    target_critic_model = model_factory.make_critic_model(critic_type)
+
+    critic_models = nn.ModuleDict({'critic': critic_model})
+    target_critic_models = nn.ModuleDict({'critic': target_critic_model})
+
+    trainer = Trainer.from_factories(
+        {
+            'actor': actor_optimizer_factory,
+            'critic': critic_optimizer_factory,
+        },
+        {
+            'actor': actor_model.parameters,
+            'critic': critic_model.parameters,
+        },
+        max_gradient_norm=max_gradient_norm,
+    )
+
+    counterfactual_sampler = make_counterfactual_sampler(info['env_name'], info['env'])
+
+    return CounterfactualA2C(
+        actor_model,
+        critic_models,
+        target_critic_models,
+        trainer,
+        counterfactual_sampler=counterfactual_sampler,
     )
 
 
